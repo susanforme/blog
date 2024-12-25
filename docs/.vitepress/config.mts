@@ -17,8 +17,8 @@ export default defineConfig({
   extends: blogTheme,
   base:'/blog',
   lang: 'zh-cn',
-  title: '@sugarat/theme',
-  description: 'susanforme blog',
+  title: '桃花笑春风\'s blog',
+  description: '桃花笑春风 blog',
   lastUpdated: true,
   // 详见：https://vitepress.dev/zh/reference/site-config#head
   head: [
@@ -38,7 +38,7 @@ export default defineConfig({
     lastUpdatedText: '上次更新于',
 
     // 设置logo
-    logo: '/logo.png',
+    logo: 'https://avatars.githubusercontent.com/u/51266600',
     // editLink: {
     //   pattern:
     //     'https://github.com/ATQQ/sugar-blog/tree/master/packages/blogpress/:path',
@@ -46,13 +46,8 @@ export default defineConfig({
     // },
     nav: [
       { text: '首页', link: '/' },
-      { text: '关于作者', link: 'https://sugarat.top/aboutme.html' }
+      { text: '关于作者', link: 'https://github.com/桃花笑春风' }
     ],
-    socialLinks: [
-      {
-        icon: 'github',
-        link: 'https://github.com/ATQQ/sugar-blog/tree/master/packages/theme'
-      }
-    ]
+
   }
 })
