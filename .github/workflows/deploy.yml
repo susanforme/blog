@@ -69,14 +69,8 @@ jobs:
 
   deploy:
     runs-on: ubuntu-latest
-    needs: build  # 确保先构建后部署
+    needs: build
     steps:
-      # 下载构建的静态文件
-      - name: Download artifact
-        uses: actions/download-pages-artifact@v3
-        with:
-          path: ./_site
-
       # 部署到 GitHub Pages
       - name: Deploy to GitHub Pages
         uses: actions/deploy-pages@v4
