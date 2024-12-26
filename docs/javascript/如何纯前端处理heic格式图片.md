@@ -277,7 +277,11 @@ export interface DecodeResult {
    */
   isPrimary: boolean;
 }
-``
+```
 
 ## 优化
 可以将图片解析放到web worker中。同时使用OffscreenCanvas 来绘制图片，提升性能。
+
+## demo
+
+// 
