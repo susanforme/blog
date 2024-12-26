@@ -20,7 +20,7 @@ permissions:
 
 # 定义任务
 jobs:
-  deploy-and-build:
+  build:
     runs-on: ubuntu-latest
     steps:
       # 拉取代码
@@ -64,6 +64,16 @@ jobs:
       # 上传构建的静态文件
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./_site
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build  # 确保先构建后部署
+    steps:
+      # 下载构建的静态文件
+      - name: Download artifact
+        uses: actions/download-pages-artifact@v3
         with:
           path: ./_site
 
