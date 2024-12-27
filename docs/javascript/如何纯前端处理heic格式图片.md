@@ -1,21 +1,31 @@
-# 如何纯前端处理heic格式图片
+# 如何纯前端处理 HEIC 格式图片
 
-## HEIC是什么?
+## HEIC 是什么？
 
-**高效率图像文件格式**（英语：**H**igh **E**fficiency **I**mage **F**ile Format， **HEIF**，也称**高效图像文件格式**，是一个用于单张图像或图像序列的文件格式 ,HEIC是HEIF格式文件的扩展名.作为HEVC编码的容器，HEIF文件格式旨在提供比JPEG更好的压缩率，同时保持相同的图像质量。HEIF文件格式是苹果公司在其iOS设备上使用的格式，并且是苹果公司为iOS设备开发的HEVC编码器的容器格式。但是浏览器并不支持HEIC格式，因此需要使用一些方法来处理HEIC格式的图片。
+**高效率图像文件格式**（英语：**H**igh **E**fficiency **I**mage **F**ile Format，简称 **HEIF**），是一种用于存储单张图像或图像序列的文件格式，而 **HEIC** 是 HEIF 文件的扩展名。作为 HEVC 编码的容器，HEIF 提供了比 JPEG 更高的压缩效率，同时保持相同的图像质量。
 
-## 如何处理HEIC格式图片
-浏览器无法直接处理HEIC格式图片，因此需要使用一些方法来处理HEIC格式的图片。一种方法是使用JavaScript库来处理HEIC格式的图片，例如heic2any库。另一种方法是使用c++库libheif将HEIC格式的图片转换为JPEG,PNG等能直接在浏览器显示的格式图片。 heic2any库已经不在维护状态,同时存在许多问题,因此推荐使用libheif库。这里选择使用c++库libheif https://github.com/strukturag/libheif 将其编译为wasm.
+HEIF 文件格式被苹果公司广泛应用于其 iOS 设备，但由于浏览器原生并不支持 HEIC 格式，因此需要使用额外的方法来处理和显示 HEIC 图片。
 
-## 编译libheif
+## 如何处理 HEIC 格式图片？
 
-强烈建议在类unix环境下编译
+由于浏览器无法直接处理 HEIC 格式图片，我们需要将其转换为浏览器支持的格式，例如 JPEG 或 PNG。目前常见的解决方案包括：
 
-1. 修改编译脚本
+1. 使用 JavaScript 库（如 `heic2any`）来转换 HEIC 文件。
+2. 使用 C++ 库 `libheif`，将其编译为 WebAssembly (WASM) 模块，在浏览器端处理 HEIC 图片。
 
-仓库自带脚本位于 libheif/build-emscripten.sh.
+**推荐使用 `libheif`**，因为 `heic2any` 库已停止维护且存在许多问题。以下是如何使用 `libheif` 并将其编译为 WASM 的具体步骤。
 
-字太多不看,直接看最后
+## 编译 libheif
+
+### 环境建议
+
+强烈建议在类 Unix 环境下（如 WSL Ubuntu）进行编译。
+
+### 步骤
+
+#### 1. 修改编译脚本
+
+`libheif` 仓库自带编译脚本位于 `libheif/build-emscripten.sh`，以下为修改后的脚本内容：
 
 ```bash
 #!/bin/bash
@@ -31,43 +41,33 @@ emcc -Wl,--whole-archive "$LIBHEIFA" -Wl,--no-whole-archive \
     $BUILD_FLAGS \
     $RELEASE_BUILD_FLAGS
 ```
-
-
-
-2. 拉取依赖,开始编译
-
+#### 2. 拉取依赖并开始编译
 ```bash
-# 使用wsl ubuntu编译
+# 使用 WSL Ubuntu 编译
 #!/bin/bash
-# Get the emsdk repo
+
+# 下载并安装 Emscripten
 git clone https://github.com/emscripten-core/emsdk.git
-
-# Enter that directory
 cd emsdk
-# Fetch the latest version of the emsdk (not needed the first time you clone)
 git pull
-
-# Download and install the latest SDK tools.
 ./emsdk install latest
-
-# Make the "latest" SDK "active" for the current user. (writes .emscripten file)
 ./emsdk activate latest
-
-# Activate PATH and other environment variables in the current terminal
 source ./emsdk_env.sh
 
-# 安装工具链
+# 安装必要的工具链
 sudo apt install build-essential cmake
 
-# 编译libheif
+# 克隆 libheif 仓库并开始编译
 git clone https://github.com/strukturag/libheif
 cd libheif
 mkdir buildjs
 cd buildjs
-# 使用目录下的脚本支持es6导出
+
+# 使用仓库自带脚本支持 ES6 模块导出
 USE_WASM=1 ../build-emscripten.sh ..
+
 ```
-3. 使用编译产物
+#### 3. 使用编译产物
 
 编译产物位于 libheif/buildjs/libheif.js
 ![build](./img/heic/build.png)
