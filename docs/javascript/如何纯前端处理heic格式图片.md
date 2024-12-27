@@ -284,4 +284,4 @@ export interface DecodeResult {
 
 ## demo
 
-// 
+[heic demo](/blog/demo/heic/index.html){target="_self"}
