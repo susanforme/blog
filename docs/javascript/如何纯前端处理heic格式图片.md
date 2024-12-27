@@ -1,3 +1,9 @@
+---
+description: 纯前端处理 HEIC 格式图片
+readingTime: false
+tag:
+ - javascript
+---
 # 如何纯前端处理 HEIC 格式图片
 
 ## HEIC 是什么？
