@@ -6,7 +6,7 @@ const props = defineProps({
   code: String,
 });
 
-const el = ref<HTMLDivElement | null>(null);
+const svg = ref<string>('');
 
 onMounted(async () => {
   mermaid.initialize({ startOnLoad: false });
@@ -14,10 +14,21 @@ onMounted(async () => {
     'mermaid-svg',
     decodeURIComponent(props.code!),
   );
-  el.value!.innerHTML = result.svg;
+  svg.value = svgToDataUrl(result.svg);
 });
+function svgToDataUrl(svg: string): string {
+  return `data:image/svg+xml;base64,${btoa(
+    new TextEncoder()
+      .encode(svg)
+      .reduce((data, byte) => data + String.fromCharCode(byte), ''),
+  )}`;
+}
 </script>
 
 <template>
-  <div ref="el" class="mermaid" />
+  <div class="mermaid">
+    <div v-viewer>
+      <img :src="svg" alt="diagram" style="cursor: zoom-in" />
+    </div>
+  </div>
 </template>

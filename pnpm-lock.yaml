@@ -20,6 +20,12 @@ importers:
       mermaid:
         specifier: ^11.8.1
         version: 11.8.1
+      v-viewer:
+        specifier: ^3.0.22
+        version: 3.0.22(viewerjs@1.11.7)(vue@3.5.12(typescript@5.8.3))
+      viewerjs:
+        specifier: ^1.11.7
+        version: 1.11.7
       vue:
         specifier: 3.5.12
         version: 3.5.12(typescript@5.8.3)
@@ -1723,11 +1729,20 @@ packages:
     engines: {node: '>=8'}
     hasBin: true
 
+  v-viewer@3.0.22:
+    resolution: {integrity: sha512-uYyP5FPT4K/Sd5D1mhB2HMVV8jnf6zYy2HD1PHCNAO6s2Iway+Wls60pwh7y4F3e2Nlc9549Pvy2HXaq8PKrAg==}
+    peerDependencies:
+      viewerjs: ^1.11.0
+      vue: ^3.0.0
+
   vfile-message@4.0.2:
     resolution: {integrity: sha512-jRDZ1IMLttGj41KcZvlrYAaI3CfqpLpfpf+Mfig13viT6NKvRzWZ+lXz0Y5D60w6uJIBAOGq9mSHf0gktF0duw==}
 
   vfile@6.0.3:
     resolution: {integrity: sha512-KzIbH/9tXat2u30jf+smMwFCsno4wHVdNmzFyL+T/L3UGqqk6JKfVqOFOZEpZSHADH1k40ab6NUIXZq422ov3Q==}
+
+  viewerjs@1.11.7:
+    resolution: {integrity: sha512-0JuVqOmL5v1jmEAlG5EBDR3XquxY8DWFQbFMprOXgaBB0F7Q/X9xWdEaQc59D8xzwkdUgXEMSSknTpriq95igg==}
 
   vite@5.4.19:
     resolution: {integrity: sha512-qO3aKv3HoQC8QKiNSTuUM1l9o/XX3+c+VTgLHbJWHZGeTPVAg2XwazI9UWzoxjIJCGCV2zU60uqMzjeLZuULqA==}
@@ -3749,6 +3764,12 @@ snapshots:
       kleur: 4.1.5
       sade: 1.8.1
 
+  v-viewer@3.0.22(viewerjs@1.11.7)(vue@3.5.12(typescript@5.8.3)):
+    dependencies:
+      lodash-es: 4.17.21
+      viewerjs: 1.11.7
+      vue: 3.5.12(typescript@5.8.3)
+
   vfile-message@4.0.2:
     dependencies:
       '@types/unist': 3.0.3
@@ -3758,6 +3779,8 @@ snapshots:
     dependencies:
       '@types/unist': 3.0.3
       vfile-message: 4.0.2
+
+  viewerjs@1.11.7: {}
 
   vite@5.4.19(sass@1.89.2):
     dependencies:

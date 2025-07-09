@@ -1,5 +1,7 @@
 import BlogTheme from '@sugarat/theme';
 import Mermaid from './components/Mermaid.vue';
+import { Theme } from 'vitepress';
+import Viewer from 'v-viewer';
 // 自定义样式重载
 // import './style.scss'
 
@@ -9,6 +11,6 @@ import Mermaid from './components/Mermaid.vue';
 export default {
   ...BlogTheme,
   enhanceApp({ app }) {
-    app.component('Mermaid', Mermaid);
+    app.component('Mermaid', Mermaid).use(Viewer);
   },
-};
+} as Theme;
