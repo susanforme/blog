@@ -2,24 +2,32 @@
 description: 纯前端处理 HEIC 格式图片
 readingTime: false
 tag:
- - javascript
+  - javascript
 ---
+
 # 如何纯前端处理 HEIC 格式图片
 
 ## HEIC 是什么？
 
-**高效率图像文件格式**（英语：**H**igh **E**fficiency **I**mage **F**ile Format，简称 **HEIF**），是一种用于存储单张图像或图像序列的文件格式，而 **HEIC** 是 HEIF 文件的扩展名。作为 HEVC 编码的容器，HEIF 提供了比 JPEG 更高的压缩效率，同时保持相同的图像质量。
+**高效率图像文件格式**（英语：**H**igh **E**fficiency **I**mage **F**ile
+Format，简称 **HEIF**），是一种用于存储单张图像或图像序列的文件格式，而 **HEIC**
+是 HEIF 文件的扩展名。作为 HEVC 编码的容器，HEIF 提供了比 JPEG 更高的压缩效率，
+同时保持相同的图像质量。
 
-HEIF 文件格式被苹果公司广泛应用于其 iOS 设备，但由于浏览器原生并不支持 HEIC 格式，因此需要使用额外的方法来处理和显示 HEIC 图片。
+HEIF 文件格式被苹果公司广泛应用于其 iOS 设备，但由于浏览器原生并不支持 HEIC 格式
+，因此需要使用额外的方法来处理和显示 HEIC 图片。
 
 ## 如何处理 HEIC 格式图片？
 
-由于浏览器无法直接处理 HEIC 格式图片，我们需要将其转换为浏览器支持的格式，例如 JPEG 或 PNG。目前常见的解决方案包括：
+由于浏览器无法直接处理 HEIC 格式图片，我们需要将其转换为浏览器支持的格式，例如
+JPEG 或 PNG。目前常见的解决方案包括：
 
 1. 使用 JavaScript 库（如 `heic2any`）来转换 HEIC 文件。
-2. 使用 C++ 库 `libheif`，将其编译为 WebAssembly (WASM) 模块，在浏览器端处理 HEIC 图片。
+2. 使用 C++ 库 `libheif`，将其编译为 WebAssembly (WASM) 模块，在浏览器端处理
+   HEIC 图片。
 
-**推荐使用 `libheif`**，因为 `heic2any` 库已停止维护且存在许多问题。以下是如何使用 `libheif` 并将其编译为 WASM 的具体步骤。
+**推荐使用 `libheif`**，因为 `heic2any` 库已停止维护且存在许多问题。以下是如何使
+用 `libheif` 并将其编译为 WASM 的具体步骤。
 
 ## 编译 libheif
 
@@ -31,7 +39,8 @@ HEIF 文件格式被苹果公司广泛应用于其 iOS 设备，但由于浏览�
 
 #### 1. 修改编译脚本
 
-`libheif` 仓库自带编译脚本位于 `libheif/build-emscripten.sh`，以下为修改后的脚本内容：
+`libheif` 仓库自带编译脚本位于 `libheif/build-emscripten.sh`，以下为修改后的脚本
+内容：
 
 ```bash
 #!/bin/bash
@@ -47,7 +56,9 @@ emcc -Wl,--whole-archive "$LIBHEIFA" -Wl,--no-whole-archive \
     $BUILD_FLAGS \
     $RELEASE_BUILD_FLAGS
 ```
+
 #### 2. 拉取依赖并开始编译
+
 ```bash
 # 使用 WSL Ubuntu 编译
 #!/bin/bash
@@ -73,18 +84,15 @@ cd buildjs
 USE_WASM=1 ../build-emscripten.sh ..
 
 ```
+
 #### 3. 使用编译产物
 
-编译产物位于 libheif/buildjs/libheif.js
-![build](./img/heic/build.png)
+编译产物位于 libheif/buildjs/libheif.js ![build](./img/heic/build.png)
 
 ## 简易封装通用方法
 
 ```ts
-import type {
-  MainModule,
-  heif_context,
-} from '../lib/libheif';
+import type { MainModule, heif_context } from '../lib/libheif';
 import loadModule from '../lib/libheif';
 
 /**
@@ -106,9 +114,7 @@ export class HEIFReader {
     return new Promise<Uint8Array>((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => {
-        resolve(
-          new Uint8Array(reader.result as ArrayBuffer),
-        );
+        resolve(new Uint8Array(reader.result as ArrayBuffer));
       };
       reader.onerror = reject;
       reader.readAsArrayBuffer(blob);
@@ -119,36 +125,25 @@ export class HEIFReader {
    * @param imgFile Uint8Array | Blob | File
    */
   async heifDecode(imgFile: Uint8Array | Blob | File) {
-    if (!HEIFReader.heifModule)
-      throw new Error('heif未初始化');
+    if (!HEIFReader.heifModule) throw new Error('heif未初始化');
     if (this.#heifDecoder) {
-      HEIFReader.heifModule.heif_context_free(
-        this.#heifDecoder,
-      );
+      HEIFReader.heifModule.heif_context_free(this.#heifDecoder);
     }
     const start = Date.now();
-    console.log(
-      new Date().toLocaleTimeString(),
-      '开始heif解码',
-    );
+    console.log(new Date().toLocaleTimeString(), '开始heif解码');
     let data = imgFile as Uint8Array;
     if (imgFile instanceof Blob) {
       data = await this.#blobToUnit8Array(imgFile);
     }
-    this.#heifDecoder =
-      HEIFReader.heifModule.heif_context_alloc();
+    this.#heifDecoder = HEIFReader.heifModule.heif_context_alloc();
     if (!this.#heifDecoder) {
       throw new Error('heif解码器初始化失败');
     }
-    const error =
-      HEIFReader.heifModule.heif_context_read_from_memory(
-        this.#heifDecoder,
-        data,
-      );
-    if (
-      error.code !==
-      HEIFReader.heifModule.heif_error_code.heif_error_Ok
-    ) {
+    const error = HEIFReader.heifModule.heif_context_read_from_memory(
+      this.#heifDecoder,
+      data,
+    );
+    if (error.code !== HEIFReader.heifModule.heif_error_code.heif_error_Ok) {
       throw new Error('heif解码失败');
     }
     const ids =
@@ -164,23 +159,17 @@ export class HEIFReader {
     const result: Promise<DecodeResult | undefined>[] = [];
     const handleTo = async (id: number) => {
       const heifModule = HEIFReader.heifModule!;
-      const handle =
-        heifModule.heif_js_context_get_image_handle(
-          this.#heifDecoder!,
-          id,
-        );
+      const handle = heifModule.heif_js_context_get_image_handle(
+        this.#heifDecoder!,
+        id,
+      );
       if (!handle || handle.code) {
         console.log('没有获取到图片句柄', id, handle);
         return;
       }
-      const width =
-        heifModule.heif_image_handle_get_width(handle);
-      const height =
-        heifModule.heif_image_handle_get_height(handle);
-      const isPrimary =
-        heifModule.heif_image_handle_is_primary_image(
-          handle,
-        );
+      const width = heifModule.heif_image_handle_get_width(handle);
+      const height = heifModule.heif_image_handle_get_height(handle);
+      const isPrimary = heifModule.heif_image_handle_is_primary_image(handle);
       // 以RGB格式解码
       const img = heifModule.heif_js_decode_image2(
         handle,
@@ -192,10 +181,7 @@ export class HEIFReader {
       }
       const imageData = new ImageData(width, height);
       for (const c of img.channels) {
-        if (
-          c.id ===
-          heifModule.heif_channel.heif_channel_interleaved
-        ) {
+        if (c.id === heifModule.heif_channel.heif_channel_interleaved) {
           // 复制值
           if (c.stride === c.width * 4) {
             imageData.data.set(c.data);
@@ -203,10 +189,7 @@ export class HEIFReader {
             for (let y = 0; y < c.height; y++) {
               imageData.data.set(
                 // slice
-                c.data.slice(
-                  y * c.stride,
-                  y * c.stride + c.width * 4,
-                ),
+                c.data.slice(y * c.stride, y * c.stride + c.width * 4),
                 y * c.width * 4,
               );
             }
@@ -237,9 +220,7 @@ export class HEIFReader {
   free() {
     if (this.#heifDecoder) {
       if (HEIFReader.heifModule) {
-        HEIFReader.heifModule.heif_context_free(
-          this.#heifDecoder,
-        );
+        HEIFReader.heifModule.heif_context_free(this.#heifDecoder);
       }
       this.#heifDecoder = null;
     }
@@ -286,8 +267,12 @@ export interface DecodeResult {
 ```
 
 ## 优化
-可以将图片解析放到web worker中。同时使用OffscreenCanvas 来绘制图片，提升性能。
+
+可以将图片解析放到 web worker 中。同时使用 OffscreenCanvas 来绘制图片，提升性能
+。
 
 ## demo
 
-[heic demo](/blog/demo/heic/index.html){target="_self"}
+```iframe
+/blog/demo/heic/index.html
+```

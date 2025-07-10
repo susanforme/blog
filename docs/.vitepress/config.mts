@@ -59,8 +59,13 @@ export default defineConfig({
       const defaultFence = md.renderer.rules.fence!.bind(md.renderer.rules);
       md.renderer.rules.fence = (tokens, idx, options, env, self) => {
         const token = tokens[idx];
-        if (token.info.trim() === 'mermaid') {
-          return `<Mermaid code="${encodeURIComponent(token.content)}" />`;
+        const map: Record<string, string> = {
+          mermaid: `<Mermaid code="${encodeURIComponent(token.content)}" />`,
+          iframe: `<frame-box src="${token.content}" />`,
+        };
+        const info = token.info.trim();
+        if (map[info]) {
+          return map[info];
         }
         return defaultFence(tokens, idx, options, env, self);
       };
