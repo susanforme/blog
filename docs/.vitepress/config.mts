@@ -1,5 +1,4 @@
 import { defineConfig } from 'vitepress';
-import MonacoEditorPlugin from 'vite-plugin-monaco-editor';
 // 导入主题的配置
 import { blogTheme } from './blog-theme';
 
@@ -51,15 +50,9 @@ export default defineConfig({
   },
   vite: {
     optimizeDeps: {
-      include: ['mermaid', 'monaco-editor/esm/vs/editor/editor.worker'],
+      include: ['mermaid', 'monaco-editor'],
     },
-    plugins: [
-      MonacoEditorPlugin.default({
-        languageWorkers: ['typescript'],
-        customWorkers: [],
-        publicPath: 'monacoeditorwork',
-      }),
-    ],
+    plugins: [],
   },
   markdown: {
     async config(md) {
