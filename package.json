@@ -14,8 +14,11 @@
     "@sugarat/theme": "^0.5.2",
     "element-plus": "^2.7.2",
     "mermaid": "^11.8.1",
+    "monaco-editor": "^0.52.2",
+    "typescript": "^5.4.5",
     "v-viewer": "^3.0.22",
     "viewerjs": "^1.11.7",
+    "vite-plugin-monaco-editor": "^1.1.0",
     "vue": "3.5.12"
   },
   "directories": {
@@ -25,7 +28,6 @@
     "less": "^4.3.0",
     "pagefind": "^1.1.1",
     "sass": "^1.76.0",
-    "typescript": "^5.4.5",
     "vitepress": "1.5.0"
   },
   "pnpm": {

@@ -1,5 +1,5 @@
 import { defineConfig } from 'vitepress';
-
+import MonacoEditorPlugin from 'vite-plugin-monaco-editor';
 // 导入主题的配置
 import { blogTheme } from './blog-theme';
 
@@ -51,8 +51,15 @@ export default defineConfig({
   },
   vite: {
     optimizeDeps: {
-      include: ['mermaid'],
+      include: ['mermaid', 'monaco-editor/esm/vs/editor/editor.worker'],
     },
+    plugins: [
+      MonacoEditorPlugin.default({
+        languageWorkers: ['typescript'],
+        customWorkers: [],
+        publicPath: 'monacoeditorwork',
+      }),
+    ],
   },
   markdown: {
     async config(md) {
@@ -62,6 +69,7 @@ export default defineConfig({
         const map: Record<string, string> = {
           mermaid: `<Mermaid code="${encodeURIComponent(token.content)}" />`,
           iframe: `<frame-box src="${token.content}" />`,
+          sandpack: `<Sandpack code="${encodeURIComponent(token.content)}" />`,
         };
         const info = token.info.trim();
         if (map[info]) {

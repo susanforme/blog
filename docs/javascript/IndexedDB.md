@@ -1,85 +1,105 @@
 ---
 description: 优化加载
 readingTime: false
+date: 2023-02-16 22:00:00
 tag:
- - javascript
+  - javascript
 sticky: 1
 ---
-# 使用IndexedDB优化资源二次加载速度及状态持久化
 
-## IndexedDB是什么?
+# 使用 IndexedDB 优化资源二次加载速度及状态持久化
 
-IndexedDB是一个基于键值对的数据库，可以用来存储大量结构化数据。它可以用来缓存资源，以便在离线时使用。[mdn介绍](https://developer.mozilla.org/zh-CN/docs/Web/API/IndexedDB_API)
+## IndexedDB 是什么?
 
-## 为什么使用IndexedDB
+IndexedDB 是一个基于键值对的数据库，可以用来存储大量结构化数据。它可以用来缓存资
+源，以便在离线时使用
+。[mdn 介绍](https://developer.mozilla.org/zh-CN/docs/Web/API/IndexedDB_API)
 
-对比localStorage,sessionStorage,cookie等存储方式 IndexedDB有以下优势:
+## 为什么使用 IndexedDB
 
-  * IndexedDB是异步的，不会阻塞主线程
-  * IndexedDB可以存储大量数据，而且可以存储[结构化克隆算法](https://developer.mozilla.org/zh-CN/docs/Web/API/Web_Workers_API/Structured_clone_algorithm)支持的任何对象
-  * IndexedDB可以用来缓存资源，以便在离线时使用
-  * IndexedDB可以用来存储用户的状态，以便在下次打开页面时恢复
+对比 localStorage,sessionStorage,cookie 等存储方式 IndexedDB 有以下优势:
 
-|                  | localStorage     | sessionStorage   | cookie                  | IndexedDB                                                    |
-| ---------------- | ---------------- | ---------------- | ----------------------- | ------------------------------------------------------------ |
-| 有效期           | 永久有效         | 关闭浏览器清除   | 非持久化,刷新页面则刷新 | 永久有效                                                     |
-| 存储容量         | 一般5MB          | 一般5MB          | 一般4KB                 | 无上限                                                       |
-| 存储类型限制     | 可JSON序列化的值 | 可JSON序列化的值 | 可JSON序列化的值        | 存储[结构化克隆算法](https://developer.mozilla.org/zh-CN/docs/Web/API/Web_Workers_API/Structured_clone_algorithm)支持的任何对象 |
-| 存取数据任务类型 | 同步             | 同步             | 同步                    | 异步,同步                                                    |
-| 同域限制         | 是               | 是               | 是                      | 是                                                           |
+- IndexedDB 是异步的，不会阻塞主线程
+- IndexedDB 可以存储大量数据，而且可以存
+  储[结构化克隆算法](https://developer.mozilla.org/zh-CN/docs/Web/API/Web_Workers_API/Structured_clone_algorithm)支
+  持的任何对象
+- IndexedDB 可以用来缓存资源，以便在离线时使用
+- IndexedDB 可以用来存储用户的状态，以便在下次打开页面时恢复
+
+|                  | localStorage       | sessionStorage     | cookie                  | IndexedDB                                                                                                                       |
+| ---------------- | ------------------ | ------------------ | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| 有效期           | 永久有效           | 关闭浏览器清除     | 非持久化,刷新页面则刷新 | 永久有效                                                                                                                        |
+| 存储容量         | 一般 5MB           | 一般 5MB           | 一般 4KB                | 无上限                                                                                                                          |
+| 存储类型限制     | 可 JSON 序列化的值 | 可 JSON 序列化的值 | 可 JSON 序列化的值      | 存储[结构化克隆算法](https://developer.mozilla.org/zh-CN/docs/Web/API/Web_Workers_API/Structured_clone_algorithm)支持的任何对象 |
+| 存取数据任务类型 | 同步               | 同步               | 同步                    | 异步,同步                                                                                                                       |
+| 同域限制         | 是                 | 是                 | 是                      | 是                                                                                                                              |
 
 ### 兼容性
-基本上所有现代浏览器都支持IndexedDB
-![IndexedDB兼容性](./img/缓存/caniuse.png)
 
-## IndexedDB基本概念
+基本上所有现代浏览器都支持 IndexedDB ![IndexedDB兼容性](./img/缓存/caniuse.png)
+
+## IndexedDB 基本概念
+
 ### 数据库
-数据库是一个逻辑容器，用于存储数据。一个数据库可以包含多个对象存储空间（object store）。每个数据库都有一个名称，用于唯一标识它。
 
-打开f12可以在Application中看到IndexedDB中的数据库, 也可以在浏览器的控制台中输入`indexedDB`查看
+数据库是一个逻辑容器，用于存储数据。一个数据库可以包含多个对象存储空间（object
+store）。每个数据库都有一个名称，用于唯一标识它。
 
-* State 为数据库名称
-* Security origin 为域名
-* Version 为版本号(每次修改表结构需更改版本号)
-* Object store 为表名
+打开 f12 可以在 Application 中看到 IndexedDB 中的数据库, 也可以在浏览器的控制台
+中输入`indexedDB`查看
+
+- State 为数据库名称
+- Security origin 为域名
+- Version 为版本号(每次修改表结构需更改版本号)
+- Object store 为表名
 
 ![key](./img/缓存/db.png)
 
 ### 对象存储空间（object store）
-对象存储空间是一个逻辑容器，用于存储对象。对象存储空间中的对象都有一个键，用于唯一标识它们。对象存储空间中的对象都有一个键，用于唯一标识它们。
 
+对象存储空间是一个逻辑容器，用于存储对象。对象存储空间中的对象都有一个键，用于唯
+一标识它们。对象存储空间中的对象都有一个键，用于唯一标识它们。
 
 ### 索引
-索引是一个逻辑容器，用于存储对象的键。索引允许你快速访问对象，而不用遍历整个对象存储空间。
-key为model中声明的主键(如:Friends: '++id, name, age',),注意不要将文件,大字符串存储在索引中.
-![key](./img/缓存/key.png)
+
+索引是一个逻辑容器，用于存储对象的键。索引允许你快速访问对象，而不用遍历整个对象
+存储空间。 key 为 model 中声明的主键(如:Friends: '++id, name, age',),注意不要将
+文件,大字符串存储在索引中. ![key](./img/缓存/key.png)
 
 ### 事务
+
 事务是一组操作的集合，这些操作要么全部成功，要么全部失败。
 
+## IndexedDb 框架
 
-
-## IndexedDb框架
- mdn备注:IndexedDB API 是强大的，但对于简单的情况可能看起来太复杂。如果你更喜欢一个简单的 API，请尝试 localForage、dexie.js、PouchDB、idb、idb-keyval、JsStore 或者 lovefield 之类的库，这些库使 IndexedDB 对开发者来说更加友好。
- 这里我们采用dexie.js进行开发
-
+mdn 备注:IndexedDB API 是强大的，但对于简单的情况可能看起来太复杂。如果你更喜欢
+一个简单的 API，请尝试 localForage、dexie.js、PouchDB、idb、idb-keyval、JsStore
+或者 lovefield 之类的库，这些库使 IndexedDB 对开发者来说更加友好。 这里我们采用
+dexie.js 进行开发
 
 ## dexie.js
 
-[dexie.js](https://dexie.org/docs/Tutorial/Getting-started)是一个轻量级的IndexedDB封装库，它提供了一个简单的API来操作IndexedDB。dexie.js的API设计参考了jQuery的API设计，因此非常容易上手。
+[dexie.js](https://dexie.org/docs/Tutorial/Getting-started)是一个轻量级的
+IndexedDB 封装库，它提供了一个简单的 API 来操作 IndexedDB。dexie.js 的 API 设计
+参考了 jQuery 的 API 设计，因此非常容易上手。
+
 ### 安装
 
 yarn
+
 ```bash
 yarn add dexie
 ```
+
 npm
+
 ```bash
 npm install dexie
 ```
 
 ### 创建数据库模型
-在src/models目录下创建State.ts文件
+
+在 src/models 目录下创建 State.ts 文件
 
 ```ts
 import Dexie, { Table } from 'dexie';
@@ -105,18 +125,19 @@ export class State extends Dexie {
 }
 
 export const { Friends } = new State();
-
 ```
+
 ### 创建控制器
-在src/controllers目录下创建State.ts文件
+
+在 src/controllers 目录下创建 State.ts 文件
 
 ```ts
-import { Friend, Friends } from "../models/State";
+import { Friend, Friends } from '../models/State';
 
 /**
  * @description 查询
  */
-export async function getFriend(id:string){
+export async function getFriend(id: string) {
   const friend = await Friends.get(id);
   return friend;
 }
@@ -124,15 +145,15 @@ export async function getFriend(id:string){
 /**
  * @description 查询年龄为age的所有朋友
  */
-export async function getFriendsByAge(age:number){
-  const friends = await Friends.where("age").equals(age).toArray();
+export async function getFriendsByAge(age: number) {
+  const friends = await Friends.where('age').equals(age).toArray();
   return friends;
 }
 
 /**
  * @description 获取所有朋友
  */
-export async function getAllFriends(){
+export async function getAllFriends() {
   const friends = await Friends.toArray();
   return friends;
 }
@@ -140,7 +161,7 @@ export async function getAllFriends(){
 /**
  * @description 添加朋友
  */
-export async function addFriend(data:Friend){
+export async function addFriend(data: Friend) {
   const id = await Friends.add(data);
   return id;
 }
@@ -148,7 +169,7 @@ export async function addFriend(data:Friend){
 /**
  * @description 更新朋友
  */
-export async function updateFriend(data:Friend){
+export async function updateFriend(data: Friend) {
   const id = await Friends.put(data);
   return id;
 }
@@ -156,13 +177,15 @@ export async function updateFriend(data:Friend){
 /**
  * @description 删除朋友
  */
-export async function deleteFriend(id:string){
+export async function deleteFriend(id: string) {
   return await Friends.delete(id);
 }
 ```
+
 ## 使用
 
 ### react
+
 ```tsx
 import React, { useEffect, useState } from 'react';
 import mock from 'mockjs';
@@ -221,7 +244,8 @@ const App: React.FC<AppProps> = () => {
           });
           await addFriend(data);
           await request();
-        }}>
+        }}
+      >
         添加随机朋友
       </Button>
     </div>
@@ -246,16 +270,13 @@ function blobToBase64(blob: Blob): Promise<string> {
     };
   });
 }
-
 ```
+
 ### vue
 
 ```vue
 <script setup lang="ts">
-import {
-  addFriend,
-  getAllFriends,
-} from './controllers/State';
+import { addFriend, getAllFriends } from './controllers/State';
 import mock from 'mockjs';
 import img1 from './img/缓存/1.jpg';
 import img2 from './img/缓存/2.jpg';
@@ -280,13 +301,7 @@ const columns = [
   {
     title: '头像',
     dataIndex: 'headImg',
-    customRender: ({
-      text,
-      index,
-    }: {
-      text: string;
-      index: number;
-    }) => {
+    customRender: ({ text, index }: { text: string; index: number }) => {
       return h('img', { src: text, width: 50, height: 50 });
     },
   },
@@ -294,9 +309,7 @@ const columns = [
 
 request();
 async function add() {
-  const headImg = await imgToBase64(
-    Math.random() > 0.5 ? img1 : img2,
-  );
+  const headImg = await imgToBase64(Math.random() > 0.5 ? img1 : img2);
   const data = mock.mock({
     name: '@cname',
     age: '@integer(18, 60)',
@@ -329,28 +342,21 @@ function blobToBase64(blob: Blob): Promise<string> {
 
 <template>
   <div>
-    <Table
-      :data-source="dataSource"
-      :row-key="'id'"
-      :columns="columns"
-    />
+    <Table :data-source="dataSource" :row-key="'id'" :columns="columns" />
     <Button @click="add">添加好友</Button>
   </div>
 </template>
 ```
 
-效果图
-![效果图](./img/缓存/效果.gif)
+效果图 ![效果图](./img/缓存/效果.gif)
 
-
-
-每次点击添加按钮都会向数据库中添加一条数据,并且会重新渲染，存入数据库中的值是永久有效的。
-![作用](./img/缓存/state.png)
-
+每次点击添加按钮都会向数据库中添加一条数据,并且会重新渲染，存入数据库中的值是永
+久有效的。 ![作用](./img/缓存/state.png)
 
 ## 缓存工具
 
 使用我们已经基本了解，那么我们就可以开始创建缓存工具类了，我们需要实现的功能有：
+
 1. 缓存数据
 2. 获取缓存数据
 3. 清除缓存数据
@@ -389,11 +395,10 @@ class Cache extends Dexie {
   }
 }
 export const { ResourceCache } = new Cache();
-
-
 ```
 
 ### 控制器
+
 /src/controllers/ResourceCache.ts
 
 ```ts
@@ -401,9 +406,7 @@ import { ResourceCache } from '../models/Cache';
 
 export async function getCache(url: string) {
   try {
-    return await ResourceCache.where('url')
-      .equals(url)
-      .first();
+    return await ResourceCache.where('url').equals(url).first();
   } catch (error) {
     console.error(error);
     return;
@@ -447,7 +450,6 @@ export async function clearCache() {
     }
   });
 }
-
 ```
 
 ### 工具类
@@ -455,11 +457,7 @@ export async function clearCache() {
 /src/util/ResourceCache.ts
 
 ```ts
-import {
-  clearCache,
-  getCache,
-  setCache,
-} from '../controllers/ResourceCache';
+import { clearCache, getCache, setCache } from '../controllers/ResourceCache';
 
 /**
  * @description 通用缓存策略
@@ -476,12 +474,8 @@ export class ResourceCache {
     this.url = url;
     let time: number | undefined;
     if (typeof expireTime === 'string') {
-      const unit = (expireTime as string).slice(
-        -1,
-      ) as keyof typeof Time;
-      time =
-        Number(Time[unit]) *
-        Number(expireTime.slice(0, -1));
+      const unit = (expireTime as string).slice(-1) as keyof typeof Time;
+      time = Number(Time[unit]) * Number(expireTime.slice(0, -1));
     } else {
       time = expireTime;
     }
@@ -513,10 +507,7 @@ export class ResourceCache {
       // 设置了过期时间
       else if (this.expireTime) {
         // 过期
-        if (
-          Date.now() - cache.timestamp >
-          this.expireTime
-        ) {
+        if (Date.now() - cache.timestamp > this.expireTime) {
           return await this.fetch();
         }
       }
@@ -555,14 +546,15 @@ enum Time {
   /** year */
   y = 365 * 24 * 60 * 60 * 1000,
 }
-
 ```
 
 ### 使用
 
+#### 例使用迅雷下载 js-sdk
 
-#### 例使用迅雷下载js-sdk
-一般的js-sdk更新频率很低且向下兼容，我们可以将它缓存再indexedDB中，当下次再次加载时，我们可以直接从缓存中获取，而不需要再次请求远端js-sdk
+一般的 js-sdk 更新频率很低且向下兼容，我们可以将它缓存再 indexedDB 中，当下次再
+次加载时，我们可以直接从缓存中获取，而不需要再次请求远端 js-sdk
+
 ```ts
 /**
  * @description 加载远端js-sdk
@@ -575,15 +567,14 @@ export async function remoteJsToScript(
   expireTime?: string | number,
 ) {
   const script =
-    document.getElementById(id) ??
-    document.createElement('script');
+    document.getElementById(id) ?? document.createElement('script');
   script.id = id;
   const cache = new ResourceCache(url, expireTime);
-  script.innerHTML =
-    (await (await cache.get())?.text()) ?? '';
+  script.innerHTML = (await (await cache.get())?.text()) ?? '';
   document.body.appendChild(script);
 }
 ```
+
 ```ts
 /**
  * @description 调用迅雷下载
@@ -608,17 +599,18 @@ export async function thunderDownload(
     hideInfo: '1', // 是否隐藏下载任务信息
     hideYunPan: '1', // 是否隐藏云盘
     hideWin: '1', // 是否隐藏下载窗口
-    downloadDir:
-      taskGroupName.length === 1 ? '' : taskGroupName, // 指定当前任务的下载目录名称，迅雷会在用户剩余空间最大的磁盘根目录中创建这个目录。【若不填此项，会下载到用户默认下载目录】
+    downloadDir: taskGroupName.length === 1 ? '' : taskGroupName, // 指定当前任务的下载目录名称，迅雷会在用户剩余空间最大的磁盘根目录中创建这个目录。【若不填此项，会下载到用户默认下载目录】
     tasks,
   });
 }
 ```
 
-效果图
-![效果图](./img/缓存/thunder.png)
-成功的将js以blob的形式存储在indexedDB中，当下次再次加载时，我们可以直接从缓存中获取。不仅是js，我们还可以缓存css、图片、3D模型、音频、视频等资源。
+效果图 ![效果图](./img/缓存/thunder.png) 成功的将 js 以 blob 的形式存储在
+indexedDB 中，当下次再次加载时，我们可以直接从缓存中获取。不仅是 js，我们还可以
+缓存 css、图片、3D 模型、音频、视频等资源。
 
 # 总结
 
-本文介绍了如何使用indexedDB来缓存资源，当下次再次加载时，我们可以直接从缓存中获取，而不需要再次请求远端资源，从而提升用户体验，减少请求次数，减少服务器压力，减少带宽消耗。
+本文介绍了如何使用 indexedDB 来缓存资源，当下次再次加载时，我们可以直接从缓存中
+获取，而不需要再次请求远端资源，从而提升用户体验，减少请求次数，减少服务器压力，
+减少带宽消耗。
