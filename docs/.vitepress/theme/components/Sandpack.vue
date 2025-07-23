@@ -23,6 +23,7 @@ import { onMounted, ref } from 'vue';
 import ts from 'typescript';
 import '../init-worker';
 import FullScreen from './full-screen.vue';
+import { runInSandbox } from '../util';
 
 const editorContainer = ref(null);
 const outputList = ref<
@@ -35,6 +36,25 @@ const props = defineProps<{ code: string }>();
 
 onMounted(async () => {
   let monaco = await import('monaco-editor');
+  monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
+    target: monaco.languages.typescript.ScriptTarget.ESNext,
+    module: monaco.languages.typescript.ModuleKind.ESNext,
+    experimentalDecorators: true,
+    emitDecoratorMetadata: true,
+    allowNonTsExtensions: true,
+  });
+  monaco.languages.typescript.typescriptDefaults.addExtraLib(
+    `
+declare namespace Reflect {
+  function decorate(decorators: ClassDecorator[], target: Function): Function;
+  function metadata(metadataKey: any, metadataValue: any): any;
+  function defineMetadata(metadataKey: any, metadataValue: any, target: Object, propertyKey?: string | symbol): void;
+  function getMetadata(metadataKey: any, target: Object, propertyKey?: string | symbol): any;
+}
+declare var Reflect: typeof Reflect;
+`,
+    'ts:reflect-metadata.d.ts',
+  );
   const editor = monaco.editor.create(editorContainer.value!, {
     value: decodeURIComponent(props.code),
     language: 'typescript',
@@ -73,7 +93,7 @@ onMounted(async () => {
           type: 'error',
         });
       };
-      new Function(js)();
+      runInSandbox(js);
       console.log = originalLog;
       console.warn = originWarn;
       console.error = originError;
