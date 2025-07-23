@@ -18,8 +18,8 @@
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
-import * as monaco from 'monaco-editor';
 import ts from 'typescript';
+import '../init-worker';
 
 const editorContainer = ref(null);
 const outputList = ref<
@@ -30,7 +30,8 @@ const outputList = ref<
 >([]);
 const props = defineProps<{ code: string }>();
 
-onMounted(() => {
+onMounted(async () => {
+  let monaco = await import('monaco-editor');
   const editor = monaco.editor.create(editorContainer.value!, {
     value: decodeURIComponent(props.code),
     language: 'typescript',
