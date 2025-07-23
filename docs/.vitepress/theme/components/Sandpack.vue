@@ -73,30 +73,10 @@ declare var Reflect: typeof Reflect;
     try {
       const js = ts.transpile(code);
       outputList.value = [];
-      const originalLog = console.log;
-      const originWarn = console.warn;
-      const originError = console.error;
-      console.log = (...args) =>
-        outputList.value.push({
-          message: args.join(' '),
-          type: 'log',
-        });
-      console.warn = (...args) => {
-        outputList.value.push({
-          message: args.join(' '),
-          type: 'warn',
-        });
-      };
-      console.error = (...args) => {
-        outputList.value.push({
-          message: args.join(' '),
-          type: 'error',
-        });
-      };
-      runInSandbox(js);
-      console.log = originalLog;
-      console.warn = originWarn;
-      console.error = originError;
+
+      runInSandbox(js, (output) => {
+        outputList.value.push(output);
+      });
     } catch (err) {
       outputList.value = [
         {

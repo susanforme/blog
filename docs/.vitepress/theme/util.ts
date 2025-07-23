@@ -1,9 +1,15 @@
-export function runInSandbox(jsCode) {
+export function runInSandbox(
+  jsCode: string,
+  callback: (option: {
+    message: string;
+    type: 'log' | 'error' | 'warn';
+  }) => void,
+) {
   const iframe = document.createElement('iframe');
   iframe.style.display = 'none';
   document.body.appendChild(iframe);
 
-  const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+  const iframeDoc = iframe.contentDocument || iframe.contentWindow!.document;
 
   const html = `
     <script type="module">
@@ -36,7 +42,10 @@ export function runInSandbox(jsCode) {
   window.addEventListener('message', (event) => {
     if (event.data?.type === 'console') {
       const { method, args } = event.data;
-      console[method](...args);
+      callback({
+        message: args.join('\n'),
+        type: method as 'log' | 'error' | 'warn',
+      });
     }
   });
 }
