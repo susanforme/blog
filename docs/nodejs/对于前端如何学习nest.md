@@ -12,7 +12,7 @@ sticky: 1
 
 ### TypeScript
 
-[去阅读文章](../javascript/ts学习.md)
+<!-- [去阅读文章](../javascript/ts学习.md) -->
 
 ### 装饰器
 
@@ -24,7 +24,7 @@ sticky: 1
 
 ### MySql 和 TypeORM
 
-[去阅读文章](../backend/MySql和TypeORM.md)
+<!-- [去阅读文章](../backend/MySql和TypeORM.md) -->
 
 ### 设计模式
 
