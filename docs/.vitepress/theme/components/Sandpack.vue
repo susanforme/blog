@@ -19,11 +19,12 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { onBeforeUnmount, onMounted, ref } from 'vue';
 import ts from 'typescript';
 import '../init-worker';
 import FullScreen from './full-screen.vue';
-import { runInSandbox } from '../util';
+import { SandBox } from '../util';
+import { CompilerOptions } from 'typescript';
 
 const editorContainer = ref(null);
 const outputList = ref<
@@ -33,6 +34,12 @@ const outputList = ref<
   }[]
 >([]);
 const props = defineProps<{ code: string }>();
+
+const sandBox = new SandBox({
+  callback(output) {
+    outputList.value.push(output);
+  },
+});
 
 onMounted(async () => {
   let monaco = await import('monaco-editor');
@@ -66,17 +73,20 @@ declare var Reflect: typeof Reflect;
 
   // 加载完毕调用
   editor.onDidChangeModelContent(() => {
+    outputList.value = [];
     setOutput();
   });
   function setOutput() {
     const code = editor.getValue();
     try {
-      const js = ts.transpile(code);
+      const js = ts.transpile(code, {
+        experimentalDecorators: true,
+        emitDecoratorMetadata: true,
+        module: ts.ModuleKind.ESNext,
+      });
       outputList.value = [];
 
-      runInSandbox(js, (output) => {
-        outputList.value.push(output);
-      });
+      sandBox.run(js);
     } catch (err) {
       outputList.value = [
         {
@@ -86,6 +96,9 @@ declare var Reflect: typeof Reflect;
       ];
     }
   }
+});
+onBeforeUnmount(() => {
+  sandBox.destory();
 });
 </script>
 
