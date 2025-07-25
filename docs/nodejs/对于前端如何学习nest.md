@@ -1,237 +1,34 @@
+---
+description: ts 装饰器
+date: 2025-07-25
+tag:
+  - nodejs
+sticky: 1
+---
+
 # 前端如何学习 nest
 
-## 前言
+## 基础知识
 
-```mermaid
-graph TB
+### TypeScript
 
-    %% 客户端层
-    subgraph 客户端层
-        Client[客户端] --> |HTTP请求| Nginx
-    end
+[去阅读文章](../javascript/ts学习.md)
 
-    %% 接入层
-    subgraph 接入层
-        Nginx --> |静态资源请求| ResourceProxy[资源代理]
-        Nginx --> |API请求| PM2Cluster[PM2集群]
+### 装饰器
 
-        ResourceProxy --> |代理转发| OSSProxy[OSS代理]
-        PM2Cluster --> |负载均衡| NestJSApp[NestJS应用节点]
-    end
+[去阅读文章](../javascript/rxjs学习.md)
 
-    %% 应用层
-    subgraph 应用层
-        NestJSApp --> |模板管理| TemplateService[模板服务]
-        NestJSApp --> |页面管理| PageService[页面服务]
-        NestJSApp --> |合集管理| CollectionService[合集服务]
-        NestJSApp --> |健康检查| HealthService[健康检查]
+### RxJS
 
-        TemplateService --> |数据操作| MySQL
-        PageService --> |数据操作| MySQL
-        CollectionService --> |数据操作| MySQL
+[去阅读文章](../javascript/rxjs学习.md)
 
-        TemplateService --> |资源操作| OSS
-        PageService --> |资源操作| OSS
-    end
+### MySql 和 TypeORM
 
-    %% 存储层
-    subgraph 存储层
-        MySQL --> |模板数据| TemplateDB[模板数据]
-        MySQL --> |页面数据| PageDB[页面数据]
-        MySQL --> |合集数据| CollectionDB[合集数据]
-        MySQL --> |配置数据| ConfigDB[配置数据]
+[去阅读文章](../backend/MySql和TypeORM.md)
 
-        OSS --> |静态资源| StaticResource[静态资源]
-        OSS --> |模板资源| TemplateResource[模板资源]
-    end
+### 设计模式
 
-    %% 基础设施
-    subgraph 基础设施
-        Cache[缓存系统] --> |模板缓存| TemplateCache[模板缓存]
-        Cache --> |页面缓存| PageCache[页面缓存]
-
-        Log[日志系统] --> |应用日志| AppLog[应用日志]
-        Log --> |访问日志| AccessLog[访问日志]
-        Log --> |错误日志| ErrorLog[错误日志]
-    end
-
-    %% 请求流程（强调）
-    Client --> |发起请求| Nginx
-    ResourceProxy --> |获取资源| OSSProxy
-    PM2Cluster --> |负载均衡| NestJSApp
-    NestJSApp --> |业务处理| TemplateService
-    TemplateService --> |缓存处理| Cache
-    TemplateService --> |日志记录| Log
-
-    %% 样式
-    style Client fill:#fefefe,stroke:#333,stroke-width:2px
-    style Nginx fill:#ffecf0,stroke:#c33,stroke-width:2px
-    style PM2Cluster fill:#ffecf0,stroke:#c33,stroke-width:2px
-    style ResourceProxy fill:#ffe0f0,stroke:#c33,stroke-width:1.5px
-    style OSSProxy fill:#ffe0f0,stroke:#c33,stroke-width:1.5px
-
-    style NestJSApp fill:#dce9ff,stroke:#3366cc,stroke-width:2px
-    style TemplateService fill:#e6f7ff,stroke:#3399cc
-    style PageService fill:#e6f7ff,stroke:#3399cc
-    style CollectionService fill:#e6f7ff,stroke:#3399cc
-    style HealthService fill:#f0f8ff,stroke:#3399cc
-
-    style MySQL fill:#e6ffe6,stroke:#339966
-    style TemplateDB fill:#f4fff4,stroke:#66cc66
-    style PageDB fill:#f4fff4,stroke:#66cc66
-    style CollectionDB fill:#f4fff4,stroke:#66cc66
-    style ConfigDB fill:#f4fff4,stroke:#66cc66
-
-    style OSS fill:#fff0f0,stroke:#cc6666
-    style StaticResource fill:#fff5f5,stroke:#cc9999
-    style TemplateResource fill:#fff5f5,stroke:#cc9999
-
-    style Cache fill:#f0f0ff,stroke:#6666cc
-    style Log fill:#ffffe0,stroke:#cccc66
-
-    %% 多节点提示
-    NestJSApp -.-> |多节点| NestJSApp
-
-```
-
-
-
-## 设计模式
-
-### 反射(Reflection)
-
-reflect-metadata
-
-TypeScript 中的 reflect-metadata 包确实实现了一部分“反射（Reflection）”能力，用
-于在运行时读取或写入类型相关的元数据，这在 JavaScript 中是原生不具备的。
-
-🧠 什么是“反射”？反射是指程序在运行时可以“自我检查”和“自我修改”的能力，常见于
-Java、C# 等语言。
-
-在 JavaScript/TypeScript 语境中，反射指的是：在运行时读取类、方法、参数、属性的
-类型信息动态获取元数据，甚至动态调用
-
-### 控制反转（IoC）
-
-### 依赖注入（DI）
-
-### 面向切面编程（AOP）
-
-在没有 AOP 的情况下，功能模块间的横切关注点（如日志记录、事务管理）会反复出现在
-代码的不同地方。每当业务逻辑改变时，我们可能需要修改多个位置的代码，导致代码难以
-维护。AOP 通过将这些横切关注点提取到切面中，避免了代码重复，简化了维护和扩展。
-
-#### AOP的核心概念
-
-- **切面（Aspect）**：切面是AOP的核心，代表了横切关注点的模块化，包含了跨越多个功能模块的代码逻辑。例如，日志切面、事务切面、权限验证切面等。
-
-- 通知（Advice）
-
-  ：通知是AOP中定义的操作，描述了“什么时候”以及“如何”去执行切面代码。常见的通知类型包括：
-
-  - **前置通知（Before）**：在方法执行之前执行某些操作。
-  - **后置通知（After）**：在方法执行之后执行某些操作。
-  - **环绕通知（Around）**：在方法执行之前和之后都执行操作，甚至可以决定是否执行目标方法。
-
-例如 axios 的拦截器
-
-```ts
-import axios from 'axios';
-
-const instance = axios.create({
-  baseURL: 'https://api.example.com',
-});
-instance.interceptors.request.use((config) => {
-  // 在发送请求之前做些什么
-  return config;
-});
-instance.interceptors.response.use((response) => {
-  // 对响应数据做些什么
-  return response;
-});
-```
-
-### 面向对象编程（OOP）
-
-### 函数式编程（FP）
-
-### 策略模式
-
-```ts
-export function createStorageQueue(
-  key: string,
-  maxLength: number,
-  storage: Storage = localStorage,
-) {
-  function getQueue(): string[] {
-    const data = storage.getItem(key);
-    if (!data) return [];
-    try {
-      return JSON.parse(data);
-    } catch {
-      return [];
-    }
-  }
-
-  function saveQueue(queue: string[]) {
-    storage.setItem(key, JSON.stringify(queue));
-  }
-
-  return {
-    enqueue(item: string) {
-      let queue = getQueue();
-      queue.push(item);
-      queue = [...new Set(queue)];
-      while (queue.length > maxLength) {
-        queue.shift();
-      }
-      saveQueue(queue);
-    },
-    getQueue() {
-      return getQueue();
-    },
-    clear() {
-      storage.removeItem(key);
-    },
-  };
-}
-```
-
-```typescript
-@Injectable()
-export class UserService {
-  // 省略业务逻辑
-}
-
-@Controller('users')
-export class UserController {
-  constructor(private readonly userService: UserService) {}
-
-  @Get()
-  getAll() {
-    return this.userService.findAll();
-  }
-}
-```
-
-上例中，`UserController` 通过构造函数注入 `UserService`，对象的创建和依赖关系由
-NestDI 容器自动处理，这就是**依赖注入**的体现。Nest 中的模块（`@Module`）、服务
-（`@Injectable`）等装饰器都使用元数据来标记依赖关系，框架启动时扫描这些信息并自
-动实例化所需对象，从而实现控制反转。
-
-## 面向切面编程（AOP）的基本思想及实现思路
-
-面向切面编程（AOP）是一种将通用逻辑（如日志、权限、异常处理）与业务逻辑分离的编
-程范式。其核心思想是在程序运行的执行链路上“横切”地加入额外逻辑，而无需在业务代码
-中显式添加。例如，在请求调用链前后插入日志或权限校验，就属于 AOP 手段。这样可以
-让业务代码保持纯粹，将横切关注点提取到可复用的切面中。
-
-NestJS 内置了多种 AOP 机制：传统的 **中间件（Middleware）**、请求 **守卫
-（Guard）**、参数验证/转换 **管道（Pipe）**、方法前后处理 **拦截器
-（Interceptor）** 以及异常 **过滤器（Exception Filter）**。通过这些机制，开发者
-可以在控制器方法执行前后透明地添加各种通用逻辑。例如，使用守卫判断请求权限、使用
-拦截器统一格式化响应、使用异常过滤器捕获并处理抛出的错误等。这些机制都是 Nest 对
-AOP 思想的具体实现，使得横向关注点可以灵活地应用于全局或单个路由。
+[去阅读文章](../backend/设计模式.md)
 
 ## 面向对象编程（OOP）与函数式编程（FP）在 NestJS 中的融合
 
@@ -405,5 +202,3 @@ NestJS 提供了几种核心模块，支持在请求处理流程中不同阶段�
   将过滤器应用到路由后，当控制器内抛出 `HttpException` 时，会由该过滤器统一处理
   并返回自定义响应。所有这些核心模块（中间件、守卫、管道、拦截器、过滤器）都可以
   全局或按需启用，共同构成了 NestJS 的请求处理管道。
-
-**参考资料：** NestJS 官方文档与社区文章。
