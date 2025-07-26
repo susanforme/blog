@@ -3,7 +3,6 @@ description: mysql
 date: 2025-07-25
 tag:
   - backend
-sticky: 1
 ---
 
 # MySQL 学习指南：基础操作与锁机制

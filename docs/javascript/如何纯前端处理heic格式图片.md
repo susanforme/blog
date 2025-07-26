@@ -1,10 +1,10 @@
 ---
 description: 纯前端处理 HEIC 格式图片
-readingTime: false
 date: 2023-03-22 22:00:00
 tag:
   - javascript
   - heic
+sticky: 94
 ---
 
 # 如何纯前端处理 HEIC 格式图片

@@ -3,7 +3,6 @@ description: ts 装饰器
 date: 2024-09-25
 tag:
   - javascript
-sticky: 1
 ---
 
 # rxjs
@@ -34,10 +33,13 @@ RxJS 中解决异步事件管理的基本概念有：
 
 ```ts
 let count = 0;
-document.addEventListener('click', () => console.log(`Clicked ${++count} times`));
+document.addEventListener('click', () =>
+  console.log(`Clicked ${++count} times`),
+);
 ```
 
 状态隔离，链式调用
+
 ```ts
 import { fromEvent, scan } from 'rxjs';
 
@@ -48,7 +50,7 @@ fromEvent(document, 'click')
 
 ### 流动
 
-类似linux中的**管道**,用于将一个命令的输出传递给另一个命令作为输入
+类似 linux 中的**管道**,用于将一个命令的输出传递给另一个命令作为输入
 
 统计访问日志中出现最多的 IP
 
@@ -59,14 +61,16 @@ cat access.log | awk '{print $1}' | sort | uniq -c | sort -nr | head -n 1
 处理用户输入，过滤关键词并去重
 
 ```ts
-fromEvent(inputElement, 'input').pipe(
-  map(event => event.target.value),
-  filter(text => text.length > 3),
-  distinctUntilChanged(),
-  debounceTime(300)
-).subscribe(text => {
-  console.log('Filtered Input:', text);
-});
+fromEvent(inputElement, 'input')
+  .pipe(
+    map((event) => event.target.value),
+    filter((text) => text.length > 3),
+    distinctUntilChanged(),
+    debounceTime(300),
+  )
+  .subscribe((text) => {
+    console.log('Filtered Input:', text);
+  });
 ```
 
 RxJS 有一系列的操作符，可以帮助你控制事件如何在你的 observables 中流动。
@@ -91,14 +95,10 @@ import { fromEvent, throttleTime, scan } from 'rxjs';
 fromEvent(document, 'click')
   .pipe(
     throttleTime(1000),
-    scan((count) => count + 1, 0)
+    scan((count) => count + 1, 0),
   )
   .subscribe((count) => console.log(`Clicked ${count} times`));
 ```
-
-
-
-
 
 ## 常见操作符
 
@@ -262,7 +262,8 @@ tap(observerOrNext?: Partial<TapObserver<T>> | ((value: T) => void)): MonoTypeOp
 
 **冷流**： 每个订阅者都会得到**独立的数据流**
 
-**热流**： 数据**由一个源产生并共享**，多个订阅者接入时只能接收到那时之后的数据。
+**热流**： 数据**由一个源产生并共享**，多个订阅者接入时只能接收到那时之后的数据
+。
 
 ```ts
 import { interval } from 'rxjs';

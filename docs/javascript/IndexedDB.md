@@ -4,7 +4,7 @@ readingTime: false
 date: 2023-02-16 22:00:00
 tag:
   - javascript
-sticky: 1
+sticky: 90
 ---
 
 # 使用 IndexedDB 优化资源二次加载速度及状态持久化

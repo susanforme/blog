@@ -3,6 +3,7 @@ description: 基于OpenAPI的ts代码生成
 date: 2023-09-22
 tag:
   - javascript
+sticky: 99
 ---
 
 # 基于 OpenAPI 的 ts 代码生成

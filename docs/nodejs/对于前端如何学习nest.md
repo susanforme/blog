@@ -3,7 +3,7 @@ date: 2025-07-25
 tag:
   - nodejs
   - backend
-sticky: 1
+sticky: 95
 ---
 
 # 前端如何学习 nest
