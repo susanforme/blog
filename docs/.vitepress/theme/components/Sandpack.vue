@@ -3,30 +3,55 @@
     <div class="playground">
       <div class="editor" ref="editorContainer" />
       <pre class="output">
-      <div class="output-title">logs</div>
-      <div v-for="(output, index) in outputList" :key="index" 
+      <sun-tab :tabs="tabList">
+        <template #logs>
+        <div class="item-wrapper">
+          <div v-for="(output, index) in outputList" :key="index" 
       class="item"
       >
         <span>[</span><span
          :class="output.type"
-        >{{ 
+        >{{
           output.type }}</span> <span>] :</span>
           <span>"{{ output.message }}"</span>
       </div>
-    </pre>
+        </div>
+        </template>
+        <template
+        #js
+        >
+        <div>
+          <pre
+          v-html="renderedJsCode"
+          ></pre>
+        </div>
+      </template>
+</sun-tab>
+
+</pre>
     </div>
   </full-screen>
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue';
-import ts from 'typescript';
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import tsLib from 'typescript';
 import '../init-worker';
 import FullScreen from './full-screen.vue';
 import { SandBox } from '../util';
 import { CompilerOptions } from 'typescript';
-
+import { codeToHtml } from 'shiki';
+import SunTab from './sun-tab.vue';
+const tabList = [
+  { name: 'logs', title: 'logs' },
+  {
+    name: 'js',
+    title: 'js',
+  },
+];
 const editorContainer = ref(null);
+const compileJs = ref('');
+const renderedJsCode = ref('');
 const outputList = ref<
   {
     message: string;
@@ -34,6 +59,12 @@ const outputList = ref<
   }[]
 >([]);
 const props = defineProps<{ code: string }>();
+watch(compileJs, async (newVal) => {
+  renderedJsCode.value = await codeToHtml(newVal, {
+    theme: 'vitesse-light',
+    lang: 'ts',
+  });
+});
 
 const sandBox = new SandBox({
   callback(output) {
@@ -50,9 +81,9 @@ onMounted(async () => {
     emitDecoratorMetadata: true,
     allowNonTsExtensions: true,
   });
+  const ts = String.raw;
   monaco.languages.typescript.typescriptDefaults.addExtraLib(
-    `
-declare namespace Reflect {
+    ts`declare namespace Reflect {
   function decorate(decorators: ClassDecorator[], target: Function): Function;
   function metadata(metadataKey: any, metadataValue: any): any;
   function defineMetadata(metadataKey: any, metadataValue: any, target: Object, propertyKey?: string | symbol): void;
@@ -79,11 +110,12 @@ declare var Reflect: typeof Reflect;
   function setOutput() {
     const code = editor.getValue();
     try {
-      const js = ts.transpile(code, {
+      const js = tsLib.transpile(code, {
         experimentalDecorators: true,
         emitDecoratorMetadata: true,
-        module: ts.ModuleKind.ESNext,
+        module: tsLib.ModuleKind.ESNext,
       });
+      compileJs.value = js;
       outputList.value = [];
 
       sandBox.run(js);
@@ -108,9 +140,11 @@ onBeforeUnmount(() => {
   height: 90vh;
   padding-top: 20px;
 }
+
 .editor {
   width: 50%;
 }
+
 .output {
   width: 50%;
   margin: 0;
@@ -121,25 +155,35 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   overflow-y: auto;
+  .item-wrapper {
+    display: flex;
+    flex-direction: column;
+  }
+
   .output-title {
     font-weight: bold;
     font-size: 1.2rem;
     margin-bottom: 10px;
   }
+
   .item {
     display: flex;
     border-bottom: 1px dashed #ccc;
     padding: 10px 0;
+
     > * {
       display: inline;
       white-space: pre-wrap;
     }
+
     .log {
       color: silver;
     }
+
     .error {
       color: red;
     }
+
     .warn {
       color: orange;
     }

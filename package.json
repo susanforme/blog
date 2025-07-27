@@ -15,6 +15,7 @@
     "element-plus": "^2.7.2",
     "mermaid": "^11.8.1",
     "monaco-editor": "^0.52.2",
+    "shiki": "^3.8.1",
     "typescript": "^5.4.5",
     "v-viewer": "^3.0.22",
     "viewerjs": "^1.11.7",
