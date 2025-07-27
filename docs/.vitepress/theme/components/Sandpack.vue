@@ -1,7 +1,18 @@
 <template>
   <full-screen :top="10" :right="10">
     <div class="playground">
-      <div class="editor" ref="editorContainer" />
+      <div class="editor-wrapper">
+        <monaco-editor
+          :code="decodeURIComponent(code)"
+          :extraOptions="{
+            language: 'typescript',
+            theme: 'vs',
+            automaticLayout: true,
+            fontSize: 18,
+          }"
+          :on-editor-init="onShowEditorInit"
+        ></monaco-editor>
+      </div>
       <pre class="output">
       <sun-tab :tabs="tabList">
         <template #logs>
@@ -17,16 +28,20 @@
       </div>
         </div>
         </template>
-        <template
-        #js
-        >
-        <div
-        class="code-wrapper"
-        >
-          <pre
-          v-html="renderedJsCode"
-          ></pre>
-        </div>
+        <template #js>
+        <div class="code-wrapper">
+        <monaco-editor
+        :code="compileJs"
+        :extraOptions="{
+          language: 'javascript',
+          theme: 'vs',
+          automaticLayout: true,
+          fontSize: 18,
+          readOnly: true
+        }"
+        :on-editor-init="onShowEditorInit"
+      ></monaco-editor>
+       </div>
       </template>
 </sun-tab>
 
@@ -44,6 +59,8 @@ import { SandBox } from '../util';
 import { CompilerOptions } from 'typescript';
 import { codeToHtml } from 'shiki';
 import SunTab from './sun-tab.vue';
+import MonacoEditor from './monaco-editor.vue';
+import { editor } from 'monaco-editor';
 const tabList = [
   { name: 'logs', title: 'logs' },
   {
@@ -51,9 +68,7 @@ const tabList = [
     title: 'js',
   },
 ];
-const editorContainer = ref(null);
-const compileJs = ref('');
-const renderedJsCode = ref('');
+
 const outputList = ref<
   {
     message: string;
@@ -61,12 +76,7 @@ const outputList = ref<
   }[]
 >([]);
 const props = defineProps<{ code: string }>();
-watch(compileJs, async (newVal) => {
-  renderedJsCode.value = await codeToHtml(newVal, {
-    theme: 'vitesse-light',
-    lang: 'ts',
-  });
-});
+const compileJs = ref<string>('');
 
 const sandBox = new SandBox({
   callback(output) {
@@ -74,36 +84,11 @@ const sandBox = new SandBox({
   },
 });
 
-onMounted(async () => {
-  let monaco = await import('monaco-editor');
-  monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
-    target: monaco.languages.typescript.ScriptTarget.ESNext,
-    module: monaco.languages.typescript.ModuleKind.ESNext,
-    experimentalDecorators: true,
-    emitDecoratorMetadata: true,
-    allowNonTsExtensions: true,
-  });
-  const ts = String.raw;
-  monaco.languages.typescript.typescriptDefaults.addExtraLib(
-    ts`declare namespace Reflect {
-  function decorate(decorators: ClassDecorator[], target: Function): Function;
-  function metadata(metadataKey: any, metadataValue: any): any;
-  function defineMetadata(metadataKey: any, metadataValue: any, target: Object, propertyKey?: string | symbol): void;
-  function getMetadata(metadataKey: any, target: Object, propertyKey?: string | symbol): any;
-}
-declare var Reflect: typeof Reflect;
-`,
-    'ts:reflect-metadata.d.ts',
-  );
-  const editor = monaco.editor.create(editorContainer.value!, {
-    value: decodeURIComponent(props.code),
-    language: 'typescript',
-    theme: 'vs',
-    automaticLayout: true,
-    fontSize: 18,
-  });
+onBeforeUnmount(() => {
+  sandBox.destory();
+});
+async function onShowEditorInit(editor: editor.IStandaloneCodeEditor) {
   setOutput();
-
   // 加载完毕调用
   editor.onDidChangeModelContent(() => {
     outputList.value = [];
@@ -130,10 +115,7 @@ declare var Reflect: typeof Reflect;
       ];
     }
   }
-});
-onBeforeUnmount(() => {
-  sandBox.destory();
-});
+}
 </script>
 
 <style scoped lang="less">
@@ -143,7 +125,7 @@ onBeforeUnmount(() => {
   padding-top: 20px;
 }
 
-.editor {
+.editor-wrapper {
   width: 50%;
 }
 
@@ -157,10 +139,12 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   overflow-y: auto;
+
   .item-wrapper {
     display: flex;
     flex-direction: column;
   }
+
   .code-wrapper {
     display: flex;
     flex-direction: column;

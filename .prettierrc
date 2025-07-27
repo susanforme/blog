@@ -5,5 +5,8 @@
   "printWidth": 80,
   "proseWrap": "always",
   "trailingComma": "all",
-  "plugins": []
+  "plugins": [
+    "prettier-plugin-organize-imports",
+    "prettier-plugin-packagejson"
+  ]
 }
