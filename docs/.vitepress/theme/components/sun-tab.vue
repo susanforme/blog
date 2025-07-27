@@ -42,9 +42,12 @@ const activeIndex = ref(0);
 
   .tab-header {
     display: flex;
-    border-bottom: 1px solid #ccc;
+    border: 1px solid #ccc;
     height: 48px;
     line-height: 48px;
+    position: sticky;
+    top: 0;
+    background-color: white;
 
     .tab-title {
       padding: 0px 20px;

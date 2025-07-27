@@ -20,7 +20,9 @@
         <template
         #js
         >
-        <div>
+        <div
+        class="code-wrapper"
+        >
           <pre
           v-html="renderedJsCode"
           ></pre>
@@ -156,6 +158,10 @@ onBeforeUnmount(() => {
   flex-direction: column;
   overflow-y: auto;
   .item-wrapper {
+    display: flex;
+    flex-direction: column;
+  }
+  .code-wrapper {
     display: flex;
     flex-direction: column;
   }
