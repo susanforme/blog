@@ -7,9 +7,7 @@ tag:
 
 # rxjs
 
-RxJS 是一个使用可观察序列编写异步和基于事件的程序的库。它提供了一种核心类型，即
-Observable、一些周边类型（Observer、Scheduler、Subjects）和类似于 Array 方法
-（map、filter、reduce、every 等）的操作符，以便将异步事件作为集合进行处理。
+RxJS 是一个使用可观察序列编写异步和基于事件的程序的库。它提供了一种核心类型，即 Observable、一些周边类型（Observer、Scheduler、Subjects）和类似于 Array 方法（map、filter、reduce、every 等）的操作符，以便将异步事件作为集合进行处理。
 
 ## 基本概念
 
@@ -20,10 +18,9 @@ RxJS 中解决异步事件管理的基本概念有：
 - **Subscription（订阅）**：表示 Observable 的一次执行，主要用于取消执行。
 - **Operator（操作符）**：是纯函数，可以使用 `map`、`filter`、`concat`、`reduce`
   等操作来以函数式编程风格处理集合。
-- **Subject（主体）**：相当于一个 EventEmitter，也是将一个值或事件多播到多个
-  Observers 的唯一方式。
-- **Scheduler（调度器）**：是控制并发的集中化调度器，允许我们在计算发生时进行协
-  调，例如 `setTimeout` 或 `requestAnimationFrame` 或其它。
+- **Subject（主体）**：相当于一个 EventEmitter，也是将一个值或事件多播到多个 Observers 的唯一方式。
+- **Scheduler（调度器）**：是控制并发的集中化调度器，允许我们在计算发生时进行协调，例如
+  `setTimeout` 或 `requestAnimationFrame` 或其它。
 
 ## 特点
 
@@ -141,45 +138,46 @@ numbers$.pipe(scan((total, n) => total + n)).subscribe(console.log);
 switchMap<T, R, O extends ObservableInput<any>>(project: (value: T, index: number) => O, resultSelector?: (outerValue: T, innerValue: ObservedValueOf<O>, outerIndex: number, innerIndex: number) => R): OperatorFunction<T, ObservedValueOf<O> | R>
 ```
 
+https://rxjs.tech/guide/testing/marble-testing
 ![](https://rxjs.dev/assets/images/marble-diagrams/switchMap.png)
 
 1. **第一行**：
-
    - 表示外层的 Observable（称为源 Observable）。
    - 它依次发出三个值：`1`, `3`, `5`。
 
 2. **第二行**：
-
    - 表示 `switchMap` 中的映射函数返回的内部 Observable 的结构。
 
    - 每个值 `i` 被映射为：
 
      ```
      less
-     
-     
+
+
      复制编辑
      10 * i —— 10 * i —— 10 * i ——|
      ```
 
-     即：一个连续发出三个值的 Observable，值都是 `10 * i`，中间有间隔，最后完成。
+     即：一个连续发出三个值的 Observable，值都是
+     `10 * i`，中间有间隔，最后完成。
 
 3. **中间**：
-
-   - `switchMap(i => 10 * i —— 10 * i —— 10 * i ——| )` 表示将源 Observable 中的每个值 `i`，映射为上面结构的内部 Observable。
+   - `switchMap(i => 10 * i —— 10 * i —— 10 * i ——| )`
+     表示将源 Observable 中的每个值 `i`，映射为上面结构的内部 Observable。
 
 4. **最底下这一行**：
-
    - 是最终输出 Observable 的表现。
-   - 展示了 `switchMap` 的“切换”行为：在新值到来时，取消之前的内部 Observable，开始监听新的。
+   - 展示了 `switchMap`
+     的“切换”行为：在新值到来时，取消之前的内部 Observable，开始监听新的。
 
-------
+---
 
 ### 🧠 行为解释（重点是中断与替换）：
 
 - 源 Observable 依次发出：
   - `1` → 启动内部 Observable，发出 `10`, `10`, `10`
-  - `3`（中途发出）→ 原来对应 `1` 的内部 Observable 被取消，开始发出 `30`, `30`, `30`
+  - `3`（中途发出）→ 原来对应 `1` 的内部 Observable 被取消，开始发出 `30`, `30`,
+    `30`
   - `5`（继续发出）→ 又中断 `3` 对应的 Observable，开始发出 `50`, `50`, `50`
 
 所以：
@@ -188,7 +186,7 @@ switchMap<T, R, O extends ObservableInput<any>>(project: (value: T, index: numbe
 - 第二组（`30`）：同样，只发出两个值。
 - 最后一组（`50`）：没有再被中断，因此三个值都发出。
 
-------
+---
 
 ### ✅ `switchMap` 特点总结：
 
@@ -276,8 +274,7 @@ of(10, 20, 30).subscribe({
 
 ### forkJoin
 
-发出一个与传递的数组完全相同顺序的值数组，或者一个与传递的字典具有相同形状的值字
-典。
+发出一个与传递的数组完全相同顺序的值数组，或者一个与传递的字典具有相同形状的值字典。
 
 ```ts
 forkJoin(...args: any[]): Observable<any>
@@ -315,8 +312,7 @@ tap(observerOrNext?: Partial<TapObserver<T>> | ((value: T) => void)): MonoTypeOp
 
 **冷流**： 每个订阅者都会得到**独立的数据流**
 
-**热流**： 数据**由一个源产生并共享**，多个订阅者接入时只能接收到那时之后的数据
-。
+**热流**： 数据**由一个源产生并共享**，多个订阅者接入时只能接收到那时之后的数据。
 
 ```ts
 import { interval } from 'rxjs';
