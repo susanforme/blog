@@ -6,15 +6,90 @@ tag:
 
 # TypeORM
 
+## 基础知识
+
+### 什么是 ORM？
+
+**ORM（Object-Relational Mapping，对象关系映射）**
+是一种编程技术，它在关系型数据库和面向对象编程语言之间建立起一座桥梁。 简单来说，ORM 允许开发者用操作对象的方式来间接操作数据库中的数据表，而无需编写复杂的 SQL 语句。
+
+#### 存在的问题：直接使用原生 SQL
+
+以 Node.js 操作 MySQL 为例，假设我们有如下的 `posts` 表：
+
+```
++----+--------+------------+
+| id | title  | content      |
++----+--------+--------------+
+|  1 | nest | 文章内容描述 |
++----+--------+------------+
+```
+
+如果直接使用 `node-mysql` 这样的库进行数据插入，代码可能如下：
+
+```typescript
+// 向数据库中插入数据
+connection.query(
+  `INSERT INTO posts (title, content) VALUES ('${title}', '${content}')`,
+  (err, data) => {
+    if (err) {
+      console.error(err);
+    } else {
+      console.log(data);
+    }
+  },
+);
+```
+
+这段代码存在一些显而易见的问题：
+
+- **SQL 注入风险**：直接将变量拼接到 SQL 字符串中，容易受到 SQL 注入攻击。虽然可以通过参数化查询来解决，但这需要开发者额外注意。
+- **代码可读性差**：当业务逻辑变得复杂，需要操作多个字段或进行多表连接查询时，SQL 语句会变得非常长，难以阅读和维护。
+- **代码冗长**：对于简单的增删改查操作，也需要编写重复的 SQL 代码。
+- **数据库耦合度高**：如果未来需要更换数据库（例如从 MySQL 迁移到 PostgreSQL），所有原生 SQL 语句可能都需要重写。
+
+#### ORM 的解决方案：对象化的数据库操作
+
+ORM 的核心思想是将数据库中的表映射为程序中的**类 (Class)**，将表中的一行记录映射为一个**对象 (Object)**。
+
+例如，`posts` 表的一条记录可以很自然地用一个 JavaScript 对象来表示：
+
+```javascript
+{
+    id: 1,
+    title: "Nest.js 入门",
+    content: "文章内容描述"
+}
+```
+
+使用 ORM 框架（如 Node.js 生态中的 **Sequelize** 或
+**TypeORM**），插入同样的数据就可以变得像操作一个普通对象一样直观和安全：
+
+```typescript
+// 假设 Post 是一个与 posts 表映射的 ORM 模型
+const newPost = await Post.create({
+  title: 'Nest.js 入门',
+  content: '文章内容描述',
+});
+console.log(newPost);
+```
+
+可以看到，代码变得更加简洁、直观，并且由 ORM 框架在底层处理了 SQL 语句的生成和安全问题。
+
+### ORM 的主要优势与劣势
+
+| 优势                                                                                                     | 劣势                                                                                                                |
+| :------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------ |
+| **提高开发效率**：将重复的数据库操作封装成对象方法，让开发者更专注于业务逻辑。                           | **性能开销**：ORM 在对象和 SQL 之间增加了一个抽象层，对于复杂的查询，其自动生成的 SQL 可能不如手动优化的 SQL 高效。 |
+| **增强代码可读性和可维护性**：使用面向对象的方式操作数据库，代码更符合直觉，也更易于维护和统一编码风格。 | **学习成本**：需要花费额外的时间学习特定 ORM 框架的用法和配置。                                                     |
+| **数据库无关性**：ORM 提供了一层抽象，使得更换数据库变得相对容易，大部分代码无需修改。                   | **灵活性受限**：对于一些非常复杂或数据库特有的高级查询，ORM 可能难以表达，或者完全不支持。                          |
+| **内置安全机制**：大多数 ORM 框架会自动处理 SQL 注入等安全问题。                                         | **调试困难**：由于屏蔽了底层的 SQL，当出现性能问题或意外行为时，调试可能会变得更加困难。                            |
+
 ## 前言
 
-TypeORM 是一个可运行在 NodeJS、浏览器、Cordova、PhoneGap 和 Ionic 平台上的对象关
-系映射（ORM）框架，并且可以与 TypeScript 和 JavaScript (ES5, ES6, ES7, ES8) 配合
-使用。它旨在帮助开发者更轻松、更安全地与数据库进行交互，让你能够使用面向对象的方
-式来操作数据库，而不是编写繁琐的原生 SQL 语句。
-
-本指南将带你了解如何使用 TypeORM 完成最基础的数据操作，并重点演示如何实现与原生
-SQL 中 `LOCK IN SHARE MODE` 和 `FOR UPDATE` 等效的悲观锁机制。
+TypeORM 是一个可运行在 NodeJS、浏览器、Cordova、PhoneGap 和 Ionic 平台上的对象关系映射（ORM）框架，并且可以与 TypeScript 和 JavaScript
+(ES5, ES6, ES7,
+ES8) 配合使用。它旨在帮助开发者更轻松、更安全地与数据库进行交互，让你能够使用面向对象的方式来操作数据库，而不是编写繁琐的原生 SQL 语句。
 
 ## 准备工作：环境设置与实体创建
 
@@ -40,8 +115,8 @@ npm install typescript @types/node --save-dev
 
 **2. 配置数据源 (DataSource)**
 
-创建一个文件（例如 `data-source.ts`）来配置数据库连接。这是 TypeORM 与数据库沟通
-的桥梁。
+创建一个文件（例如
+`data-source.ts`）来配置数据库连接。这是 TypeORM 与数据库沟通的桥梁。
 
 ```typescript
 // src/data-source.ts
@@ -65,8 +140,8 @@ export const AppDataSource = new DataSource({
 
 **3. 创建实体 (Entity)**
 
-实体是一个映射到数据库表的类。我们将使用与之前 MySQL 教程中相同的 `products` 表
-结构来创建一个 `Product` 实体。
+实体是一个映射到数据库表的类。我们将使用与之前 MySQL 教程中相同的 `products`
+表结构来创建一个 `Product` 实体。
 
 创建一个文件 `src/entity/Product.ts`：
 
@@ -207,8 +282,7 @@ await productRepository.delete(3); // 删除 id 为 3 的记录
 
 ### 悲观读 (Shared Lock / `LOCK IN SHARE MODE`)
 
-如果你想在读取数据时加上一个共享锁，以防止其他事务修改该数据，但允许它们也进行加
-锁读取。
+如果你想在读取数据时加上一个共享锁，以防止其他事务修改该数据，但允许它们也进行加锁读取。
 
 **实现方式：** 使用 `createQueryBuilder` 并调用 `.setLock('pessimistic_read')`。
 
@@ -234,8 +308,7 @@ MODE` 的 SQL 语句。
 
 ### 悲观写 (Exclusive Lock / `FOR UPDATE`)
 
-如果你在读取数据后，几乎肯定要对其进行修改，并且希望阻止任何其他事务（包括读取）
-的干扰，应该使用排它锁。
+如果你在读取数据后，几乎肯定要对其进行修改，并且希望阻止任何其他事务（包括读取）的干扰，应该使用排它锁。
 
 **实现方式：** 使用 `createQueryBuilder` 并调用
 `.setLock('pessimistic_write')`。
@@ -266,19 +339,18 @@ await AppDataSource.manager.transaction(async (transactionalEntityManager) => {
 });
 ```
 
-这在底层会生成类似 `SELECT ... FROM \`product\` ... WHERE ... FOR UPDATE` 的 SQL
-语句。
+这在底层会生成类似 `SELECT ... FROM \`product\` ... WHERE ... FOR
+UPDATE` 的 SQL 语句。
 
 ## 总结
 
-- **TypeORM** 通过实体、仓库和数据源等概念，将数据库操作抽象为面向对象的代码，大
-  大提高了开发效率和代码可读性。
+- **TypeORM**
+  通过实体、仓库和数据源等概念，将数据库操作抽象为面向对象的代码，大大提高了开发效率和代码可读性。
 - **基础 CRUD** 操作通过 `save`, `find`, `update`, `delete` 等方法变得非常直观。
-- **悲观锁** 在 TypeORM 中通过 **QueryBuilder** 和 `.setLock()` 方法优雅地实现，
-  让你无需编写原生 SQL 就能利用数据库的并发控制能力。
+- **悲观锁** 在 TypeORM 中通过 **QueryBuilder** 和 `.setLock()`
+  方法优雅地实现，让你无需编写原生 SQL 就能利用数据库的并发控制能力。
   - `setLock('pessimistic_read')` 对应 **共享锁** (`LOCK IN SHARE MODE`)。
   - `setLock('pessimistic_write')` 对应 **排它锁** (`FOR UPDATE`)。
-- 执行加锁操作时，**务必将其包裹在事务中**，这是保证锁的生命周期和操作原子性的关
-  键。
+- 执行加锁操作时，**务必将其包裹在事务中**，这是保证锁的生命周期和操作原子性的关键。
 
 通过掌握这些核心功能，你可以使用 TypeORM 构建出既高效又健壮的数据访问层。
