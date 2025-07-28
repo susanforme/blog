@@ -533,4 +533,463 @@ graph TD
 
 ```
 
-## 结合TypeOrm
+## OpenAPI
+
+### 简介
+
+一个可维护的项目，应该有良好的文档. OpenAPI 规范（OAS），是定义一个标准的、与具体编程语言无关的RESTful API的规范。OpenAPI 规范使得人类和计算机都能在“不接触任何程序源代码和文档、不监控网络通信”的情况下理解一个服务的作用。如果您在定义您的 API 时做的很好，那么使用 API 的人就能非常轻松地理解您提供的 API 并与之交互了。
+
+如果您遵循 OpenAPI 规范来定义您的 API，那么您就可以用文档生成工具来展示您的 API，用代码生成工具来自动生成各种编程语言的服务器端和客户端的代码，用自动测试工具进行测试等等。
+
+### 结构
+
+OpenAPI 文档的顶层对象被称为 OpenAPI 对象。它由一系列固定字段构成，用以描述 API 的整体信息。
+
+| 字段名           | 类型                          | 描述                                                         |
+| :--------------- | :---------------------------- | :----------------------------------------------------------- |
+| **openapi**      | `string`                      | **必选**. 这个字符串必须是符合语义化版本号规范的 OpenAPI 规范版本号（例如 `"3.0.3"`）。`openapi` 字段应该被工具或客户端用来解释 OpenAPI 文档，这个值和 API `info.version` 字符串没有关联。 |
+| **info**         | `Info 对象`                   | **必选**。此字段提供 API 相关的元数据，例如标题、版本、描述等。 |
+| **servers**      | `[Server 对象]`               | 这是一个 Server 对象的数组，提供到服务器的连接信息。如果没有提供 `servers` 属性或者是一个空数组，那么默认为是 URL 值为 `/` 的 Server 对象。 |
+| **paths**        | `Paths 对象`                  | **必选**。对所提供的 API 有效的路径和操作的定义。            |
+| **components**   | `Components 对象`             | 一个包含多种可重用结构（如 Schemas、Parameters、Responses 等）的元素。 |
+| **security**     | `[Security Requirement 对象]` | 声明 API 使用的安全机制。这个列表中的值包含了可供选择的安全需求对象。认证一个请求时仅允许使用一种安全机制。单独的操作可以覆盖此处的全局定义。 |
+| **tags**         | `[Tag 对象]`                  | 提供更多元数据的一系列标签。标签的顺序可以被工具用来决定 API 操作的分组和排序。每个标签名都应该是唯一的。 |
+| **externalDocs** | `External Documentation 对象` | 指向附加外部文档的链接。                                     |
+
+```json
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "lp及商详文档)",
+    "description": "Collection的路径。",
+    "version": "1.0",
+    "contact": {}
+  },
+  "tags": [
+    {
+      "name": "Collection",
+      "description": "与 Collection 相关的操作"
+    }
+  ],
+  "servers": [
+    {
+      "url": "/lp/"
+    }
+  ],
+  "paths": {
+    "/collection/{id}": {
+      "get": {
+        "operationId": "CollectionController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "要查询的Collection的ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功的响应",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ApiResponseVo"
+                    },
+                    {
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/CollectionVo"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "根据id查询collection",
+        "tags": [
+          "Collection"
+        ]
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearer": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http",
+        "name": "Authorization",
+        "description": "请输入 JWT token",
+        "in": "header"
+      }
+    },
+    "schemas": {
+      "ApiResponseVo": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "number",
+            "description": "状态码",
+            "example": 200
+          },
+          "data": {
+            "type": "object",
+            "description": "响应数据",
+            "nullable": true
+          },
+          "message": {
+            "type": "string",
+            "description": "消息",
+            "example": "Success"
+          },
+          "timestamp": {
+            "type": "string",
+            "description": "时间戳",
+            "example": "2023-01-01T00:00:00Z"
+          }
+        },
+        "required": [
+          "status",
+          "data",
+          "message",
+          "timestamp"
+        ]
+      },
+      "CollectionVo": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "description": "模版类型",
+            "enum": [
+              "lp",
+              "detail"
+            ]
+          },
+          "id": {
+            "type": "string",
+            "description": "collection id"
+          },
+          "name": {
+            "type": "string",
+            "description": "合集名称"
+          },
+          "desc": {
+            "type": "string",
+            "description": "合集描述"
+          },
+          "createUserId": {
+            "type": "string",
+            "description": "创建人"
+          },
+          "lastModifyUserId": {
+            "type": "string",
+            "description": "最后修改人"
+          },
+          "createTime": {
+            "format": "date-time",
+            "type": "string",
+            "description": "创建时间"
+          },
+          "lastModifyTime": {
+            "format": "date-time",
+            "type": "string",
+            "description": "最后修改时间"
+          },
+          "templateCount": {
+            "type": "number",
+            "description": "模版数量"
+          },
+          "createUserName": {
+            "type": "string",
+            "description": "创建用户名称"
+          },
+          "lastModifyUserName": {
+            "type": "string",
+            "description": "修改用户名称"
+          }
+        },
+        "required": [
+          "type",
+          "id",
+          "name",
+          "desc",
+          "createUserId",
+          "lastModifyUserId",
+          "createTime",
+          "lastModifyTime",
+          "templateCount",
+          "createUserName",
+          "lastModifyUserName"
+        ]
+      }
+    }
+  }
+}
+```
+
+### 实例
+
+通过如下装饰器可以为项目统一添加 OpenAPI 注解
+
+```ts
+import { applyDecorators, Type } from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiExtraModels,
+  ApiResponse,
+  ApiResponseSchemaHost,
+  getSchemaPath,
+} from '@nestjs/swagger';
+import { ApiResponseVo } from '../vos/api-response.vo';
+import { PageDataVo } from '../vos/page-response.vo';
+
+type SchemaType = ApiResponseSchemaHost['schema'];
+const primitiveSchemas = {
+  boolean: defineSchemaType({ type: 'boolean', example: true }),
+  string: defineSchemaType({ type: 'string', example: 'text' }),
+  number: defineSchemaType({ type: 'number', example: 123 }),
+  streamFile: defineSchemaType({
+    type: 'string',
+    format: 'binary',
+    description: '文件流',
+  }),
+} as const;
+type PrimitiveKey = keyof typeof primitiveSchemas;
+
+type ApiModel = Type<any> | PrimitiveKey;
+export type ApiResponseWrapperOptionType = 'page' | 'origin';
+
+export type ApiResponseWrapperOption = {
+  isArray?: boolean;
+  type?: ApiResponseWrapperOptionType;
+};
+export type NestDecorator = ReturnType<typeof applyDecorators>;
+export function ApiResponseWrapper(
+  model: ApiModel,
+  option: ApiResponseWrapperOption,
+): NestDecorator;
+export function ApiResponseWrapper(
+  model?: ApiModel,
+  isArray?: boolean,
+): NestDecorator;
+export function ApiResponseWrapper(
+  model?: ApiModel,
+  option?: boolean | ApiResponseWrapperOption,
+): NestDecorator {
+  const isPrim = typeof model === 'string';
+  const extra: Type<any>[] = [];
+  if (!isPrim && model) extra.push(model);
+  const notNeedResponse: PrimitiveKey[] = ['streamFile'];
+  if (isPrim && notNeedResponse.includes(model)) {
+    return applyDecorators(
+      ApiResponse({
+        status: 200,
+        description: '成功的响应',
+        schema: primitiveSchemas[model],
+      }),
+    );
+  }
+  const isArray =
+    typeof option === 'boolean' ? option : (option?.isArray ?? false);
+  const type =
+    typeof option === 'boolean' ? 'origin' : (option?.type ?? 'origin');
+  const typeMap: Record<ApiResponseWrapperOptionType, () => SchemaType> = {
+    page: () => {
+      return {
+        allOf: [
+          {
+            $ref: getSchemaPath(PageDataVo),
+          },
+          {
+            properties: {
+              items: {
+                type: 'array',
+                items: {
+                  $ref: getSchemaPath(model!),
+                },
+              },
+            },
+          },
+        ],
+      };
+    },
+    origin: () => {
+      return isPrim
+        ? primitiveSchemas[model]
+        : model
+          ? { $ref: getSchemaPath(model) }
+          : { type: 'object', additionalProperties: true };
+    },
+  };
+
+  const itemSchema = typeMap[type]();
+
+  const dataSchema: SchemaType = {
+    properties: {
+      data: isArray
+        ? {
+            type: 'array',
+            items: itemSchema,
+          }
+        : itemSchema,
+    },
+  };
+
+  return applyDecorators(
+    ApiBearerAuth(),
+    ApiExtraModels(...extra),
+    ApiResponse({
+      status: 200,
+      description: '成功的响应',
+      schema: {
+        allOf: [
+          // 引用通用响应 DTO
+          { $ref: getSchemaPath(ApiResponseVo) },
+          dataSchema,
+        ],
+      },
+    }),
+  );
+}
+
+export function ApiPageResponseWrapper(model: ApiModel): NestDecorator {
+  return ApiResponseWrapper(model, { type: 'page' });
+}
+
+function defineSchemaType(o: SchemaType) {
+  return o;
+}
+```
+
+## nestjs应用分层设计 
+
+在 NestJS 应用程序中，通过合理的分层设计，可以有效实现关注点分离（Separation of Concerns），提升代码的可维护性、可扩展性和可测试性。其中，Controller、Service、DTO (Data Transfer Object) 和 VO (View Object) 是构建这一健壮架构的关键组成部分。
+
+1. **表现层 (Presentation Layer):**
+   - **组件:** Controller, Request DTO, Response VO。
+   - **核心职责:** 作为应用的入口，负责处理 HTTP 请求和响应。它验证输入 (DTO)、委派业务处理、并格式化输出 (VO)，是连接客户端和业务逻辑的桥梁。
+2. **业务逻辑层 (Business Logic Layer):**
+   - **组件:** Service。
+   - **核心职责:** 实现应用的核心业务规则和流程。它编排数据访问操作和处理复杂的业务逻辑，是应用功能的大脑。
+3. **数据访问层 (Data Access Layer):**
+   - **组件:** Repository/DAO (接口与实现), Entity, Database。
+   - **核心职责:** 封装所有与数据持久化相关的操作。通过抽象接口 (Repository/DAO Interface) 将业务逻辑与具体的数据库技术（如 TypeORM, MySQL）解耦，负责数据的增删改查 (CRUD) 和实体映射。
+
+整个流程体现了多种关键的设计模式和原则：
+
+- **数据流:**
+  - **输入:** Client → Controller → Request DTO (验证) → Service。
+  - **处理:** Service ↔ Repository ↔ Database ↔ Entity。
+  - **输出:** Entity → Service → Response VO (转换) → Controller → Client。
+- **关键模式与原则:**
+  - **MVC/MVCS 变体:** Controller 和 Service 的分离是典型的模型-视图-控制器思想的演化。
+  - **依赖倒置原则 (DIP):** 业务逻辑层 (Service) 依赖于数据访问层的**抽象接口** (Repository/DAO Interface)，而不是具体实现。这使得切换数据库或 ORM 框架变得容易。
+  - **DTO/VO 模式:**
+    - Request DTO 用于定义清晰的 API 输入契约并实现自动化验证。
+    - Response VO 用于定义清晰的 API 输出契约，避免暴露内部数据库结构 (Entity)，实现内外模型的隔离。
+  - **DAO/Repository 模式:** 提供了统一的数据访问接口，将数据持久化的复杂性封装起来，使业务代码更干净、更易于测试。
+
+```mermaid
+graph TB
+    %% 手动控制层级结构（通过虚线透明连接维持对齐）
+    
+    %% 客户端层
+    ClientDevice[用户设备浏览器App]
+
+    %% 表现层
+    RequestDTO["Request DTO(携带验证规则)"]
+    Controller[UserController]
+    ResponseVO["Response VO(视图对象)"]
+
+    %% 业务层
+    Service[UserService]
+
+    %% 数据访问层
+    RepoInterface["«interface»UserRepository/DAO"]
+    RepoImpl["Concrete Repository(e.g., TypeORM Repository)"]
+    Entity[User Entity]
+    DB[(Databasee.g., MySQL)]
+
+    %% 隐形连线帮助对齐层次（不显示）
+    ClientDevice --> Controller
+    Controller --> Service
+    Service --> RepoInterface
+    RepoInterface --> RepoImpl
+    RepoImpl --> DB
+    DB --> RepoImpl
+    RepoImpl --> Entity
+    Entity --> RepoImpl
+    RepoImpl --> RepoInterface
+    RepoInterface --> Service
+    Service --> ResponseVO
+    ResponseVO --> Controller
+    Controller --> ClientDevice
+
+    %% 实际业务流程箭头（带注释）
+    ClientDevice -- "① 发起 HTTP 请求(携带数据)" --> Controller
+    Controller -- "② 使用 Request DTO 验证请求数据" --> RequestDTO
+    Controller -- "③ 调用 Service 执行业务" --> Service
+    Service -- "④ 依赖接口, 调用数据访问方法e.g., findUserById(id)" --> RepoInterface
+    RepoImpl -- "⑤ 实现 (implements) 接口" --> RepoInterface
+    RepoImpl -- "⑥ 与数据库交互(执行 SQL 或 ORM 操作)" --> DB
+    DB -- "⑦ 返回原始数据" --> RepoImpl
+    RepoImpl -- "⑧ 映射原始数据为实体对象" --> Entity
+    Entity -- "⑨ 返回实体对象" --> RepoImpl
+    RepoInterface -- "⑩ 将实体返回给 Service" --> Service
+    Service -- "⑪ 转换为视图对象 VO" --> ResponseVO
+    ResponseVO -- "⑫ 返回 VO 给 Controller" --> Controller
+    Controller -- "⑬ 返回 HTTP 响应" --> ClientDevice
+
+    %% 分组层逻辑（用于解释用途）
+    subgraph Client[客户端]
+        ClientDevice
+    end
+
+    subgraph "Presentation Layer(表现层)"
+        RequestDTO
+        Controller
+        ResponseVO
+    end
+
+    subgraph "Business Logic Layer(业务逻辑层)"
+        Service
+    end
+
+    subgraph "Data Access Layer(数据访问层)"
+        RepoInterface
+        RepoImpl
+        Entity
+        DB
+    end
+
+    %% 样式
+    classDef interface fill:#E6F3FF,stroke:#0066CC,stroke-width:2px;
+    class RepoInterface interface;
+
+```
+
+
+
+
+
+
+
+
+
+
+
