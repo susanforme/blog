@@ -6,6 +6,7 @@
   "proseWrap": "always",
   "trailingComma": "all",
   "plugins": [
+    "prettier-plugin-embed",
     "prettier-plugin-organize-imports",
     "prettier-plugin-packagejson"
   ]

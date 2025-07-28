@@ -17,13 +17,11 @@
       <sun-tab :tabs="tabList">
         <template #logs>
         <div class="item-wrapper">
-          <div v-for="(output, index) in outputList" :key="index" 
-      class="item"
-      >
-        <span>[</span><span
+          <div v-for="(output, index) in outputList" :key="index" class="item" >
+        <span>[</span>
+        <span
          :class="output.type"
-        >{{
-          output.type }}</span> <span>] :</span>
+        >{{output.type }}</span> <span>] :</span>
           <span>"{{ output.message }}"</span>
       </div>
         </div>
@@ -43,6 +41,20 @@
       ></monaco-editor>
        </div>
       </template>
+       <!-- <template #types>
+        <div class="code-wrapper">
+        <monaco-editor
+        :code="compileTypes"
+        :extraOptions="{
+          language: 'typescript',
+          theme: 'vs',
+          automaticLayout: true,
+          fontSize: 18,
+          readOnly: true
+        }"
+      ></monaco-editor>
+       </div>
+      </template> -->
 </sun-tab>
 
 </pre>
@@ -67,6 +79,10 @@ const tabList = [
     name: 'js',
     title: 'js',
   },
+  // {
+  //   name: 'types',
+  //   title: '.d.ts',
+  // },
 ];
 
 const outputList = ref<
@@ -77,6 +93,7 @@ const outputList = ref<
 >([]);
 const props = defineProps<{ code: string }>();
 const compileJs = ref<string>('');
+const compileTypes = ref<string>('');
 
 const sandBox = new SandBox({
   callback(output) {
@@ -102,7 +119,15 @@ async function onShowEditorInit(editor: editor.IStandaloneCodeEditor) {
         emitDecoratorMetadata: true,
         module: tsLib.ModuleKind.ESNext,
       });
+      const types = tsLib.transpile(code, {
+        experimentalDecorators: true,
+        emitDecoratorMetadata: true,
+        module: tsLib.ModuleKind.ESNext,
+        declaration: true,
+        emitDeclarationOnly: true,
+      });
       compileJs.value = js;
+      compileTypes.value = types;
       outputList.value = [];
 
       sandBox.run(js);

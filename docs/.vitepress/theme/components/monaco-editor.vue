@@ -19,14 +19,27 @@ onMounted(async () => {
     allowNonTsExtensions: true,
   });
   const ts = String.raw;
-  const extraLib = ts`declare namespace Reflect {
-  function decorate(decorators: ClassDecorator[], target: Function): Function;
-  function metadata(metadataKey: any, metadataValue: any): any;
-  function defineMetadata(metadataKey: any, metadataValue: any, target: Object, propertyKey?: string | symbol): void;
-  function getMetadata(metadataKey: any, target: Object, propertyKey?: string | symbol): any;
-}
-declare var Reflect: typeof Reflect;
-`;
+  const extraLib = ts`
+    declare namespace Reflect {
+      function decorate(
+        decorators: ClassDecorator[],
+        target: Function,
+      ): Function;
+      function metadata(metadataKey: any, metadataValue: any): any;
+      function defineMetadata(
+        metadataKey: any,
+        metadataValue: any,
+        target: Object,
+        propertyKey?: string | symbol,
+      ): void;
+      function getMetadata(
+        metadataKey: any,
+        target: Object,
+        propertyKey?: string | symbol,
+      ): any;
+    }
+    declare var Reflect: typeof Reflect;
+  `;
   monaco.languages.typescript.typescriptDefaults.addExtraLib(
     extraLib,
     'ts:reflect-metadata.d.ts',
