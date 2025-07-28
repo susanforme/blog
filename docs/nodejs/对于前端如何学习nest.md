@@ -537,7 +537,9 @@ graph TD
 
 ### 简介
 
-一个可维护的项目，应该有良好的文档. OpenAPI 规范（OAS），是定义一个标准的、与具体编程语言无关的RESTful API的规范。OpenAPI 规范使得人类和计算机都能在“不接触任何程序源代码和文档、不监控网络通信”的情况下理解一个服务的作用。如果您在定义您的 API 时做的很好，那么使用 API 的人就能非常轻松地理解您提供的 API 并与之交互了。
+一个可维护的项目，应该有良好的文档.
+OpenAPI 规范（OAS），是定义一个标准的、与具体编程语言无关的RESTful
+API的规范。OpenAPI 规范使得人类和计算机都能在“不接触任何程序源代码和文档、不监控网络通信”的情况下理解一个服务的作用。如果您在定义您的 API 时做的很好，那么使用 API 的人就能非常轻松地理解您提供的 API 并与之交互了。
 
 如果您遵循 OpenAPI 规范来定义您的 API，那么您就可以用文档生成工具来展示您的 API，用代码生成工具来自动生成各种编程语言的服务器端和客户端的代码，用自动测试工具进行测试等等。
 
@@ -545,16 +547,16 @@ graph TD
 
 OpenAPI 文档的顶层对象被称为 OpenAPI 对象。它由一系列固定字段构成，用以描述 API 的整体信息。
 
-| 字段名           | 类型                          | 描述                                                         |
-| :--------------- | :---------------------------- | :----------------------------------------------------------- |
+| 字段名           | 类型                          | 描述                                                                                                                                                                                       |
+| :--------------- | :---------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **openapi**      | `string`                      | **必选**. 这个字符串必须是符合语义化版本号规范的 OpenAPI 规范版本号（例如 `"3.0.3"`）。`openapi` 字段应该被工具或客户端用来解释 OpenAPI 文档，这个值和 API `info.version` 字符串没有关联。 |
-| **info**         | `Info 对象`                   | **必选**。此字段提供 API 相关的元数据，例如标题、版本、描述等。 |
-| **servers**      | `[Server 对象]`               | 这是一个 Server 对象的数组，提供到服务器的连接信息。如果没有提供 `servers` 属性或者是一个空数组，那么默认为是 URL 值为 `/` 的 Server 对象。 |
-| **paths**        | `Paths 对象`                  | **必选**。对所提供的 API 有效的路径和操作的定义。            |
-| **components**   | `Components 对象`             | 一个包含多种可重用结构（如 Schemas、Parameters、Responses 等）的元素。 |
-| **security**     | `[Security Requirement 对象]` | 声明 API 使用的安全机制。这个列表中的值包含了可供选择的安全需求对象。认证一个请求时仅允许使用一种安全机制。单独的操作可以覆盖此处的全局定义。 |
-| **tags**         | `[Tag 对象]`                  | 提供更多元数据的一系列标签。标签的顺序可以被工具用来决定 API 操作的分组和排序。每个标签名都应该是唯一的。 |
-| **externalDocs** | `External Documentation 对象` | 指向附加外部文档的链接。                                     |
+| **info**         | `Info 对象`                   | **必选**。此字段提供 API 相关的元数据，例如标题、版本、描述等。                                                                                                                            |
+| **servers**      | `[Server 对象]`               | 这是一个 Server 对象的数组，提供到服务器的连接信息。如果没有提供 `servers` 属性或者是一个空数组，那么默认为是 URL 值为 `/` 的 Server 对象。                                                |
+| **paths**        | `Paths 对象`                  | **必选**。对所提供的 API 有效的路径和操作的定义。                                                                                                                                          |
+| **components**   | `Components 对象`             | 一个包含多种可重用结构（如 Schemas、Parameters、Responses 等）的元素。                                                                                                                     |
+| **security**     | `[Security Requirement 对象]` | 声明 API 使用的安全机制。这个列表中的值包含了可供选择的安全需求对象。认证一个请求时仅允许使用一种安全机制。单独的操作可以覆盖此处的全局定义。                                              |
+| **tags**         | `[Tag 对象]`                  | 提供更多元数据的一系列标签。标签的顺序可以被工具用来决定 API 操作的分组和排序。每个标签名都应该是唯一的。                                                                                  |
+| **externalDocs** | `External Documentation 对象` | 指向附加外部文档的链接。                                                                                                                                                                   |
 
 ```json
 {
@@ -620,9 +622,7 @@ OpenAPI 文档的顶层对象被称为 OpenAPI 对象。它由一系列固定字
           }
         ],
         "summary": "根据id查询collection",
-        "tags": [
-          "Collection"
-        ]
+        "tags": ["Collection"]
       }
     }
   },
@@ -662,12 +662,7 @@ OpenAPI 文档的顶层对象被称为 OpenAPI 对象。它由一系列固定字
             "example": "2023-01-01T00:00:00Z"
           }
         },
-        "required": [
-          "status",
-          "data",
-          "message",
-          "timestamp"
-        ]
+        "required": ["status", "data", "message", "timestamp"]
       },
       "CollectionVo": {
         "type": "object",
@@ -675,10 +670,7 @@ OpenAPI 文档的顶层对象被称为 OpenAPI 对象。它由一系列固定字
           "type": {
             "type": "string",
             "description": "模版类型",
-            "enum": [
-              "lp",
-              "detail"
-            ]
+            "enum": ["lp", "detail"]
           },
           "id": {
             "type": "string",
@@ -876,19 +868,25 @@ function defineSchemaType(o: SchemaType) {
 }
 ```
 
-## nestjs应用分层设计 
+## nestjs应用分层设计
 
-在 NestJS 应用程序中，通过合理的分层设计，可以有效实现关注点分离（Separation of Concerns），提升代码的可维护性、可扩展性和可测试性。其中，Controller、Service、DTO (Data Transfer Object) 和 VO (View Object) 是构建这一健壮架构的关键组成部分。
+在 NestJS 应用程序中，通过合理的分层设计，可以有效实现关注点分离（Separation of
+Concerns），提升代码的可维护性、可扩展性和可测试性。其中，Controller、Service、DTO
+(Data Transfer Object) 和 VO (View Object) 是构建这一健壮架构的关键组成部分。
 
 1. **表现层 (Presentation Layer):**
    - **组件:** Controller, Request DTO, Response VO。
-   - **核心职责:** 作为应用的入口，负责处理 HTTP 请求和响应。它验证输入 (DTO)、委派业务处理、并格式化输出 (VO)，是连接客户端和业务逻辑的桥梁。
+   - **核心职责:**
+     作为应用的入口，负责处理 HTTP 请求和响应。它验证输入 (DTO)、委派业务处理、并格式化输出 (VO)，是连接客户端和业务逻辑的桥梁。
 2. **业务逻辑层 (Business Logic Layer):**
    - **组件:** Service。
-   - **核心职责:** 实现应用的核心业务规则和流程。它编排数据访问操作和处理复杂的业务逻辑，是应用功能的大脑。
+   - **核心职责:**
+     实现应用的核心业务规则和流程。它编排数据访问操作和处理复杂的业务逻辑，是应用功能的大脑。
 3. **数据访问层 (Data Access Layer):**
    - **组件:** Repository/DAO (接口与实现), Entity, Database。
-   - **核心职责:** 封装所有与数据持久化相关的操作。通过抽象接口 (Repository/DAO Interface) 将业务逻辑与具体的数据库技术（如 TypeORM, MySQL）解耦，负责数据的增删改查 (CRUD) 和实体映射。
+   - **核心职责:** 封装所有与数据持久化相关的操作。通过抽象接口 (Repository/DAO
+     Interface) 将业务逻辑与具体的数据库技术（如 TypeORM,
+     MySQL）解耦，负责数据的增删改查 (CRUD) 和实体映射。
 
 整个流程体现了多种关键的设计模式和原则：
 
@@ -897,17 +895,21 @@ function defineSchemaType(o: SchemaType) {
   - **处理:** Service ↔ Repository ↔ Database ↔ Entity。
   - **输出:** Entity → Service → Response VO (转换) → Controller → Client。
 - **关键模式与原则:**
-  - **MVC/MVCS 变体:** Controller 和 Service 的分离是典型的模型-视图-控制器思想的演化。
-  - **依赖倒置原则 (DIP):** 业务逻辑层 (Service) 依赖于数据访问层的**抽象接口** (Repository/DAO Interface)，而不是具体实现。这使得切换数据库或 ORM 框架变得容易。
+  - **MVC/MVCS 变体:**
+    Controller 和 Service 的分离是典型的模型-视图-控制器思想的演化。
+  - **依赖倒置原则 (DIP):** 业务逻辑层 (Service) 依赖于数据访问层的**抽象接口**
+    (Repository/DAO Interface)，而不是具体实现。这使得切换数据库或 ORM 框架变得容易。
   - **DTO/VO 模式:**
     - Request DTO 用于定义清晰的 API 输入契约并实现自动化验证。
-    - Response VO 用于定义清晰的 API 输出契约，避免暴露内部数据库结构 (Entity)，实现内外模型的隔离。
-  - **DAO/Repository 模式:** 提供了统一的数据访问接口，将数据持久化的复杂性封装起来，使业务代码更干净、更易于测试。
+    - Response
+      VO 用于定义清晰的 API 输出契约，避免暴露内部数据库结构 (Entity)，实现内外模型的隔离。
+  - **DAO/Repository 模式:**
+    提供了统一的数据访问接口，将数据持久化的复杂性封装起来，使业务代码更干净、更易于测试。
 
 ```mermaid
 graph TB
     %% 手动控制层级结构（通过虚线透明连接维持对齐）
-    
+
     %% 客户端层
     ClientDevice[用户设备浏览器App]
 
@@ -983,13 +985,190 @@ graph TB
 
 ```
 
+### 具体实现
+
+#### controller
+
+```ts
+@Controller('collection')
+export class CollectionController {
+  constructor(private readonly collectionService: CollectionService) {}
+  @Get('list')
+  @ApiPageResponseWrapper(CollectionVo)
+  @ApiOperation({ summary: '分页查询collection' })
+  findByCollectionIdPage(@Query() query: CollectionPageQueryDto) {
+    return this.collectionService.findByPage(query);
+  }
+}
+```
+
+#### service
+
+```ts
+@Injectable()
+export class CollectionService {
+  constructor(
+    @InjectRepository(CollectionEntity)
+    private collectionRepository: Repository<CollectionEntity>,
+  ) {}
+  findByPage(query: CollectionPageQueryDto) {
+    const { page, pageSize, name, ...rest } = query;
+    return from(
+      this.collectionRepository
+        .createQueryBuilder('collection')
+        .leftJoinAndSelect('collection.createUser', 'createUser')
+        .leftJoinAndSelect('collection.lastModifyUser', 'lastModifyUser')
+        .loadRelationCountAndMap(
+          'collection.templateCount',
+          'collection.templates',
+        )
+        .where(
+          omitOrmUndefined({
+            ...rest,
+            name: likeIf(name),
+          }),
+        )
+        .orderBy('collection.createTime', 'DESC')
+        .skip((page - 1) * pageSize)
+        .take(pageSize)
+        .getManyAndCount(),
+    ).pipe(
+      map(([collections, count]) => {
+        return PageDataDtoFactory({
+          items: plainToInstance(CollectionVo, collections),
+          total: count,
+          page,
+          pageSize,
+        });
+      }),
+    );
+  }
+}
+
+```
+
+#### 表结构
+
+| 字段名             | 描述          | 数据类型 | 约束         |
+| ------------------ | ------------- | -------- | ------------ |
+| `id`               | collection id | string   | 主键, 自增   |
+| `name`             | 合集名称      | string   | 唯一         |
+| `desc`             | 合集描述      | string   |              |
+| `createUserId`     | 创建人        | string   | 索引         |
+| `lastModifyUserId` | 最后修改人    | string   | 可为空, 索引 |
+| `createTime`       | 创建时间      | Date     |              |
+| `lastModifyTime`   | 最后修改时间  | Date     |              |
 
 
 
+#### 数据库实体
 
+```typescript
+@Entity('collections')
+export class CollectionEntity extends AbstractTypeEntity {
+  @PrimaryGeneratedColumn()
+  @ApiProperty({
+    description: 'collection id',
+  })
+  id!: string;
+  @ApiProperty({
+    description: '合集名称',
+  })
+  @IsString()
+  @Column({
+    unique: true,
+  })
+  name!: string;
+  @ApiProperty({
+    description: '合集描述',
+  })
+  @IsString()
+  @Column()
+  desc!: string;
+  @ApiProperty({
+    description: '创建人',
+  })
+  @IsString()
+  @Column()
+  @Index()
+  createUserId!: string;
+  @ApiProperty({
+    description: '最后修改人',
+  })
+  @IsString()
+  @Column({
+    nullable: true,
+  })
+  @Index()
+  lastModifyUserId!: string;
+  @ApiProperty({
+    description: '创建时间',
+    type: Date,
+  })
+  @CreateDateColumn({})
+  createTime!: string;
+  @ApiProperty({
+    description: '最后修改时间',
+    type: Date,
+  })
+  @UpdateDateColumn()
+  lastModifyTime!: string;
 
+  @OneToMany('templates', 'belongingCollection')
+  templates!: Relation<TemplateEntity>[];
+  @ManyToOne(() => UserEntity, {
+    createForeignKeyConstraints: false,
+  })
+  @JoinColumn({
+    name: 'createUserId',
+  })
+  @Exclude()
+  createUser!: Relation<UserEntity>;
+  @ManyToOne(() => UserEntity, {
+    createForeignKeyConstraints: false,
+  })
+  @JoinColumn({
+    name: 'lastModifyUserId',
+  })
+  @Exclude()
+  lastModifyUser!: Relation<UserEntity>;
+}
+```
 
+#### Dto
 
+```typescript
+export class CollectionPageQueryDto extends IntersectionType(
+  PageDataQueryVo,
+  PartialType(PickType(CollectionEntity, ['name'])),
+  PickType(CollectionEntity, ['type']),
+) {
+  @IsOptional()
+  @ApiPropertyOptional()
+  @IsString()
+  override name?: string;
+}
+```
 
+#### Vo
 
+```typescript
+import { TransformExposeRelation } from '@/common/decorators/transform-expose-relation.decorator';
+import { ApiProperty } from '@nestjs/swagger';
+import { CollectionEntity } from '../entities/collection.entity';
 
+export class CollectionVo extends CollectionEntity {
+  @ApiProperty({ description: '模版数量', type: Number })
+  templateCount!: number;
+  @TransformExposeRelation<CollectionEntity>({
+    description: '创建用户名称',
+    path: 'createUser.metadata.name',
+  })
+  createUserName!: string;
+  @TransformExposeRelation<CollectionEntity>({
+    description: '修改用户名称',
+    path: 'lastModifyUser.metadata.name',
+  })
+  lastModifyUserName!: string;
+}
+```
