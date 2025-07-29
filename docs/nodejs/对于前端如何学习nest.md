@@ -26,10 +26,6 @@ sticky: 95
 
 [去阅读文章](../backend/mysql.md)
 
-### TypeORM
-
-[去阅读文章](../backend/typeorm.md)
-
 ### 设计模式
 
 [去阅读文章](../backend/设计模式.md)
@@ -898,7 +894,8 @@ Concerns），提升代码的可维护性、可扩展性和可测试性。其中
   - **MVC/MVCS 变体:**
     Controller 和 Service 的分离是典型的模型-视图-控制器思想的演化。
   - **依赖倒置原则 (DIP):** 业务逻辑层 (Service) 依赖于数据访问层的**抽象接口**
-    (Repository/DAO Interface)，而不是具体实现。这使得切换数据库或 ORM 框架变得容易。
+    (Repository/DAO
+    Interface)，而不是具体实现。这使得切换数据库或 ORM 框架变得容易。
   - **DTO/VO 模式:**
     - Request DTO 用于定义清晰的 API 输入契约并实现自动化验证。
     - Response
@@ -1044,7 +1041,6 @@ export class CollectionService {
     );
   }
 }
-
 ```
 
 #### 表结构
@@ -1058,8 +1054,6 @@ export class CollectionService {
 | `lastModifyUserId` | 最后修改人    | string   | 可为空, 索引 |
 | `createTime`       | 创建时间      | Date     |              |
 | `lastModifyTime`   | 最后修改时间  | Date     |              |
-
-
 
 #### 数据库实体
 

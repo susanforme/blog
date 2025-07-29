@@ -341,16 +341,3 @@ await AppDataSource.manager.transaction(async (transactionalEntityManager) => {
 
 这在底层会生成类似 `SELECT ... FROM \`product\` ... WHERE ... FOR
 UPDATE` 的 SQL 语句。
-
-## 总结
-
-- **TypeORM**
-  通过实体、仓库和数据源等概念，将数据库操作抽象为面向对象的代码，大大提高了开发效率和代码可读性。
-- **基础 CRUD** 操作通过 `save`, `find`, `update`, `delete` 等方法变得非常直观。
-- **悲观锁** 在 TypeORM 中通过 **QueryBuilder** 和 `.setLock()`
-  方法优雅地实现，让你无需编写原生 SQL 就能利用数据库的并发控制能力。
-  - `setLock('pessimistic_read')` 对应 **共享锁** (`LOCK IN SHARE MODE`)。
-  - `setLock('pessimistic_write')` 对应 **排它锁** (`FOR UPDATE`)。
-- 执行加锁操作时，**务必将其包裹在事务中**，这是保证锁的生命周期和操作原子性的关键。
-
-通过掌握这些核心功能，你可以使用 TypeORM 构建出既高效又健壮的数据访问层。
