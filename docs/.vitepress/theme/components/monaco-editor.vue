@@ -2,6 +2,10 @@
 import { onMounted, ref } from 'vue';
 import '../init-worker';
 import { editor } from 'monaco-editor';
+import * as prettier from 'prettier/standalone';
+import * as parserTypescript from 'prettier/parser-typescript';
+import * as prettierPluginEstree from 'prettier/plugins/estree';
+
 const props = defineProps<{
   code: string;
   onEditorInit?: (editor: editor.IStandaloneCodeEditor) => void;
@@ -9,6 +13,7 @@ const props = defineProps<{
 }>();
 
 const editorContainer = ref<HTMLDivElement>();
+
 onMounted(async () => {
   let monaco = await import('monaco-editor');
   monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
@@ -44,8 +49,18 @@ onMounted(async () => {
     extraLib,
     'ts:reflect-metadata.d.ts',
   );
+  const formatted = await prettier.format(props.code, {
+    parser: 'typescript',
+    plugins: [parserTypescript, prettierPluginEstree as any],
+    printWidth: 60,
+    semi: true,
+    tabWidth: 2,
+    singleQuote: true,
+    proseWrap: 'always',
+    trailingComma: 'all',
+  });
   const editor = monaco.editor.create(editorContainer.value!, {
-    value: props.code,
+    value: formatted,
     language: 'typescript',
     theme: 'vs',
     automaticLayout: true,
@@ -54,18 +69,11 @@ onMounted(async () => {
   });
   props.onEditorInit?.(editor);
 });
-async function requestFull() {
-  const dom = editorContainer.value;
-  if (dom) {
-    await dom.requestFullscreen();
-  }
-}
 </script>
 
 <template>
-  <div class="wrapper">
+  <div class="wrapper" ref="wrapper">
     <div class="editor" ref="editorContainer"></div>
-    <div class="icon" @click="requestFull">🔍</div>
   </div>
 </template>
 
