@@ -99,45 +99,59 @@ fromEvent(document, 'click')
 
 ## 弹珠语法
 
-在 TestScheduler 的上下文中，弹珠图是一个字符串，其中包含表示随着虚拟时间发生的事件的特殊语法。时间会按*帧*前进。任何弹珠字符串的第一个字符总是代表*零帧*或者说时间的起点。在 `testScheduler.run(callback)` 内部，frameTimeFactor 设置为 1，这意味着一帧等于一个虚拟毫秒。
+在 TestScheduler 的上下文中，弹珠图是一个字符串，其中包含表示随着虚拟时间发生的事件的特殊语法。时间会按*帧*前进。任何弹珠字符串的第一个字符总是代表*零帧*或者说时间的起点。在
+`testScheduler.run(callback)`
+内部，frameTimeFactor 设置为 1，这意味着一帧等于一个虚拟毫秒。
 
-一帧代表多少虚拟毫秒取决于 `TestScheduler.frameTimeFactor` 的值。由于遗留原因，*只有*当 `testScheduler.run(callback)` 回调中的代码正在运行时，`frameTimeFactor` 的值才为 1。在此之外，它设置为 10。这一点可能会在 RxJS 的未来版本中发生变化，以便让它始终为 1。
+一帧代表多少虚拟毫秒取决于 `TestScheduler.frameTimeFactor`
+的值。由于遗留原因，*只有*当 `testScheduler.run(callback)`
+回调中的代码正在运行时，`frameTimeFactor`
+的值才为 1。在此之外，它设置为 10。这一点可能会在 RxJS 的未来版本中发生变化，以便让它始终为 1。
 
 - `' '` 空白：忽略水平空白，可用于帮助垂直对齐多个弹珠图。
 
 - `'-'` 帧：1 个虚拟时间流逝的“帧”（参见上面的帧描述）。
 
-- `[0-9]+[ms|s|m]` 时间进度：时间进度语法允许你将虚拟时间推进特定的数量。它是一个数字，后跟 `ms`（毫秒）、`s`（秒）或 `m`（分钟）的时间单位，它们之间没有任何空格，例如 `a 10ms b`。有关更多详细信息，请参阅[时间进度语法](https://rxjs.tech/guide/testing/marble-testing#time-progression-syntax)。
+- `[0-9]+[ms|s|m]`
+  时间进度：时间进度语法允许你将虚拟时间推进特定的数量。它是一个数字，后跟
+  `ms`（毫秒）、`s`（秒）或 `m`（分钟）的时间单位，它们之间没有任何空格，例如
+  `a 10ms b`。有关更多详细信息，请参阅[时间进度语法](https://rxjs.tech/guide/testing/marble-testing#time-progression-syntax)。
 
-- `'|'` 完成：一个 Observable 的成功完成。这是 Observable 的生产者信号 `complete()`。
+- `'|'` 完成：一个 Observable 的成功完成。这是 Observable 的生产者信号
+  `complete()`。
 
 - `'#'` 错误：终止 observable 的错误。这是 Observable 的生产者信号 `error()`。
 
-  `'#'` error: An error terminating the observable. This is the observable producer signaling `error()`.
-
-- `[a-z0-9]`（例如 `'a'`）任何字母数字字符：表示由生产者信号 `next()` 发出的值。你可以将它映射到一个对象或数组中，如下所示：
+- `[a-z0-9]`（例如 `'a'`）任何字母数字字符：表示由生产者信号 `next()`
+  发出的值。你可以将它映射到一个对象或数组中，如下所示：
 
 ## 时间进展语法
 
-`'-'` 或 `'------'` ：等价于 [`NEVER`](https://rxjs.tech/api/index/const/NEVER)，或者是一个“从不发出”、“错误”或“完成”的 Observable。
+`'-'` 或 `'------'` ：等价于
+[`NEVER`](https://rxjs.tech/api/index/const/NEVER)，或者是一个“从不发出”、“错误”或“完成”的 Observable。
 
-`|` : 等价于 [`EMPTY`](https://rxjs.tech/api/index/const/EMPTY)，或者是一个永远不会立即发出和完成的 observable。
+`|` : 等价于
+[`EMPTY`](https://rxjs.tech/api/index/const/EMPTY)，或者是一个永远不会立即发出和完成的 observable。
 
-`#` ：等价于 [`throwError`](https://rxjs.tech/api/index/function/throwError)，或者是一个永远不会立即发出错误的 Observable。
+`#` ：等价于
+[`throwError`](https://rxjs.tech/api/index/function/throwError)，或者是一个永远不会立即发出错误的 Observable。
 
-`'--a--'` ：一个等待 2 个“帧”的 Observable，在第 2 帧上发出值 `a` 然后永远不会完成。
+`'--a--'` ：一个等待 2 个“帧”的 Observable，在第 2 帧上发出值 `a`
+然后永远不会完成。
 
 `'--a--b--|'` ：在第 2 帧发出 `a`，在第 5 帧发出 `b`，在第 8 帧 `complete`。
 
 `'--a--b--#'` ：在第 2 帧发出 `a`，在第 5 帧发出 `b`，在第 8 帧发出 `error`。
 
-`'-a-^-b--|'` ：在一个热 observable 中，在 -2 帧上发出 `a`，然后在第 2 帧上发出 `b`，在第 5 帧上 `complete`。
+`'-a-^-b--|'` ：在一个热 observable 中，在 -2 帧上发出 `a`，然后在第 2 帧上发出
+`b`，在第 5 帧上 `complete`。
 
 `'--(abc)-|'` ：在第 2 帧发出 `a`、`b` 和 `c`，然后在第 8 帧，`complete`。
 
 `'-----(a|)'` ：在第 5 帧发出 `a` 并 `complete`。
 
-`'a 9ms b 9s c|'` ：在第 0 帧发出 `a`，在第 10 帧发出 `b`，在第 9,011 帧发出 `c`，然后在第 9,012 帧 `complete`。
+`'a 9ms b 9s c|'` ：在第 0 帧发出 `a`，在第 10 帧发出 `b`，在第 9,011 帧发出
+`c`，然后在第 9,012 帧 `complete`。
 
 `'--a 2.5m b'` ：在第 2 帧发出 `a`，在第 150,003 帧发出 `b` 并且永远不会完成。
 
@@ -166,14 +180,13 @@ positions.subscribe((x) => console.log(x));
 switchMap<T, R, O extends ObservableInput<any>>(project: (value: T, index: number) => O, resultSelector?: (outerValue: T, innerValue: ObservedValueOf<O>, outerIndex: number, innerIndex: number) => R): OperatorFunction<T, ObservedValueOf<O> | R>
 ```
 
-
 ![](https://rxjs.dev/assets/images/marble-diagrams/switchMap.png)
 
 ```ts
 import { of, switchMap } from 'rxjs';
 
-const switched = of(1, 2, 3).pipe(switchMap(x => of(x, x ** 2, x ** 3)));
-switched.subscribe(x => console.log(x));
+const switched = of(1, 2, 3).pipe(switchMap((x) => of(x, x ** 2, x ** 3)));
+switched.subscribe((x) => console.log(x));
 // outputs
 // 1
 // 1
@@ -185,10 +198,6 @@ switched.subscribe(x => console.log(x));
 // 9
 // 27
 ```
-
-
-
-
 
 ### scan
 
