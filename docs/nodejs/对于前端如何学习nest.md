@@ -984,6 +984,18 @@ graph TB
 
 ### 具体实现
 
+#### 表结构
+
+| 字段名             | 描述          | 数据类型 | 约束         |
+| ------------------ | ------------- | -------- | ------------ |
+| `id`               | collection id | string   | 主键, 自增   |
+| `name`             | 合集名称      | string   | 唯一         |
+| `desc`             | 合集描述      | string   |              |
+| `createUserId`     | 创建人        | string   | 索引         |
+| `lastModifyUserId` | 最后修改人    | string   | 可为空, 索引 |
+| `createTime`       | 创建时间      | Date     |              |
+| `lastModifyTime`   | 最后修改时间  | Date     |              |
+
 #### controller
 
 ```ts
@@ -1042,18 +1054,6 @@ export class CollectionService {
   }
 }
 ```
-
-#### 表结构
-
-| 字段名             | 描述          | 数据类型 | 约束         |
-| ------------------ | ------------- | -------- | ------------ |
-| `id`               | collection id | string   | 主键, 自增   |
-| `name`             | 合集名称      | string   | 唯一         |
-| `desc`             | 合集描述      | string   |              |
-| `createUserId`     | 创建人        | string   | 索引         |
-| `lastModifyUserId` | 最后修改人    | string   | 可为空, 索引 |
-| `createTime`       | 创建时间      | Date     |              |
-| `lastModifyTime`   | 最后修改时间  | Date     |              |
 
 #### 数据库实体
 
