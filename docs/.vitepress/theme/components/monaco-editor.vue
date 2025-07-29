@@ -8,7 +8,7 @@ const props = defineProps<{
   extraOptions?: editor.IStandaloneEditorConstructionOptions;
 }>();
 
-const editorContainer = ref(null);
+const editorContainer = ref<HTMLDivElement>();
 onMounted(async () => {
   let monaco = await import('monaco-editor');
   monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
@@ -54,10 +54,19 @@ onMounted(async () => {
   });
   props.onEditorInit?.(editor);
 });
+async function requestFull() {
+  const dom = editorContainer.value;
+  if (dom) {
+    await dom.requestFullscreen();
+  }
+}
 </script>
 
 <template>
-  <div class="editor" ref="editorContainer"></div>
+  <div class="wrapper">
+    <div class="editor" ref="editorContainer"></div>
+    <div class="icon" @click="requestFull">🔍</div>
+  </div>
 </template>
 
 <style scoped lang="less">
@@ -65,5 +74,15 @@ onMounted(async () => {
   width: 100%;
   height: 100vh;
   min-height: 400px;
+}
+.wrapper {
+  position: relative;
+}
+.icon {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 999;
+  cursor: pointer;
 }
 </style>
