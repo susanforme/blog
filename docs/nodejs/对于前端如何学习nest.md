@@ -996,65 +996,6 @@ graph TB
 | `createTime`       | 创建时间      | Date     |              |
 | `lastModifyTime`   | 最后修改时间  | Date     |              |
 
-#### controller
-
-```ts
-@Controller('collection')
-export class CollectionController {
-  constructor(private readonly collectionService: CollectionService) {}
-  @Get('list')
-  @ApiPageResponseWrapper(CollectionVo)
-  @ApiOperation({ summary: '分页查询collection' })
-  findByCollectionIdPage(@Query() query: CollectionPageQueryDto) {
-    return this.collectionService.findByPage(query);
-  }
-}
-```
-
-#### service
-
-```ts
-@Injectable()
-export class CollectionService {
-  constructor(
-    @InjectRepository(CollectionEntity)
-    private collectionRepository: Repository<CollectionEntity>,
-  ) {}
-  findByPage(query: CollectionPageQueryDto) {
-    const { page, pageSize, name, ...rest } = query;
-    return from(
-      this.collectionRepository
-        .createQueryBuilder('collection')
-        .leftJoinAndSelect('collection.createUser', 'createUser')
-        .leftJoinAndSelect('collection.lastModifyUser', 'lastModifyUser')
-        .loadRelationCountAndMap(
-          'collection.templateCount',
-          'collection.templates',
-        )
-        .where(
-          omitOrmUndefined({
-            ...rest,
-            name: likeIf(name),
-          }),
-        )
-        .orderBy('collection.createTime', 'DESC')
-        .skip((page - 1) * pageSize)
-        .take(pageSize)
-        .getManyAndCount(),
-    ).pipe(
-      map(([collections, count]) => {
-        return PageDataDtoFactory({
-          items: plainToInstance(CollectionVo, collections),
-          total: count,
-          page,
-          pageSize,
-        });
-      }),
-    );
-  }
-}
-```
-
 #### 数据库实体
 
 ```typescript
@@ -1126,6 +1067,65 @@ export class CollectionEntity extends AbstractTypeEntity {
   })
   @Exclude()
   lastModifyUser!: Relation<UserEntity>;
+}
+```
+
+#### controller
+
+```ts
+@Controller('collection')
+export class CollectionController {
+  constructor(private readonly collectionService: CollectionService) {}
+  @Get('list')
+  @ApiPageResponseWrapper(CollectionVo)
+  @ApiOperation({ summary: '分页查询collection' })
+  findByCollectionIdPage(@Query() query: CollectionPageQueryDto) {
+    return this.collectionService.findByPage(query);
+  }
+}
+```
+
+#### service
+
+```ts
+@Injectable()
+export class CollectionService {
+  constructor(
+    @InjectRepository(CollectionEntity)
+    private collectionRepository: Repository<CollectionEntity>,
+  ) {}
+  findByPage(query: CollectionPageQueryDto) {
+    const { page, pageSize, name, ...rest } = query;
+    return from(
+      this.collectionRepository
+        .createQueryBuilder('collection')
+        .leftJoinAndSelect('collection.createUser', 'createUser')
+        .leftJoinAndSelect('collection.lastModifyUser', 'lastModifyUser')
+        .loadRelationCountAndMap(
+          'collection.templateCount',
+          'collection.templates',
+        )
+        .where(
+          omitOrmUndefined({
+            ...rest,
+            name: likeIf(name),
+          }),
+        )
+        .orderBy('collection.createTime', 'DESC')
+        .skip((page - 1) * pageSize)
+        .take(pageSize)
+        .getManyAndCount(),
+    ).pipe(
+      map(([collections, count]) => {
+        return PageDataDtoFactory({
+          items: plainToInstance(CollectionVo, collections),
+          total: count,
+          page,
+          pageSize,
+        });
+      }),
+    );
+  }
 }
 ```
 
