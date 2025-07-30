@@ -1,11 +1,10 @@
 import BlogTheme from '@sugarat/theme';
-import Mermaid from './components/Mermaid.vue';
-import { Theme } from 'vitepress';
+import { inject } from '@vercel/analytics';
 import Viewer from 'v-viewer';
+import { Theme } from 'vitepress';
 import FrameBox from './components/frame-box.vue';
+import Mermaid from './components/Mermaid.vue';
 import Sandpack from './components/Sandpack.vue';
-
-
 // 自定义样式重载
 // import './style.scss'
 
@@ -15,6 +14,10 @@ import Sandpack from './components/Sandpack.vue';
 export default {
   ...BlogTheme,
   enhanceApp({ app }) {
+    if (typeof window !== 'undefined') {
+      inject();
+      console.log('inject analytics');
+    }
     app
       .component('Mermaid', Mermaid)
       .use(Viewer)
