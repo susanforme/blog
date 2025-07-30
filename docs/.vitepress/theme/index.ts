@@ -1,10 +1,12 @@
 import BlogTheme from '@sugarat/theme';
 import { inject } from '@vercel/analytics';
+import { injectSpeedInsights } from '@vercel/speed-insights';
 import Viewer from 'v-viewer';
 import { Theme } from 'vitepress';
 import FrameBox from './components/frame-box.vue';
 import Mermaid from './components/Mermaid.vue';
 import Sandpack from './components/Sandpack.vue';
+
 // 自定义样式重载
 // import './style.scss'
 
@@ -17,6 +19,8 @@ export default {
     if (typeof window !== 'undefined') {
       inject();
       console.log('inject analytics');
+      injectSpeedInsights();
+      console.log('inject speed insights');
     }
     app
       .component('Mermaid', Mermaid)
