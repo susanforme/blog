@@ -1,5 +1,6 @@
 import { defineConfig } from 'vitepress';
 // 导入主题的配置
+import process from 'node:process';
 import { blogTheme } from './blog-theme';
 
 // 如果使用 GitHub/Gitee Pages 等公共平台部署
@@ -14,7 +15,7 @@ import { blogTheme } from './blog-theme';
 export default defineConfig({
   // 继承博客主题(@sugarat/theme)
   extends: blogTheme,
-  base: '/blog',
+  base: process.env.VERCEL ? void 0 : '/blog',
   lang: 'zh-cn',
   title: "桃花笑春风's blog",
   description: '桃花笑春风 blog',
