@@ -46,8 +46,9 @@ document.body.appendChild(element);
 <script>
 const element = document.createElement('div');
 const shadowRoot = element.attachShadow({ mode: 'open' });
-shadowRoot.innerHTML = '<style>p{color: red;}</style><p>Hello, Shadow DOM!</p>';
+shadowRoot.innerHTML = '<style>p{color: red;}</style><p id="shadow">Hello, Shadow DOM!</p>';
 document.body.appendChild(element);
+console.log("shadow ",document.querySelector('#shadow'))
 </script>
 ```
 

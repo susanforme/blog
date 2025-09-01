@@ -6,11 +6,17 @@ import * as prettier from 'prettier/standalone';
 import * as parserTypescript from 'prettier/parser-typescript';
 import * as prettierPluginEstree from 'prettier/plugins/estree';
 
-const props = defineProps<{
-  code: string;
-  onEditorInit?: (editor: editor.IStandaloneCodeEditor) => void;
-  extraOptions?: editor.IStandaloneEditorConstructionOptions;
-}>();
+const props = withDefaults(
+  defineProps<{
+    code: string;
+    onEditorInit?: (editor: editor.IStandaloneCodeEditor) => void;
+    extraOptions?: editor.IStandaloneEditorConstructionOptions;
+    language?: 'html' | 'typescript';
+  }>(),
+  {
+    language: 'typescript',
+  },
+);
 
 const editorContainer = ref<HTMLDivElement>();
 
@@ -24,6 +30,7 @@ onMounted(async () => {
     allowNonTsExtensions: true,
   });
   const ts = String.raw;
+
   const extraLib = ts`
     declare namespace Reflect {
       function decorate(
@@ -49,23 +56,30 @@ onMounted(async () => {
     extraLib,
     'ts:reflect-metadata.d.ts',
   );
-  const formatted = await prettier.format(props.code, {
-    parser: 'typescript',
-    plugins: [parserTypescript, prettierPluginEstree as any],
-    printWidth: 60,
-    semi: true,
-    tabWidth: 2,
-    singleQuote: true,
-    proseWrap: 'always',
-    trailingComma: 'all',
-  });
+  let formatted = props.code;
+  const extraOptions = {
+    language: props.language,
+    ...props.extraOptions,
+  };
+  if (props.language === 'typescript') {
+    formatted = await prettier.format(props.code, {
+      parser: 'typescript',
+      plugins: [parserTypescript, prettierPluginEstree as any],
+      printWidth: 60,
+      semi: true,
+      tabWidth: 2,
+      singleQuote: true,
+      proseWrap: 'always',
+      trailingComma: 'all',
+    });
+  }
+
   const editor = monaco.editor.create(editorContainer.value!, {
     value: formatted,
-    language: 'typescript',
     theme: 'vs',
     automaticLayout: true,
     fontSize: 18,
-    ...props.extraOptions,
+    ...extraOptions,
   });
   props.onEditorInit?.(editor);
 });

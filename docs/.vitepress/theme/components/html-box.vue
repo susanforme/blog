@@ -1,48 +1,176 @@
-<script lang="ts" setup>
-import { computed, ref, onMounted, watch } from 'vue';
-
-const props = defineProps<{
-  code: string;
-}>();
-
-const iframeRef = ref<HTMLIFrameElement | null>(null);
-
-const html = computed(() => decodeURIComponent(props.code));
-
-const updateIframe = () => {
-  if (iframeRef.value) {
-    const doc = iframeRef.value.contentDocument;
-    if (doc) {
-      doc.open();
-      doc.write(html.value);
-      doc.close();
-    }
-  }
-};
-
-onMounted(updateIframe);
-
-// 监听 code 变化
-watch(html, () => {
-  updateIframe();
-});
-</script>
-
 <template>
-  <div class="frame-box">
-    <iframe ref="iframeRef" frameborder="0" width="100%" height="100%"></iframe>
-  </div>
+  <full-screen :top="10" :right="10">
+    <div class="playground">
+      <div class="editor-wrapper">
+        <monaco-editor
+          :code="decodeURIComponent(code)"
+          language="html"
+          :extraOptions="{
+            theme: 'vs',
+            automaticLayout: true,
+            fontSize: 18,
+          }"
+          :on-editor-init="onShowEditorInit"
+        ></monaco-editor>
+      </div>
+      <pre class="output">
+      <sun-tab :tabs="tabList">
+         <template #preview>
+        <div class="html-wrapper">
+          <div ref="htmlContainerRef"></div>
+       </div>
+      </template>
+        <template #logs>
+        <div class="item-wrapper">
+          <div v-for="(output, index) in outputList" :key="index" class="item" >
+        <span>[</span>
+        <span
+         :class="output.type"
+        >{{output.type }}</span> <span>] :</span>
+          <span>"{{ output.message }}"</span>
+      </div>
+        </div>
+        </template>
+
+      
+</sun-tab>
+
+</pre>
+    </div>
+  </full-screen>
 </template>
 
-<style scoped lang="less">
-.frame-box {
-  width: 100%;
-  height: 500px; // 可以根据需求调整高度
-  position: relative;
-  background-color: white;
+<script setup lang="ts">
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import '../init-worker';
+import FullScreen from './full-screen.vue';
+import { HTMLSandBox } from '../util';
+import SunTab from './sun-tab.vue';
+import MonacoEditor from './monaco-editor.vue';
+import { editor } from 'monaco-editor';
+const tabList = [
+  {
+    name: 'preview',
+    title: 'preview',
+  },
+  { name: 'logs', title: 'logs' },
+];
+
+const htmlContainerRef = ref<HTMLDivElement>();
+
+const outputList = ref<
+  {
+    message: string;
+    type: 'log' | 'error' | 'warn';
+  }[]
+>([]);
+const props = defineProps<{ code: string }>();
+
+let sandBox: HTMLSandBox;
+
+onMounted(() => {
+  sandBox = new HTMLSandBox({
+    container: htmlContainerRef.value!,
+    callback(output) {
+      console.log(output, 'output');
+      outputList.value.push(output);
+    },
+  });
+});
+
+onBeforeUnmount(() => {
+  sandBox.destory();
+});
+async function onShowEditorInit(editor: editor.IStandaloneCodeEditor) {
+  setOutput();
+  // 加载完毕调用
+  editor.onDidChangeModelContent(() => {
+    outputList.value = [];
+    setOutput();
+  });
+  function setOutput() {
+    const code = editor.getValue();
+    try {
+      outputList.value = [];
+      sandBox.run(code);
+    } catch (err) {
+      outputList.value = [
+        {
+          message: err.message,
+          type: 'error',
+        },
+      ];
+    }
+  }
 }
-iframe {
-  width: 100%;
-  height: 100%;
+</script>
+
+<style scoped lang="less">
+.playground {
+  display: flex;
+  height: 90vh;
+  padding-top: 20px;
+}
+
+.editor-wrapper {
+  width: 50%;
+}
+
+.output {
+  width: 50%;
+  margin: 0;
+  padding: 1rem;
+  padding-top: 0;
+  background-color: white;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+
+  .item-wrapper {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .code-wrapper {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .output-title {
+    font-weight: bold;
+    font-size: 1.2rem;
+    margin-bottom: 10px;
+  }
+
+  .item {
+    display: flex;
+    border-bottom: 1px dashed #ccc;
+    padding: 10px 0;
+
+    > * {
+      display: inline;
+      white-space: pre-wrap;
+    }
+
+    .log {
+      color: silver;
+    }
+
+    .error {
+      color: red;
+    }
+
+    .warn {
+      color: orange;
+    }
+  }
+}
+.html-wrapper {
+  :deep(iframe) {
+    width: 100%;
+    height: 100%;
+    border: none;
+  }
 }
 </style>

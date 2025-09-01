@@ -63,8 +63,73 @@ export class SandBox {
     this.iframe!.srcdoc = htmlStr;
   }
 }
+
+export class HTMLSandBox {
+  private iframe: HTMLIFrameElement | null = null;
+  private fn: (event: MessageEvent) => void;
+  constructor(options: HTMLSandBoxOptions) {
+    const { container, callback } = options;
+    if (!this.iframe) {
+      this.iframe = document.createElement('iframe');
+      console.log(container);
+      container.appendChild(this.iframe);
+    }
+    const fn = (event: MessageEvent) => {
+      if (event.data?.type === 'console') {
+        console.log(event.data);
+        const { method, args } = event.data;
+        callback({
+          message: args.join('\n'),
+          type: method as 'log' | 'error' | 'warn',
+        });
+      }
+    };
+    this.fn = fn;
+    window.addEventListener('message', fn);
+  }
+  destory() {
+    window.removeEventListener('message', this.fn);
+  }
+  run(htmlCode: string) {
+    const html = String.raw;
+    const htmlStr = html`
+      <script>
+        // 劫持 console
+        const methods = ['log', 'error', 'warn', 'info', 'debug'];
+        methods.forEach((method) => {
+          const original = console[method];
+          console[method] = (...args) => {
+            window.parent.postMessage(
+              {
+                type: 'console',
+                method,
+                args: args.map((arg) => {
+                  if (Object.is(arg, undefined)) return 'undefined';
+                  if (Object.is(arg, null)) return 'null';
+                  return arg.toString();
+                }),
+              },
+              '*',
+            );
+            original.apply(console, args);
+          };
+        });
+      </script>
+      ${htmlCode}
+    `;
+    this.iframe!.srcdoc = htmlStr;
+  }
+}
 export interface SandBoxOptions {
   id?: string;
+  callback: (option: {
+    message: string;
+    type: 'log' | 'error' | 'warn';
+  }) => void;
+}
+
+export interface HTMLSandBoxOptions {
+  container: HTMLElement;
   callback: (option: {
     message: string;
     type: 'log' | 'error' | 'warn';
