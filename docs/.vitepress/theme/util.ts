@@ -71,12 +71,10 @@ export class HTMLSandBox {
     const { container, callback } = options;
     if (!this.iframe) {
       this.iframe = document.createElement('iframe');
-      console.log(container);
       container.appendChild(this.iframe);
     }
     const fn = (event: MessageEvent) => {
       if (event.data?.type === 'console') {
-        console.log(event.data);
         const { method, args } = event.data;
         callback({
           message: args.join('\n'),
