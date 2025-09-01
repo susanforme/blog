@@ -64,6 +64,7 @@ export default defineConfig({
           mermaid: `<Mermaid code="${encodeURIComponent(token.content)}" />`,
           iframe: `<frame-box src="${token.content}" />`,
           sandpack: `<Sandpack code="${encodeURIComponent(token.content)}" />`,
+          'html-box': `<html-box code="${encodeURIComponent(token.content)}" />`,
         };
         const info = token.info.trim();
         if (map[info]) {

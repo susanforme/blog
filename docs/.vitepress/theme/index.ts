@@ -4,6 +4,7 @@ import { injectSpeedInsights } from '@vercel/speed-insights';
 import Viewer from 'v-viewer';
 import { Theme } from 'vitepress';
 import FrameBox from './components/frame-box.vue';
+import HtmlBox from './components/html-box.vue';
 import Mermaid from './components/Mermaid.vue';
 import Sandpack from './components/Sandpack.vue';
 
@@ -26,6 +27,7 @@ export default {
       .component('Mermaid', Mermaid)
       .use(Viewer)
       .component('Sandpack', Sandpack)
+      .component('html-box', HtmlBox)
       .component('frame-box', FrameBox);
   },
 } as Theme;

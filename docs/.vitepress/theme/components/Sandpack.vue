@@ -68,8 +68,6 @@ import tsLib from 'typescript';
 import '../init-worker';
 import FullScreen from './full-screen.vue';
 import { SandBox } from '../util';
-import { CompilerOptions } from 'typescript';
-import { codeToHtml } from 'shiki';
 import SunTab from './sun-tab.vue';
 import MonacoEditor from './monaco-editor.vue';
 import { editor } from 'monaco-editor';
