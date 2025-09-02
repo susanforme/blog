@@ -94,11 +94,12 @@ onMounted(async () => {
 <style scoped lang="less">
 .editor {
   width: 100%;
-  height: 100vh;
+  height: 100%;
   min-height: 400px;
 }
 .wrapper {
   position: relative;
+  height: 100%;
 }
 .icon {
   position: absolute;

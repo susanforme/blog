@@ -108,12 +108,13 @@ async function onShowEditorInit(editor: editor.IStandaloneCodeEditor) {
 <style scoped lang="less">
 .playground {
   display: flex;
-  height: 90vh;
+  height: 100vh;
   padding-top: 20px;
 }
 
 .editor-wrapper {
   width: 50%;
+  height: 100%;
 }
 
 .output {
