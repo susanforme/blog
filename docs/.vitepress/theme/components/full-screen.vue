@@ -1,8 +1,16 @@
 <script lang="ts" setup>
-import { ref, watch } from 'vue';
+import {
+  ref,
+  watch,
+  onBeforeUnmount,
+  useSlots,
+  onMounted,
+  nextTick,
+} from 'vue';
 
 const box = ref<HTMLDivElement | null>(null);
 const isFullscreen = ref(false);
+const height = ref(0);
 withDefaults(
   defineProps<{
     top?: number;
@@ -16,6 +24,20 @@ withDefaults(
 async function handleClick() {
   isFullscreen.value = !isFullscreen.value;
 }
+watch(isFullscreen, (val) => {
+  if (val) {
+    document.documentElement.style.overflow = 'hidden';
+  } else {
+    document.documentElement.style.overflow = '';
+  }
+});
+onBeforeUnmount(() => {
+  document.documentElement.style.overflow = '';
+});
+onMounted(async () => {
+  await nextTick();
+  height.value = box.value?.offsetHeight || 0;
+});
 </script>
 
 <template>
@@ -24,6 +46,9 @@ async function handleClick() {
     ref="box"
     :class="{
       activeBox: isFullscreen,
+    }"
+    :style="{
+      height: height ? `${height}px` : '',
     }"
   >
     <slot></slot>
@@ -88,16 +113,16 @@ async function handleClick() {
     position: absolute;
 
     cursor: pointer;
-    z-index: 99;
+    // z-index: 99;
   }
   &.activeBox {
     position: fixed;
     top: 0;
     left: 0;
     width: 100vw;
-    height: 100vh;
+    height: 100vh !important;
     background-color: white;
-    z-index: 99;
+    z-index: 9999;
   }
 }
 </style>

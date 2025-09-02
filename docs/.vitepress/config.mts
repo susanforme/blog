@@ -14,7 +14,6 @@ const isGithub = !(
   process.env.VERCEL || process.env.NODE_ENV === 'development'
 );
 const base = isGithub ? '/blog' : '';
-
 // Vitepress 默认配置
 // 详见文档：https://vitepress.dev/reference/site-config
 export default defineConfig({
