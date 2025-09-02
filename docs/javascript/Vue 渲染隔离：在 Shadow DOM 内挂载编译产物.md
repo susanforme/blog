@@ -15,7 +15,6 @@ tag:
   - 多应用/微前端场景下的 DOM 污染风险。
   - 性能对比iframe：Shadow DOM 更轻量，性能更好。
 - Shadow DOM 的优势：样式封闭性、DOM 隔离性、事件机制。
-- 本文目标：在 Shadow DOM 中挂载 Vue 编译产物，避免污染外部环境。
 
 ## Web Components
 
@@ -172,11 +171,14 @@ userCard.onclick = e => alert(`Outer target: ${e.target.tagName}`);
 
 ### event.composedPath()
 
-使用 event.composedPath() 获得原始事件目标的完整路径以及所有 shadow 元素。正如我们从方法名称中看到的那样，该路径是在组合（composition）之后获取的。
+**`composedPath()`** 是
+[`Event`](https://developer.mozilla.org/zh-CN/docs/Web/API/Event)
+接口的一个方法，当对象数组调用该侦听器时返回事件路径。如果影子根节点被创建并且[`ShadowRoot.mode`](https://developer.mozilla.org/zh-CN/docs/Web/API/ShadowRoot/mode)是关闭的，那么该路径不包括影子树中的节点。
 
-因此，对于 `<span slot="username">` 上的点击事件，会调用 `event.composedPath()`
-并返回一个数组：[`span`, `slot`, `div`, `shadow-root`, `user-card`, `body`,
-`html`, `document`, `window`]。在组合之后，这正是扁平 DOM 中目标元素的父链。
+因此，对于 `<span slot="username">` 上的点击事件，会调用
+`event.composedPath()`并返回一个数组：[`span`, `slot`, `div`, `shadow-root`,
+`user-card`, `body`,`html`, `document`,
+`window`]。在组合之后，这正是扁平 DOM 中目标元素的父链。
 
 > **Shadow 树详细信息仅提供给 `{mode:'open'}` 树**
 >
@@ -212,10 +214,103 @@ userCard.onclick = e => alert(`Outer target: ${e.target.tagName}`);
 
 这些事件仅能在事件目标所在的同一 DOM 中的元素上捕获，
 
-## 总结
+## 技术难点
 
-Shadow DOM ：
+接下来我们将一一解决这些技术难点
 
-- 有自己的 id 空间。
-- 对主文档的 JavaScript 选择器隐身，比如 `querySelector`。
-- 只使用 shadow tree 内部的样式，不使用主文档的样式。
+1. 如何在最小影响下，将编译产物挂载到 Shadow
+   DOM 中,在不对商详入口进行大规模修改的情况下，实现渲染隔离。
+
+```javascript
+import Vue from 'vue';
+import App from './App.vue';
+import VueLazyLoad from 'vue-lazyload';
+import 'swiper/css/swiper.css';
+import './main.css';
+import { getTextFunction } from './common.js';
+
+Vue.config.productionTip = false;
+
+Vue.prototype.$text = getTextFunction;
+
+new Vue({
+  render: (h) => h(App),
+}).$mount('#app');
+```
+
+2. 如何在模版内，实现基本无感Vue，Swiper等三方事件绑定，比如点击事件，鼠标事件等。同时需要兼容异步防抖等
+
+```javascript
+const handleClick = debounce(function (index, e) {
+  const targetParent = e.target.parentElement;
+  const targetGrandparent = targetParent.parentElement;
+  if (
+    targetParent.classList.contains('front') &&
+    !targetGrandparent.classList.contains('cover-back')
+  ) {
+    this.nextPage(index);
+  } else if (
+    targetParent.classList.contains('back') &&
+    !targetGrandparent.classList.contains('cover')
+  ) {
+    this.prevPage(index);
+  }
+}, 100);
+```
+
+3. font-face 在Shadow DOM 中无法生效 见
+   1. [chrome-bug](https://bugs.chromium.org/p/chromium/issues/detail?id=336876)
+   2. [firefox-bug](https://github.com/mdn/interactive-examples/issues/887)
+
+## 方案确定
+
+### 挂载转发和微前端的殊途同归
+
+无界的介绍
+
+> 微前端已经是一个非常成熟的领域了，但开发者不管采用哪个现有方案，在适配成本、样式隔离、运行性能、页面白屏、子应用通信、子应用保活、多应用激活、vite 框架支持、应用共享等用户核心诉求都或存在问题、或无法提供支持。Web
+> Components 是一个浏览器原生支持的组件封装技术，可以有效隔离元素之间的样式，iframe 可以给子应用提供一个原生隔离的运行环境，相比自行构造的沙箱 iframe 提供了独立的 window、document、history、location，可以更好的和外部解耦。无界微前端采用 webcomponent +
+> iframe 的沙箱模式，在实现原生隔离的前提下比较完善的解决了上述问题。
+
+虽然wujie的方案非常优秀，但是对于我来说，性能敏感度较高，且JS隔离并不需要完全隔离，所以最终选择了渲染隔离方案。主要原因有如下几点：
+
+1. 无界方案需要将编译产物挂载到iframe中，而iframe的初始化耗时较长。**通过最简代码iframe初始化需要耗时14ms**
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+  </head>
+
+  <body>
+    <iframe srcdoc="<div></div>" frameborder="0"></iframe>
+    <script>
+      const iframe = document.querySelector('iframe');
+      const start = performance.now();
+      iframe.onload = () => {
+        console.log(performance.now() - start);
+      };
+    </script>
+  </body>
+</html>
+```
+
+2. 同时对于iframe方案，因为我们存在对父应用的交互以及可能存在的调用， 在iframe和主应用进行数据公用的成本非常大，所以最终采用了IIFE结合ShadowDOM 渲染隔离方案。由于，对于Light
+   DOM来说，Shadow
+   DOM是不可见的，所以需要对编译产物内部DOM查找的方法等处理，我们这里通过IIFE将DOM查找方法转发到Shadow
+   Root 上，这样就可以在Shadow DOM 中进行DOM查找，同时不会影响到主应用。
+3. IIFE 方案，只需要对编译产物进行包装，不需要对主应用进行任何修改，同时性能开销非常小，不需要创建额外的上下文。
+
+### 事件处理
+
+对于事件处理，由于事件重定向的机制，对于内部的点击事件，如果为防抖节流等异步包装，拿到的事件对象，会丢失target，导致无法获取到正确的元素，所以需要将事件对象缓存起来，在事件处理函数中，通过缓存的事件对象，获取到正确的元素。所以，需要在不影响外部代码的情况下，通过对事件进行包装处理
+
+### 字体处理
+
+由于Shadow DOM 内无法直接使用font-face，所以在编译时，需要将产物中的font face
+style 进行单独抽离，然后在主应用中进行字体注入。
+
+## 具体实现
