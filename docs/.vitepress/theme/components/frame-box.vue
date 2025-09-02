@@ -6,7 +6,7 @@ const props = defineProps<{
 const box = ref<HTMLDivElement | null>(null);
 const isFullscreen = ref(false);
 const fullUrl = computed(() => {
-  return window.__BASE_URL__ + props.src;
+  return __BASE_URL__ + props.src;
 });
 
 async function handleClick() {
