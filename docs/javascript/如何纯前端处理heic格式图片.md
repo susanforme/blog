@@ -13,23 +13,21 @@ sticky: 94
 
 **高效率图像文件格式**（英语：**H**igh **E**fficiency **I**mage **F**ile
 Format，简称 **HEIF**），是一种用于存储单张图像或图像序列的文件格式，而 **HEIC**
-是 HEIF 文件的扩展名。作为 HEVC 编码的容器，HEIF 提供了比 JPEG 更高的压缩效率，
-同时保持相同的图像质量。
+是 HEIF 文件的扩展名。作为 HEVC 编码的容器，HEIF 提供了比 JPEG 更高的压缩效率，同时保持相同的图像质量。
 
-HEIF 文件格式被苹果公司广泛应用于其 iOS 设备，但由于浏览器原生并不支持 HEIC 格式
-，因此需要使用额外的方法来处理和显示 HEIC 图片。
+HEIF 文件格式被苹果公司广泛应用于其 iOS 设备，但由于浏览器原生并不支持 HEIC 格式，因此需要使用额外的方法来处理和显示 HEIC 图片。
 
 ## 如何处理 HEIC 格式图片？
 
-由于浏览器无法直接处理 HEIC 格式图片，我们需要将其转换为浏览器支持的格式，例如
-JPEG 或 PNG。目前常见的解决方案包括：
+由于浏览器无法直接处理 HEIC 格式图片，我们需要将其转换为浏览器支持的格式，例如 JPEG 或 PNG。目前常见的解决方案包括：
 
 1. 使用 JavaScript 库（如 `heic2any`）来转换 HEIC 文件。
-2. 使用 C++ 库 `libheif`，将其编译为 WebAssembly (WASM) 模块，在浏览器端处理
-   HEIC 图片。
+2. 使用 C++ 库 `libheif`，将其编译为 WebAssembly
+   (WASM) 模块，在浏览器端处理 HEIC 图片。
 
-**推荐使用 `libheif`**，因为 `heic2any` 库已停止维护且存在许多问题。以下是如何使
-用 `libheif` 并将其编译为 WASM 的具体步骤。
+**推荐使用 `libheif`**，因为 `heic2any`
+库已停止维护且存在许多问题。以下是如何使用 `libheif`
+并将其编译为 WASM 的具体步骤。
 
 ## 编译 libheif
 
@@ -41,8 +39,8 @@ JPEG 或 PNG。目前常见的解决方案包括：
 
 #### 1. 修改编译脚本
 
-`libheif` 仓库自带编译脚本位于 `libheif/build-emscripten.sh`，以下为修改后的脚本
-内容：
+`libheif` 仓库自带编译脚本位于
+`libheif/build-emscripten.sh`，以下为修改后的脚本内容：
 
 ```bash
 #!/bin/bash
@@ -270,11 +268,11 @@ export interface DecodeResult {
 
 ## 优化
 
-可以将图片解析放到 web worker 中。同时使用 OffscreenCanvas 来绘制图片，提升性能
-。
+可以将图片解析放到 web
+worker 中。同时使用 OffscreenCanvas 来绘制图片，提升性能。
 
 ## demo
 
 ```iframe
-/blog/demo/heic/index.html
+/demo/heic/index.html
 ```

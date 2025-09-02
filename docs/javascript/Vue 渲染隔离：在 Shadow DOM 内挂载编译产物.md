@@ -22,7 +22,7 @@ tag:
 Web 组件的一个关键特性是创建自定义元素：即由 Web 开发人员定义行为的 HTML 元素，扩展了浏览器中可用的元素集。
 
 ```iframe
-/blog/demo/web-components.html
+/demo/web-components.html
 ```
 
 ## Shadow DOM 基础

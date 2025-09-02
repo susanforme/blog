@@ -10,12 +10,17 @@ import { blogTheme } from './blog-theme';
 //   ? '/vitepress-blog-sugar-template/'
 //   : '/'
 
+const isGithub = !(
+  process.env.VERCEL || process.env.NODE_ENV === 'development'
+);
+const base = isGithub ? '/blog' : '';
+
 // Vitepress 默认配置
 // 详见文档：https://vitepress.dev/reference/site-config
 export default defineConfig({
   // 继承博客主题(@sugarat/theme)
   extends: blogTheme,
-  base: process.env.VERCEL ? void 0 : '/blog',
+  base,
   lang: 'zh-cn',
   title: "桃花笑春风's blog",
   description: '桃花笑春风 blog',
@@ -54,6 +59,9 @@ export default defineConfig({
       include: ['mermaid', 'monaco-editor'],
     },
     plugins: [],
+    define: {
+      __BASE_URL__: JSON.stringify(base),
+    },
   },
   markdown: {
     async config(md) {

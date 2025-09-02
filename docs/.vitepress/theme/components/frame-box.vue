@@ -1,10 +1,13 @@
 <script lang="ts" setup>
-import { ref, watch } from 'vue';
-defineProps<{
+import { computed, ref, watch } from 'vue';
+const props = defineProps<{
   src: string;
 }>();
 const box = ref<HTMLDivElement | null>(null);
 const isFullscreen = ref(false);
+const fullUrl = computed(() => {
+  return window.__BASE_URL__ + props.src;
+});
 
 async function handleClick() {
   isFullscreen.value = !isFullscreen.value;
@@ -19,7 +22,7 @@ async function handleClick() {
       activeBox: isFullscreen,
     }"
   >
-    <iframe :src="src" frameborder="0"></iframe>
+    <iframe :src="fullUrl" frameborder="0"></iframe>
     <div class="btn" @click="handleClick">
       <svg
         xmlns="http://www.w3.org/2000/svg"
