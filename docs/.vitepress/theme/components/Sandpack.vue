@@ -67,7 +67,7 @@ import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import tsLib from 'typescript';
 import '../init-worker';
 import FullScreen from './full-screen.vue';
-import { SandBox } from '../util';
+import { SandBox } from '../util.client';
 import SunTab from './sun-tab.vue';
 import MonacoEditor from './monaco-editor.vue';
 import { editor } from 'monaco-editor';

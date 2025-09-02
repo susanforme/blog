@@ -44,7 +44,7 @@
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import '../init-worker';
 import FullScreen from './full-screen.vue';
-import { HTMLSandBox } from '../util';
+import { HTMLSandBox } from '../util.client';
 import SunTab from './sun-tab.vue';
 import MonacoEditor from './monaco-editor.vue';
 import { editor } from 'monaco-editor';
