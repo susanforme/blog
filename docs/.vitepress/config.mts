@@ -10,9 +10,7 @@ import { blogTheme } from './blog-theme';
 //   ? '/vitepress-blog-sugar-template/'
 //   : '/'
 
-const isGithub = !(
-  process.env.VERCEL || process.env.NODE_ENV === 'development'
-);
+const isGithub = !(process.env.VERCEL || process.env.NODE_ENV !== 'production');
 const base = isGithub ? '/blog' : '';
 // Vitepress 默认配置
 // 详见文档：https://vitepress.dev/reference/site-config
