@@ -302,7 +302,7 @@ const handleClick = debounce(function (index, e) {
    DOM来说，Shadow
    DOM是不可见的，所以需要对编译产物内部DOM查找的方法等处理，我们这里通过IIFE将DOM查找方法转发到Shadow
    Root 上，这样就可以在Shadow DOM 中进行DOM查找，同时不会影响到主应用。
-3. IIFE 方案，只需要对编译产物进行包装，不需要对主应用进行任何修改，同时性能开销非常小，不需要创建额外的上下文。
+3. IIFE 方案，只需要对编译产物进行包装，不需要对主应用进行任何修改，同时性能开销非常小，不需要创建额外的window
 
 ### 事件处理
 
@@ -314,3 +314,324 @@ const handleClick = debounce(function (index, e) {
 style 进行单独抽离，然后在主应用中进行字体注入。
 
 ## 具体实现
+
+### 1. 环境模拟
+
+首先，我们需要在shadow
+DOM 内完全模拟一个html环境，包括body，head等，同时需要将编译产物挂载到shadow
+DOM 中，同时需要将编译产物中的DOM查找方法转发到Shadow，Root 上，这样就可以在Shadow
+DOM 中进行DOM查找，同时不会影响到主应用。
+
+```mermaid
+flowchart TD
+    %% 宿主页面
+    subgraph Host["宿主页面"]
+        H["Host Element (id=host)"]
+        D["document.documentElement"]
+        B["document.body"]
+    end
+
+    %% Shadow DOM
+    subgraph Shadow["Shadow DOM"]
+        SH["ShadowRoot"]
+        HTMLNode["&lt;html&gt;"]
+        HEADNode["&lt;head&gt;"]
+        BODYNode["&lt;body&gt;"]
+        APP["Root: &lt;div id='app'&gt;"]
+    end
+
+    %% 流程关系
+    H -->|"attachShadow"| SH
+    SH --> HTMLNode
+    HTMLNode --> HEADNode
+    HTMLNode --> BODYNode
+    BODYNode --> APP
+
+    D -.复制属性.-> HTMLNode
+    B -.复制属性.-> BODYNode
+
+```
+
+可以得到如下DOM 树
+
+![full](./img/shadow/full.png)
+
+```javascript
+export function runWrapperShadow(options) {
+  const {
+    hostId = 'host',
+    injectJSPackages = [],
+    injectCSSPackages = [],
+    cssCode,
+    font,
+    root,
+  } = options;
+
+  // 创建 shadow DOM
+  const host = document.getElementById(hostId);
+  const shadowHost = host.shadowRoot ?? host?.attachShadow({ mode: 'open' });
+  if (!shadowHost) throw new Error('host not found');
+  // 多次渲染的时候，先清空
+  shadowHost.innerHTML = '';
+  const commonCSS = `*{margin:0;padding:0;box-sizing:border-box;} :host{position:relative;}`;
+  const htmlShadow = document.createElement('html');
+  const bodyShadow = document.createElement('body');
+  // 获取html上的所有属性,然后拷贝到内部
+  for (const attribute of document.documentElement.attributes) {
+    htmlShadow.setAttribute(attribute.name, attribute.value);
+  }
+  // 获取body上的所有属性,然后拷贝到内部
+  for (const attribute of document.body.attributes) {
+    bodyShadow.setAttribute(attribute.name, attribute.value);
+  }
+  const headShadow = document.createElement('head');
+  // innerHTML 在chrome有长度限制10KB
+  const [linkStyleShadow, rejectUrl] = createStyleLinkByCode(
+    `${commonCSS}\n${cssCode}\n${injectCSSPackages.join('\n')}`,
+  );
+  const [fontStyleShadow, rejectFontUrl] = createStyleLinkByCode(font || '');
+  uninstallFns.push(rejectUrl, rejectFontUrl);
+
+  headShadow.appendChild(linkStyleShadow);
+
+  bodyShadow.innerHTML = root ?? `<div id="app"></div>`;
+  [headShadow, bodyShadow].forEach((el) => htmlShadow.appendChild(el));
+  shadowHost.appendChild(htmlShadow);
+  host.appendChild(fontStyleShadow);
+}
+
+/**
+ * 将字符串内容转换为一个临时的 Blob URL。
+ * @param {string} content - 需要转换的字符串内容。
+ * @param {string} [mimeType='text/css'] - Blob 的 MIME 类型。
+ * @returns {string} - 生成的 Blob URL。
+ */
+function stringToUrl(content, mimeType = 'text/css') {
+  const blob = new Blob([content], { type: mimeType });
+  const blobUrl = URL.createObjectURL(blob);
+  return blobUrl;
+}
+
+function createStyleLinkByCode(code) {
+  const link = document.createElement('link');
+  link.rel = 'stylesheet';
+  const url = stringToUrl(code);
+  link.href = url;
+  return [
+    link,
+    () => {
+      URL.revokeObjectURL(url);
+    },
+  ];
+}
+```
+
+### 2. DOM转发和沙箱处理
+
+1. **全局对象 (`window`, `global`, `globalThis`)** → 统一被代理成
+   **`windowProxy`**。
+2. **`document`** → 被代理成 **`documentProxy`**，所有 DOM 操作被转发到
+   `ShadowRoot`。
+3. **代理层**：
+   - `documentProxy` 控制 DOM 查询和事件绑定范围。
+   - `windowProxy` 拦截全局变量的访问与赋值。
+   - `virtualWindow`
+     存储沙箱脚本定义的变量，避免污染宿主。同时也为了方便在子应用卸载时，能够正确GC。细节见[内存管理](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Guide/Memory_management#%E5%9E%83%E5%9C%BE%E5%9B%9E%E6%94%B6)
+     。
+
+     > [标记清除算法](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Guide/Memory_management#标记清除算法)
+     >
+     > 这个算法将“对象不再需要”这个定义简化为“对象不可达”。
+     >
+     > 这个算法假定有一组叫做*根*的对象。在 JavaScript 中，根是全局对象。垃圾回收器将定期从这些根开始，找到从这些根能引用到的所有对象，然后找到从这些对象能引用到的所有对象，等等。从根开始，垃圾回收器将找到所有*可到达*的对象并收集所有不能到达的对象。
+     >
+     > 这个算法是对上一个算法的改进。因为对于引用计数算法，有零引用的对象实际上是不可达的，但是有引用的对象却不一定，就像在循环引用中看到的那样。
+     >
+     > 当前，所有现代的引擎搭载的是标记清除垃圾回收器。过去几年中，在 JavaScript 垃圾回收领域做出的改进（分代/增量/并发/并行垃圾回收）都是这个算法的实现改进，而不是垃圾回收算法本身的改进，也不是何时“对象不再需要”这个定义的简化。
+     >
+     > 这个方法的直接好处就是循环不再是一个问题。在上面的示例中，在函数调用返回之后，从全局对象可达的任何资源都将不再引用这两个对象。因此，垃圾回收器会认为它们不可达并回收为它们分配的内存。
+     >
+     > 然而，手动控制垃圾回收的能力仍不存在。有时候手动决定何时释放内存以及释放哪块内存会很方便。为了释放对象的内存，需要显式地变成不可达。在 JavaScript 中，编程式地触发垃圾回收也不可能——永不可能出现在核心语言中，尽管引擎可能在可选的标志中暴露了相关的 API。
+
+4. **作用域链**：第三方脚本运行时使用 `[documentProxy, windowProxy, ...]`
+   作为上下文。
+
+#### 作用域链
+
+```mermaid
+flowchart TD
+    subgraph Script["第三方脚本执行 (运行时 JS)"]
+        Var["代码中访问的标识符 (如 window / document / globalThis)"]
+    end
+
+    subgraph Scope["作用域链 (按优先级查找)"]
+        DP["documentProxy"]
+        WP1["windowProxy : globalThis"]
+        WP2["windowProxy : window"]
+        WP3["windowProxy : global"]
+    end
+
+    subgraph Proxy["代理层"]
+        VW["virtualWindow"]
+    end
+
+    subgraph Host["宿主层"]
+        D["原生 Document"]
+        W["原生 Window"]
+    end
+
+    %% 查找顺序
+    Var --> DP
+    Var --> WP1
+    Var --> WP2
+    Var --> WP3
+
+    %% 代理映射
+    DP --> D
+    WP1 --> VW
+    WP2 --> VW
+    WP3 --> VW
+    WP2 --> W
+
+```
+
+#### DOM方法转发
+
+```mermaid
+flowchart TD
+    %% 脚本层
+    JS["编译后 JS 调用 document 方法或属性"]
+
+    %% 代理层
+    DP["documentProxy (转发查找/创建/事件)"]
+
+    %% Shadow DOM 层
+    SR["ShadowRoot"]
+    HTML["内部 HTML 节点"]
+
+    %% 宿主层
+    DOC["原生 Document"]
+
+    %% 主流程
+    JS --> DP
+
+    %% DOM 操作转发
+    DP -->|函数方法或事件监听| HTML
+    DP -->|DOM 节点访问| HTML
+    DP -->|集合查询| SR
+
+    %% 回退逻辑
+    DP -->|普通属性/方法| DOC
+
+```
+
+```javascript
+export function runWrapperShadow(options) {
+  const {
+    hostId = 'host',
+    injectJSPackages = [],
+    injectCSSPackages = [],
+    cssCode,
+    font,
+    root,
+  } = options;
+
+  // 省略接上
+  const needHandle = ['document', 'window', 'global', 'globalThis'];
+  const proxyGlobalVar = removeRepeat([
+    'webpackJsonp',
+    ...injectJSPackages.map((item) => item.name),
+  ]);
+  const injectJSCode = injectJSPackages.map((item) => item.code).join('\n');
+
+  const generateScope = (hostId, proxyGlobalVar) => {
+    function isConstructable(fn) {
+      if (typeof fn !== 'function') return false;
+      try {
+        // eslint-disable-next-line no-new
+        new new Proxy(fn, { construct: () => ({}) })();
+        return true;
+      } catch {
+        return false;
+      }
+    }
+
+    const shadowRoot = document.getElementById(hostId)?.shadowRoot;
+    if (!shadowRoot) return [document, window];
+
+    const forwardFnKeys = [
+      'querySelector',
+      'querySelectorAll',
+      'getElementsByTagName',
+      'getElementsByClassName',
+      'getElementsByName',
+      'getElementById',
+      //! 为什么要转发? 因为可能在外部去查找内部的dom,且如果不卸载,会导致内存泄漏
+      'addEventListener',
+      'removeEventListener',
+    ];
+
+    const forwardDOMKeys = ['body', 'head'];
+    const forwardDOMCollectionKeys = [
+      'forms',
+      'images',
+      'links',
+      'scripts',
+      'styleSheets',
+      'embeds',
+    ];
+    const forwardCollectionKeyMap = {
+      forms: 'form',
+      images: 'img',
+      links: 'a[href]',
+      scripts: 'script',
+      styleSheets: 'style, link[rel="stylesheet"]',
+      embeds: 'embed',
+    };
+
+    const documentProxy = new Proxy(document, {
+      get(target, key) {
+        const originData = Reflect.get(target, key);
+        if (forwardFnKeys.includes(key))
+          return (...args) => shadowRoot.querySelector('html')[key](...args);
+        if (forwardDOMKeys.includes(key)) return shadowRoot.querySelector(key);
+        if (key === 'documentElement') return shadowRoot.querySelector('html');
+        if (typeof originData === 'function') return originData.bind(target);
+        if (forwardDOMCollectionKeys.includes(key))
+          return shadowRoot.querySelectorAll(forwardCollectionKeyMap[key]);
+        return Reflect.get(target, key, document);
+      },
+    });
+
+    //! 方便GC 和防止污染外部window
+    const virtualWindow = {};
+
+    const windowProxy = new Proxy(window, {
+      get(target, key) {
+        if (key === 'document') return documentProxy;
+        if (proxyGlobalVar.includes(key)) return virtualWindow[key];
+        const originData = Reflect.get(target, key);
+        if (isConstructable(originData)) return originData;
+        if (typeof originData === 'function') {
+          const fn = originData.bind(window);
+          fn.prototype = originData.prototype;
+          return fn;
+        }
+        return Reflect.get(target, key, window);
+      },
+      set(target, key, value) {
+        if (proxyGlobalVar.includes(key)) {
+          virtualWindow[key] = value;
+          return true;
+        }
+        return Reflect.set(target, key, value);
+      },
+    });
+
+    return {
+      getVirtualWindow: () => virtualWindow,
+      scope: [documentProxy, windowProxy, windowProxy, windowProxy],
+    };
+  };
+}
+```
