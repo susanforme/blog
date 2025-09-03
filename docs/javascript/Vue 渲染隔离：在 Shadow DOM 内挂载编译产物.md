@@ -20,6 +20,104 @@ tag:
 
 Web 组件的一个关键特性是创建自定义元素：即由 Web 开发人员定义行为的 HTML 元素，扩展了浏览器中可用的元素集。
 
+如下有个最简示例
+
+```javascript
+class MainBanner extends HTMLElement {
+  constructor() {
+    super();
+    this.attachShadow({ mode: 'open' });
+    this.shadowRoot.innerHTML = html`
+          <style>
+        * {
+          margin: 0;
+          padding: 0;
+          box-sizing: border-box;
+        }
+        .banner {
+          width: 100%;
+          margin-bottom: 4.17vw;
+          position: relative;
+        }
+        img {
+          width: 100%;
+          aspect-ratio: 1920/650;
+          display: block;
+        }
+        .title {
+          position: absolute;
+          top: 50%;
+          left: 8.33vw;
+          transform: translateY(-50%);
+          color: rgba(255, 255, 255, 1);
+          display: flex;
+          flex-direction: column;
+          gap: 0.83vw;
+        }
+        .title h1 {
+          font-family: Montserrat;
+          font-weight: 700;
+          font-style: Bold;
+          font-size: 1.67vw;
+          line-height: 2.03vw;
+          letter-spacing: 0%;
+        }
+        .title span {
+          font-family: Montserrat;
+          font-weight: 500;
+          font-style: Medium;
+          font-size: 0.83vw;
+          line-height: 1.04vw;
+          letter-spacing: 0%;
+        }
+
+        @media (max-width: 1280px) and (min-width: 769px) {
+          .banner {
+            margin-bottom: 6.255vw;
+          }
+          .title {
+            left: 6.26vw;
+            gap: 1.245vw;
+          }
+          .title h1 {
+            font-size: 2.505vw;
+            line-height: 3.045vw;
+          }
+          .title span {
+            font-size: 1.245vw;
+            line-height: 1.56vw;
+          }
+        }
+      </style>
+      <div class="banner">
+        <picture>
+          <source
+            srcset="
+              https://cdn.shopify.com/s/files/1/0619/5265/5591/files/m_8aca2146-ea01-469f-ae20-ee08fca16049.jpg?v=1754463434
+            "
+            media="(max-width: 768px)"
+          />
+          <img
+            src="https://cdn.shopify.com/s/files/1/0619/5265/5591/files/pc_478fbf34-2444-4cde-8370-35917e8f49fd.jpg?v=1754463434"
+          />
+        </picture>
+        <div class="title">
+          <h1>
+            Your Questions, <br class="show-m" />Answered by
+            <br class="show-pc" />Wellness Experts
+          </h1>
+          <span
+            >See what others are asking — and find advice that speaks to your
+            journey.</span
+          >
+        </div>
+      </div>
+        `;
+  }
+}
+customElements.define('main-banner', MainBanner);
+```
+
 ```iframe
 /demo/web-components.html
 ```
@@ -40,6 +138,20 @@ DOM 允许你将一个 DOM 树附加到一个元素上，并且使该树的内�
 **见最简示例**
 
 ### 渲染
+
+```mermaid
+graph TD
+    A[body] --> B[p - Light DOM]
+    A --> C[script]
+    A --> D[div]
+    subgraph Shadow_DOM
+        direction TB
+        E[#shadow-root-open] --> F[style]
+        E --> G[p#shadow]
+    end
+    D --> E
+
+```
 
 ![shadow](./img/shadow-dom.png)
 
@@ -634,4 +746,244 @@ export function runWrapperShadow(options) {
     };
   };
 }
+```
+
+### 3. 事件处理
+
+通过`monkey patch` 对`addEventListener` 和 `removeEventListener`
+进行代理，实现事件处理。 对于注册的事件，在触发时，判断事件是否在 Shadow
+DOM 内，如果是，则代理事件，将事件源从 Shadow
+DOM 内部暴露，同时保证异步可见性。解决事件重定向机制带来的问题。
+
+```mermaid
+flowchart TD
+    %% ================== 安装补丁 ==================
+    A["generateMonkeyPatchCode(hostId)"] --> B["替换 Element.prototype.addEventListener"]
+    A --> C["替换 Element.prototype.removeEventListener"]
+
+    %% ================== 添加事件 ==================
+    B --> D["调用 patchedAddEventListener"]
+    D --> E{"是否已有 LISTENER_MAP_PROP?"}
+    E -- 否 --> F["初始化映射表 []"]
+    E -- 是 --> G["使用已有映射表"]
+
+    D --> H["包装原始 listener 为 wrappedListener"]
+    H --> I["存储 {type, original, wrapped, options} 到映射表"]
+    I --> J["调用原始 addEventListener(wrappedListener)"]
+
+    %% ================== 事件触发 ==================
+    X["事件触发"] --> Y["wrappedListener(event)"]
+    Y --> Z{"event.composedPath() 是否包含 hostElement.shadowRoot?"}
+    Z -- 否 --> Y1["直接调用 originalListener(event)"]
+    Z -- 是 --> Y2["获取 realTarget = composedPath()[0]"]
+    Y2 --> Y3["生成 eventProxy: target/srcElement → realTarget"]
+    Y3 --> Y4["调用 originalListener(eventProxy)"]
+
+    %% ================== 移除事件 ==================
+    C --> M["调用 patchedRemoveEventListener"]
+    M --> N{"在映射表中找到匹配项?"}
+    N -- 是 --> O["用 wrappedListener 调用原始 removeEventListener"]
+    O --> P["从映射表删除该条目"]
+    N -- 否 --> Q["回退调用原始 removeEventListener(listener)"]
+
+```
+
+```javascript
+function generateMonkeyPatchCode(hostId) {
+  const LISTENER_MAP_PROP = Symbol('__patchedListeners');
+
+  const createPatchedAddEventListener = function (originalAddEventListener) {
+    return function (type, listener, options) {
+      const eventTarget = this;
+
+      if (!eventTarget[LISTENER_MAP_PROP]) {
+        eventTarget[LISTENER_MAP_PROP] = [];
+      }
+
+      const wrappedListener = function (event) {
+        const hostElement = document.getElementById(hostId);
+
+        if (
+          !hostElement ||
+          typeof event.composedPath !== 'function' ||
+          !event.composedPath().includes(hostElement.shadowRoot)
+        ) {
+          return listener.apply(this, arguments);
+        }
+        const realTarget = event.composedPath()[0];
+        const eventProxy = new Proxy(event, {
+          get(target, key) {
+            if (key === 'target' || key === 'srcElement') return realTarget;
+            const value = Reflect.get(target, key);
+            if (typeof value === 'function') return value.bind(target);
+            return value;
+          },
+        });
+        return listener.call(this, eventProxy);
+      };
+
+      // 存储原始监听器和包裹后的监听器的映射关系
+      eventTarget[LISTENER_MAP_PROP].push({
+        type: type,
+        original: listener,
+        wrapped: wrappedListener,
+        options: options,
+      });
+
+      return originalAddEventListener.call(
+        eventTarget,
+        type,
+        wrappedListener,
+        options,
+      );
+    };
+  };
+
+  const createPatchedRemoveEventListener = function (
+    originalRemoveEventListener,
+  ) {
+    return function (type, listener, options) {
+      const eventTarget = this;
+      const listenerMap = eventTarget[LISTENER_MAP_PROP];
+
+      // 如果没有映射表或者映射表为空，直接调用原始方法
+      if (!listenerMap || listenerMap.length === 0) {
+        return originalRemoveEventListener.call(
+          eventTarget,
+          type,
+          listener,
+          options,
+        );
+      }
+
+      // 统一 options 格式，方便比较 参照原生remove和add的处理方式
+      const capture =
+        typeof options === 'boolean' ? options : !!(options && options.capture);
+
+      for (let i = listenerMap.length - 1; i >= 0; i--) {
+        const entry = listenerMap[i];
+
+        // 统一 entry.options 的 capture 格式
+        const entryCapture =
+          typeof entry.options === 'boolean'
+            ? entry.options
+            : !!(entry.options && entry.options.capture);
+
+        // 检查事件类型、原始监听器和捕获阶段是否匹配
+        if (
+          entry.type === type &&
+          entry.original === listener &&
+          entryCapture === capture
+        ) {
+          // 找到了匹配项，使用包裹后的监听器去移除
+          originalRemoveEventListener.call(
+            eventTarget,
+            type,
+            entry.wrapped,
+            options,
+          );
+
+          listenerMap.splice(i, 1);
+
+          return;
+        }
+      }
+      // 如果映射表中找不到，也尝试用原始监听器调用一次
+      originalRemoveEventListener.call(eventTarget, type, listener, options);
+    };
+  };
+  let uninstallFn = () => {};
+
+  // 应用补丁
+  if (
+    Element.prototype.addEventListener &&
+    Element.prototype.removeEventListener
+  ) {
+    const originalAdd = Element.prototype.addEventListener;
+    const patchedAdd = createPatchedAddEventListener(originalAdd);
+    Element.prototype.addEventListener = patchedAdd;
+    const originalRemove = Element.prototype.removeEventListener;
+    const patchedRemove = createPatchedRemoveEventListener(originalRemove);
+    Element.prototype.removeEventListener = patchedRemove;
+    uninstallFn = () => {
+      Element.prototype.addEventListener = originalAdd;
+      Element.prototype.removeEventListener = originalRemove;
+    };
+  }
+  return uninstallFn;
+}
+```
+
+### 4. 组装产物
+
+```javascript
+const finalCode = js(`
+    ;(function () {
+      const hostId = "${hostId}";
+      const getScope = ${generateScope};
+      setTimeout(() => {
+        const {scope, getVirtualWindow} = getScope(hostId,[${proxyGlobalVar.reduce(
+          (prev, cur) => {
+            return prev + `"${cur}"` + ',';
+          },
+          '',
+        )}]);
+        const windowProxy = scope[1];
+        const handleFn = function (getVirtualWindow, ${needHandle.join(',')}) {
+          ${injectJSCode};
+          const loadWebpack =${loadWebpackJsonp};
+          loadWebpack(${JSON.stringify(
+            injectJSPackages
+              .filter(({ isCDN }) => !isCDN)
+              .map(({ name, path }) => {
+                return {
+                  name,
+                  path,
+                };
+              }),
+          )});
+          const {${proxyGlobalVar.join(',')}} = getVirtualWindow();
+          ${jsCode};
+        };
+        handleFn.call(windowProxy, getVirtualWindow, ...scope);
+      }, 0);
+    })();
+  `);
+
+// eslint-disable-next-line no-new-func
+new Function(finalCode)();
+```
+
+#### finalCode
+
+```javascript
+(function () {
+  const hostId = 'shadow-desc';
+  const getScope = function (hostId, proxyGlobalVar) {
+    // 省略
+  };
+  setTimeout(() => {
+    const { scope, getVirtualWindow } = getScope(hostId, [
+      'webpackJsonp',
+      'Vue',
+      'Swiper',
+    ]);
+    const windowProxy = scope[1];
+    const handleFn = function (
+      getVirtualWindow,
+      document,
+      window,
+      global,
+      globalThis,
+    ) {
+      const loadWebpack = function (e) {
+        // 省略
+      };
+      loadWebpack([{ name: 'Swiper', path: 'f9b8b56.js' }]);
+      const { webpackJsonp, Vue, Swiper } = getVirtualWindow();
+      // 编译后业务代码所在位置
+    };
+    handleFn.call(windowProxy, getVirtualWindow, ...scope);
+  }, 0);
+})();
 ```
