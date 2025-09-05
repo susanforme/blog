@@ -6,7 +6,7 @@ tag:
   - css
 ---
 
-# Vue 渲染隔离：在 Shadow DOM 内挂载编译产物
+# 子应用渲染隔离在 Shadow DOM 内挂载编译产物及编译性能优化
 
 ## 引言
 
@@ -425,7 +425,102 @@ const handleClick = debounce(function (index, e) {
 由于Shadow DOM 内无法直接使用font-face，所以在编译时，需要将产物中的font face
 style 进行单独抽离，然后在主应用中进行字体注入。
 
-## 具体实现
+## 编译时处理
+
+根据上面的分析，我们可以得到由于Shadow
+DOM的一些限制和基于性能优化,仍然需要在编译时做一些处理：
+
+- 字体的扫描抽离
+- 依赖的扫描抽离
+- 子应用复用主应用的polyfill及依赖
+- 考虑在极端情况下,例如第三方webview,是否能够直接渲染出子应用产物内容
+
+### DOM结构
+
+基于上述分析，设计如下DOM结构,然后在运行时再通过特征判断，进行产物拆分
+
+- `data-type="root"` 容器节点,内部为用于挂载编译产物的容器节点
+- `data-type="font"` 字体节点，内部为字体css代码抽离
+- `data-type="style"` 样式节点，内部为业务样式代码
+- `data-type="polyfill"`
+  polyfill 节点，内部为core 等浏览器版本polyfill兼容代码,同时也支持在非主应用环境下,能正确渲染
+- `data-type="entry"` 入口节点，内部为业务代码
+- `data-type="config"` 配置节点，内部为业务配置 包含扫描到的依赖声明
+
+```html
+<div data-type="root">
+  <div id="app"></div>
+</div>
+<style data-type="font">
+  业务字体
+</style>
+<style data-type="style">
+  业务CSS代码
+</style>
+<script
+  data-type="polyfill"
+  src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?version=4.8.0"
+></script>
+<script
+  data-type="vue-polyfill"
+  src="https://cdnjs.cloudflare.com/ajax/libs/vue/2.7.8/vue.runtime.min.js"
+></script>
+<script data-type="entry">
+  业务JavaScript代码;
+</script>
+<script data-type="config" type="application/json">
+  业务JSON配置
+</script>
+```
+
+### 构建流程图
+
+```mermaid
+flowchart TD
+  A[启动构建] --> B[initEnvWatcher 读取 .env 并监听变更]
+
+  B --> C[调用 getConfig 生成 Webpack 配置]
+
+  C --> D[Webpack 编译流程]
+
+  %% RuntimePlugin
+  D --> P_runtime[RuntimePlugin 生成多语言 runtime 虚拟模块]
+
+  %% DetectExternalImportsPlugin
+  D --> P_detect[DetectExternalImportsPlugin 扫描 import/require]
+  P_detect --> DOM_config["script[data-type=config] → JSON 配置"]
+
+  %% OutputProcess 判断
+  D --> P_output[OutputProcess 产物后处理]
+  P_output --> Q{是否主应用?}
+  Q -- 是 --> R_extract[提取字体 + 生成 config.json]
+  R_extract --> DOM_font["style[data-type=font] → 字体"]
+  R_extract --> DOM_config_extract["script[data-type=config] → JSON 配置"]
+  Q -- 否 --> R_skip[跳过字体提取]
+
+  R_extract --> S{是否模板模式?}
+  R_skip --> S
+  S -- 是 --> T_template[生成 app.css / app.js / app.html]
+  T_template --> DOM_root["div[data-type=root] → #app 容器"]
+  T_template --> DOM_style["style[data-type=style] → 业务 CSS"]
+
+  S -- 否 --> U_md[生成 Markdown 文件]
+  %% 生成 Markdown 文件下方不显示任何 DOM 节点
+
+  %% PostCSS
+  D --> V_postcss[PostCSS 阶段]
+  V_postcss --> V_replace[替换字体（按站点 / 环境）]
+  V_postcss --> V_extractFont[抽取 @font-face]
+  V_extractFont --> DOM_font
+
+  %% DOM 节点样式
+  class DOM_entry,DOM_config,DOM_font,DOM_style,DOM_root,DOM_config_extract domStyle
+
+  classDef domStyle fill:#FFF2CC,stroke:#F59E0B,color:#92400E,font-weight:bold
+
+```
+
+## 沙箱实现
 
 ### 1. 环境模拟
 
@@ -540,6 +635,70 @@ function createStyleLinkByCode(code) {
 
 ### 2. DOM转发和沙箱处理
 
+首先回顾下基础知识
+
+**内存管理与垃圾回收**
+
+[引用技术垃圾回收](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Guide/Memory_management#%E5%BC%95%E7%94%A8%E8%AE%A1%E6%95%B0%E5%9E%83%E5%9C%BE%E5%9B%9E%E6%94%B6)
+
+> 备注：现代 JavaScript 引擎不再使用引用计数进行垃圾回收。
+
+这是最初级的垃圾回收算法。此算法把确定对象是否仍然需要这个问题简化为确定对象是否仍有其他引用它的对象。如果没有指向该对象的引用，那么该对象称作“垃圾”或者可回收的。
+
+```javascript
+let x = {
+  a: {
+    b: 2,
+  },
+};
+// 创建了两个对象。一个作为另一个的属性被引用。
+// 另一个被赋值给变量‘x’。
+// 很显然，没有可以被垃圾回收的对象。
+
+let y = x;
+// 变量‘y’是第二个拥有对象引用的变量。
+
+x = 1;
+// 现在，起初在‘x’中的对象有唯一的引用，就是变量‘y’。
+
+let z = y.a;
+// 引用对象的‘a’属性。
+// 现在，这个对象有两个引用，一个作为属性，
+// 另一个作为变量‘z’。
+
+y = 'mozilla';
+// 起初在‘x’中的对象现在是零引用了。它可以被垃圾回收了。
+// 但是，它的属性‘a’仍被变量‘z’引用，所以这个对象还不能回收。
+
+z = null;
+// 起初在 x 中的对象的属性‘a’是零引用了。这个对象可以被垃圾回收了。
+```
+
+循环引用是一个限制。在下面的例子中，创建了两个对象，一个对象的属性引用另一个对象，形成了一个循环。在函数调用结束之后，它们离开了函数作用域。在那个点，它们不再被需要了，为它们分配的内存应该被回收。然而，引用计数算法不会认为它们可以被回收，因为每个对象至少还有一个指向自己的引用，这样的结果就是它们两个都不会被标记为可以被垃圾回收。循环引用是内存泄露的常见原因。
+
+```javascript
+function f() {
+  const x = {};
+  const y = {};
+  x.a = y; // x 引用 y
+  y.a = x; // y 引用 x
+
+  return 'azerty';
+}
+
+f();
+```
+
+[标记清除算法](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Guide/Memory_management#标记清除算法)
+
+这个算法将“对象不再需要”这个定义简化为“对象不可达”。
+
+这个算法假定有一组叫做根的对象。在 JavaScript 中，根是全局对象。垃圾回收器将定期从这些根开始，找到从这些根能引用到的所有对象，然后找到从这些对象能引用到的所有对象，等等。从根开始，垃圾回收器将找到所有可到达的对象并收集所有不能到达的对象。
+
+---
+
+我们通过如下处理
+
 1. **全局对象 (`window`, `global`, `globalThis`)** → 统一被代理成
    **`windowProxy`**。
 2. **`document`** → 被代理成 **`documentProxy`**，所有 DOM 操作被转发到
@@ -550,20 +709,6 @@ function createStyleLinkByCode(code) {
    - `virtualWindow`
      存储沙箱脚本定义的变量，避免污染宿主。同时也为了方便在子应用卸载时，能够正确GC。细节见[内存管理](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Guide/Memory_management#%E5%9E%83%E5%9C%BE%E5%9B%9E%E6%94%B6)
      。
-
-     > [标记清除算法](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Guide/Memory_management#标记清除算法)
-     >
-     > 这个算法将“对象不再需要”这个定义简化为“对象不可达”。
-     >
-     > 这个算法假定有一组叫做*根*的对象。在 JavaScript 中，根是全局对象。垃圾回收器将定期从这些根开始，找到从这些根能引用到的所有对象，然后找到从这些对象能引用到的所有对象，等等。从根开始，垃圾回收器将找到所有*可到达*的对象并收集所有不能到达的对象。
-     >
-     > 这个算法是对上一个算法的改进。因为对于引用计数算法，有零引用的对象实际上是不可达的，但是有引用的对象却不一定，就像在循环引用中看到的那样。
-     >
-     > 当前，所有现代的引擎搭载的是标记清除垃圾回收器。过去几年中，在 JavaScript 垃圾回收领域做出的改进（分代/增量/并发/并行垃圾回收）都是这个算法的实现改进，而不是垃圾回收算法本身的改进，也不是何时“对象不再需要”这个定义的简化。
-     >
-     > 这个方法的直接好处就是循环不再是一个问题。在上面的示例中，在函数调用返回之后，从全局对象可达的任何资源都将不再引用这两个对象。因此，垃圾回收器会认为它们不可达并回收为它们分配的内存。
-     >
-     > 然而，手动控制垃圾回收的能力仍不存在。有时候手动决定何时释放内存以及释放哪块内存会很方便。为了释放对象的内存，需要显式地变成不可达。在 JavaScript 中，编程式地触发垃圾回收也不可能——永不可能出现在核心语言中，尽管引擎可能在可选的标志中暴露了相关的 API。
 
 4. **作用域链**：第三方脚本运行时使用 `[documentProxy, windowProxy, ...]`
    作为上下文。
@@ -987,3 +1132,224 @@ new Function(finalCode)();
   }, 0);
 })();
 ```
+
+## 主应用部分改造
+
+首先对于主应用进行编译分析,可以看到同时产生了多份Vue,Swiper等库的编译产物,因此需要将编译产物进行抽离或external,避免重复加载和击中CDN缓存
+
+![h5](./img//shadow/h5.png)
+
+### 依赖抽离
+
+依赖分为两种,一种是业务依赖,一种是公共依赖,公共依赖很简单直接通过cdn引入, 业务依赖由于通过了webpack处理,因此需要通过通过额外的polyfill进行加载.
+
+以`vue`在nuxt为例, 为了防止子应用的vue和主应用的vue冲突,因此还需要多次注入Vue,以便于进行隔离,防止子应用干扰
+
+```javascript
+const CDN = {
+  vue: 'https://cdn.jsdelivr.net/npm/vue@2.7.6/dist/vue.min.js',
+};
+
+const config = {
+  head: {
+    scripts: [
+      {
+        src: CDN.vue,
+      },
+      {
+        type: 'text/javascript',
+        charset: 'utf-8',
+        innerHTML: `
+          window.MainVue = window.Vue;
+          delete window.Vue;
+        `,
+      },
+      {
+        src: CDN.vue,
+      },
+    ],
+  },
+  build: {
+    extend(config, context) {
+      config.externals = {
+        ...config.externals,
+        vue: 'MainVue',
+      };
+    },
+  },
+};
+```
+
+业务依赖的处理更加的复杂,例如`Swiper`
+在`nuxt2`中,因为不是所有页面都会使用到swiper,同时不能在对主应用进行大规模改造的情况下满足需求,因此需要通过虚拟模块在编译后动态函数注入chunk的路径
+
+```javascript
+function extendConfig(config, context) {
+  const SPLIT_CHUNKS = Object.freeze({
+    swiper: {
+      name: 'swiper.min',
+      test: /[\\/]swiper[\\/]js[\\/]swiper\.min\.js$/,
+      origin: 'swiper/js/swiper.min.js',
+      type: '.js',
+    },
+    swiperCss: {
+      name: 'swiperCss.min',
+      origin: 'swiper/css/swiper.min.css',
+      type: '.css',
+      test: /[\\/]swiper[\\/]css[\\/]swiper\.min\.css$/,
+    },
+  });
+  // 以包为单位进行chunk拆分
+  config.optimization.splitChunks.cacheGroups = {
+    ...config.optimization.splitChunks.cacheGroups,
+    ...Object.fromEntries(
+      Object.entries(SPLIT_CHUNKS)
+        .filter(([_, { cdn }]) => !cdn)
+        .map(([key, { name, test }]) => {
+          return [
+            key,
+            {
+              test,
+              name,
+              chunks: 'all',
+              priority: 20,
+              enforce: true,
+            },
+          ];
+        }),
+    ),
+  };
+
+  // 路径别名
+  config.resolve.alias = {
+    ...config.resolve.alias,
+    swiper$: SPLIT_CHUNKS.swiper.origin,
+    'swiper/css/swiper.min.css': SPLIT_CHUNKS.swiperCss.origin,
+    'swiper/css/swiper.css': SPLIT_CHUNKS.swiperCss.origin,
+    // 虚拟模块
+    '~chunk': virtualPath,
+  };
+
+  // 虚拟模块注入
+  config.plugins.push(
+    new VirtualAfterBuildPlugin({
+      chunks: Object.values(SPLIT_CHUNKS),
+    }),
+  );
+}
+```
+
+**VirtualAfterBuildPlugin**
+
+这个插件的主要工作是在运行时动态注入虚拟模块
+
+```javascript
+const VirtualModule = require('webpack-virtual-modules');
+const path = require('path');
+const virtualPath = path.resolve(process.cwd(), './src/virtual-module');
+const { RawSource } = require('webpack-sources');
+
+const isProd = process.env.NODE_ENV === 'production';
+const CHUNK_PATH_PLACEHOLDER = '__WEBPACK_CHUNK_PATH_PLACEHOLDER__';
+const js = notDo;
+class VirtualAfterBuildPlugin {
+  name = 'VirtualAfterBuildPlugin';
+  opt = {};
+  constructor(opt = {}) {
+    this.virtualModule = new VirtualModule({});
+    this.opt = opt;
+  }
+
+  getLocalChunkPath(mergeLocalFn) {
+    const chunks = mergeLocalFn
+      ? mergeLocalFn(this.opt.chunks)
+      : this.opt.chunks;
+    return chunks.reduce((prev, cur, index, arr) => {
+      const { origin, name, type = '.js', buildPath, cdn } = cur;
+      const localPath = isProd ? `"${buildPath}"` : `"${name}${type}"`;
+      let str =
+        prev +
+        `"${origin}":{"name":"${name}","path": ${localPath},"cdn":"${cdn ?? ''}"},`;
+      if (index === arr.length - 1) {
+        str += '}';
+      }
+      return str;
+    }, `{`);
+  }
+
+  generateRuntimeJS() {
+    const localChunkPath = isProd
+      ? CHUNK_PATH_PLACEHOLDER
+      : this.getLocalChunkPath();
+    return js`
+      export const getChunkPath = () => {
+        return ${localChunkPath};
+      };
+    `;
+  }
+
+  /**
+   * @param {import('webpack').Compiler} compiler
+   */
+  apply(compiler) {
+    const { chunks: optChunks = [] } = this.opt;
+    this.virtualModule.apply(compiler);
+
+    const chunkPath = {};
+    compiler.hooks.beforeCompile.tap(this.name, () => {
+      this.virtualModule.writeModule(virtualPath, this.generateRuntimeJS());
+    });
+    compiler.hooks.emit.tapAsync(this.name, (compilation, callback) => {
+      compilation.chunks.forEach((chunk) => {
+        const curChunk = optChunks.find((v) => v.name === chunk.name);
+        if (curChunk) {
+          chunk.files.forEach((file) => {
+            if (file.endsWith(curChunk.type)) {
+              chunkPath[curChunk.origin] = file;
+            }
+          });
+        }
+      });
+
+      const chunkStr = `
+       {
+      return ${this.getLocalChunkPath((c) => {
+        return c.map((v) => {
+          return {
+            ...v,
+            buildPath: chunkPath[v.origin],
+          };
+        });
+      })}
+     }
+    `;
+      for (const filename in compilation.assets) {
+        // 只处理 JS 文件
+        if (filename.endsWith('.js')) {
+          const asset = compilation.assets[filename];
+          const originalSource = asset.source();
+
+          // 如果文件内容包含我们的占位符 用 webpack-sources 的 RawSource 更新资源
+          if (originalSource.includes(CHUNK_PATH_PLACEHOLDER)) {
+            const newSource = originalSource.replace(
+              CHUNK_PATH_PLACEHOLDER,
+              chunkStr,
+            );
+            compilation.assets[filename] = new RawSource(newSource);
+          }
+        }
+      }
+      callback();
+    });
+  }
+}
+
+module.exports.VirtualAfterBuildPlugin = VirtualAfterBuildPlugin;
+module.exports.virtualPath = virtualPath;
+
+function notDo(strings, ...values) {
+  return String.raw({ raw: strings }, ...values);
+}
+```
+
+## 性能优化
