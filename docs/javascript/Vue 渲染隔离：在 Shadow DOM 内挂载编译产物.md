@@ -410,7 +410,7 @@ const handleClick = debounce(function (index, e) {
 </html>
 ```
 
-2. 同时对于iframe方案，因为我们存在对父应用的交互以及可能存在的调用， 在iframe和主应用进行数据公用的成本非常大，所以最终采用了IIFE结合ShadowDOM 渲染隔离方案。由于，对于Light
+2. 同时对于iframe方案，因为我们存在对父应用的交互以及可能存在的调用， 在iframe和主应用进行数据公用的成本非常大，所以最终采用了**IIFE实现沙箱**结合ShadowDOM 渲染隔离方案。由于，对于Light
    DOM来说，Shadow
    DOM是不可见的，所以需要对编译产物内部DOM查找的方法等处理，我们这里通过IIFE将DOM查找方法转发到Shadow
    Root 上，这样就可以在Shadow DOM 中进行DOM查找，同时不会影响到主应用。
@@ -635,68 +635,6 @@ function createStyleLinkByCode(code) {
 
 ### 2. DOM转发和沙箱处理
 
-首先回顾下基础知识
-
-**内存管理与垃圾回收**
-
-[引用技术垃圾回收](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Guide/Memory_management#%E5%BC%95%E7%94%A8%E8%AE%A1%E6%95%B0%E5%9E%83%E5%9C%BE%E5%9B%9E%E6%94%B6)
-
-> 备注：现代 JavaScript 引擎不再使用引用计数进行垃圾回收。
-
-这是最初级的垃圾回收算法。此算法把确定对象是否仍然需要这个问题简化为确定对象是否仍有其他引用它的对象。如果没有指向该对象的引用，那么该对象称作“垃圾”或者可回收的。
-
-```javascript
-let x = {
-  a: {
-    b: 2,
-  },
-};
-// 创建了两个对象。一个作为另一个的属性被引用。
-// 另一个被赋值给变量‘x’。
-// 很显然，没有可以被垃圾回收的对象。
-
-let y = x;
-// 变量‘y’是第二个拥有对象引用的变量。
-
-x = 1;
-// 现在，起初在‘x’中的对象有唯一的引用，就是变量‘y’。
-
-let z = y.a;
-// 引用对象的‘a’属性。
-// 现在，这个对象有两个引用，一个作为属性，
-// 另一个作为变量‘z’。
-
-y = 'mozilla';
-// 起初在‘x’中的对象现在是零引用了。它可以被垃圾回收了。
-// 但是，它的属性‘a’仍被变量‘z’引用，所以这个对象还不能回收。
-
-z = null;
-// 起初在 x 中的对象的属性‘a’是零引用了。这个对象可以被垃圾回收了。
-```
-
-循环引用是一个限制。在下面的例子中，创建了两个对象，一个对象的属性引用另一个对象，形成了一个循环。在函数调用结束之后，它们离开了函数作用域。在那个点，它们不再被需要了，为它们分配的内存应该被回收。然而，引用计数算法不会认为它们可以被回收，因为每个对象至少还有一个指向自己的引用，这样的结果就是它们两个都不会被标记为可以被垃圾回收。循环引用是内存泄露的常见原因。
-
-```javascript
-function f() {
-  const x = {};
-  const y = {};
-  x.a = y; // x 引用 y
-  y.a = x; // y 引用 x
-
-  return 'azerty';
-}
-
-f();
-```
-
-[标记清除算法](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Guide/Memory_management#标记清除算法)
-
-这个算法将“对象不再需要”这个定义简化为“对象不可达”。
-
-这个算法假定有一组叫做根的对象。在 JavaScript 中，根是全局对象。垃圾回收器将定期从这些根开始，找到从这些根能引用到的所有对象，然后找到从这些对象能引用到的所有对象，等等。从根开始，垃圾回收器将找到所有可到达的对象并收集所有不能到达的对象。
-
----
-
 我们通过如下处理
 
 1. **全局对象 (`window`, `global`, `globalThis`)** → 统一被代理成
@@ -706,9 +644,6 @@ f();
 3. **代理层**：
    - `documentProxy` 控制 DOM 查询和事件绑定范围。
    - `windowProxy` 拦截全局变量的访问与赋值。
-   - `virtualWindow`
-     存储沙箱脚本定义的变量，避免污染宿主。同时也为了方便在子应用卸载时，能够正确GC。细节见[内存管理](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Guide/Memory_management#%E5%9E%83%E5%9C%BE%E5%9B%9E%E6%94%B6)
-     。
 
 4. **作用域链**：第三方脚本运行时使用 `[documentProxy, windowProxy, ...]`
    作为上下文。
@@ -1241,7 +1176,21 @@ function extendConfig(config, context) {
 
 **VirtualAfterBuildPlugin**
 
-这个插件的主要工作是在运行时动态注入虚拟模块
+这个插件的主要工作是在运行时动态注入虚拟模块,然后在客户端获取到编译后chunk路径,然后动态加载chunk
+
+有如下类型声明
+
+```typescript
+declare module '~chunk' {
+  export function getChunkPath(): Record<
+    string,
+    {
+      path?: string;
+      cdn?: string;
+    }
+  >;
+}
+```
 
 ```javascript
 const VirtualModule = require('webpack-virtual-modules');
@@ -1494,3 +1443,192 @@ function(fn,key,time = 10){
 ```
 
 ## 性能优化
+
+### 子应用模版编译分析
+
+通过只包含Hello World模版我们可以发现在的情况下，编译产物的大小为 144KB。
+
+![image-20250908171655567](https://raw.githubusercontent.com/susanforme/img/main/img/image-20250908171655567.png)
+
+所以我们可以做如下切分
+
+- 首先可以将Vue进行external，这样Vue的代码就不会打包到子应用中，而是通过主应用引入，这样可以将子应用的体积减小到 88KB
+- 去除未使用的依赖LazyLoad，这样可以将子应用的体积减小到 55KB
+
+- 去除本级的Babel， 改为使用主站的babel
+
+```
+ios: "15",
+safari: "15",
+chrome: "88",
+```
+
+- 去除引入的swiper.css 改为父级注入，这样可以将子应用的体积减小到 23KB
+
+```javascript
+// before
+module.exports = {
+  presets: ['@vue/cli-plugin-babel/preset'],
+};
+// after
+module.exports = {
+  presets: [
+    [
+      '@babel/preset-env',
+      {
+        useBuiltIns: false,
+        corejs: false,
+        debug: false,
+        targets: {
+          ios: '15',
+          safari: '15',
+          chrome: '88',
+        },
+      },
+    ],
+  ],
+};
+```
+
+- 去除冗余的polyfill，在非主站中采用cf
+  cdn，在主应用中直接继承，同时清除删除package中的`browserslist`。这样可以将子应用的体积减小到 16KB
+
+![image-20250908173827249](https://raw.githubusercontent.com/susanforme/img/main/img/image-20250908173827249.png)
+
+### 沙箱性能优化
+
+#### 垃圾回收
+
+首先回顾下基础知识**内存管理与垃圾回收**
+
+[引用计数垃圾回收](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Guide/Memory_management#%E5%BC%95%E7%94%A8%E8%AE%A1%E6%95%B0%E5%9E%83%E5%9C%BE%E5%9B%9E%E6%94%B6)
+
+> 备注：现代 JavaScript 引擎不再使用引用计数进行垃圾回收。
+
+这是最初级的垃圾回收算法。此算法把确定对象是否仍然需要这个问题简化为确定对象是否仍有其他引用它的对象。如果没有指向该对象的引用，那么该对象称作“垃圾”或者可回收的。
+
+```javascript
+let x = {
+  a: {
+    b: 2,
+  },
+};
+// 创建了两个对象。一个作为另一个的属性被引用。
+// 另一个被赋值给变量‘x’。
+// 很显然，没有可以被垃圾回收的对象。
+
+let y = x;
+// 变量‘y’是第二个拥有对象引用的变量。
+
+x = 1;
+// 现在，起初在‘x’中的对象有唯一的引用，就是变量‘y’。
+
+let z = y.a;
+// 引用对象的‘a’属性。
+// 现在，这个对象有两个引用，一个作为属性，
+// 另一个作为变量‘z’。
+
+y = 'mozilla';
+// 起初在‘x’中的对象现在是零引用了。它可以被垃圾回收了。
+// 但是，它的属性‘a’仍被变量‘z’引用，所以这个对象还不能回收。
+
+z = null;
+// 起初在 x 中的对象的属性‘a’是零引用了。这个对象可以被垃圾回收了。
+```
+
+循环引用是一个限制。在下面的例子中，创建了两个对象，一个对象的属性引用另一个对象，形成了一个循环。在函数调用结束之后，它们离开了函数作用域。在那个点，它们不再被需要了，为它们分配的内存应该被回收。然而，引用计数算法不会认为它们可以被回收，因为每个对象至少还有一个指向自己的引用，这样的结果就是它们两个都不会被标记为可以被垃圾回收。循环引用是内存泄露的常见原因。
+
+```javascript
+function f() {
+  const x = {};
+  const y = {};
+  x.a = y; // x 引用 y
+  y.a = x; // y 引用 x
+
+  return 'azerty';
+}
+
+f();
+```
+
+[标记清除算法](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Guide/Memory_management#标记清除算法)
+
+这个算法将“对象不再需要”这个定义简化为“对象不可达”。
+
+这个算法假定有一组叫做根的对象。在 JavaScript 中，根是全局对象。垃圾回收器将定期从这些根开始，找到从这些根能引用到的所有对象，然后找到从这些对象能引用到的所有对象，等等。从根开始，垃圾回收器将找到所有可到达的对象并收集所有不能到达的对象。
+
+基于**GC和隔离**此方面的考虑，在runtime中，我们采用如下策略,在函数内部声明虚拟window，在子应用卸载后，能够正确GC。细节见[内存管理](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Guide/Memory_management#%E5%9E%83%E5%9C%BE%E5%9B%9E%E6%94%B6)
+
+```javascript
+export function runWrapperShadow(options) {
+  const generateScope = (hostId, proxyGlobalVar) => {
+    //! 方便GC 和防止污染外部window
+    const virtualWindow = {};
+
+    const windowProxy = new Proxy(window, {
+      get(target, key) {
+        if (proxyGlobalVar.includes(key)) return virtualWindow[key];
+        if (typeof originData === 'function') {
+          const fn = originData.bind(window);
+          fn.prototype = originData.prototype;
+          return fn;
+        }
+        return Reflect.get(target, key, window);
+      },
+      set(target, key, value) {
+        if (proxyGlobalVar.includes(key)) {
+          virtualWindow[key] = value;
+          return true;
+        }
+        return Reflect.set(target, key, value);
+      },
+    });
+
+    return {
+      getVirtualWindow: () => virtualWindow,
+      scope: [documentProxy, windowProxy, windowProxy, windowProxy],
+    };
+  };
+}
+```
+
+同时在spa时候，需要在切换页面的时候，能够正确回收掉子应用的patch和blob
+
+```javascript
+export function runWrapperShadow(options) {
+  const uninstallFns = [];
+
+  const [linkStyleShadow, rejectUrl] = createStyleLinkByCode(
+    `${commonCSS}\n${cssCode}\n${injectCSSPackages.join('\n')}`,
+  );
+  const [fontStyleShadow, rejectFontUrl] = createStyleLinkByCode(font || '');
+  uninstallFns.push(rejectUrl, rejectFontUrl);
+  function generateMonkeyPatchCode(hostId) {
+    let uninstallFn = () => {};
+    // 应用补丁
+    if (
+      Element.prototype.addEventListener &&
+      Element.prototype.removeEventListener
+    ) {
+      const originalAdd = Element.prototype.addEventListener;
+      const patchedAdd = createPatchedAddEventListener(originalAdd);
+      Element.prototype.addEventListener = patchedAdd;
+      const originalRemove = Element.prototype.removeEventListener;
+      const patchedRemove = createPatchedRemoveEventListener(originalRemove);
+      Element.prototype.removeEventListener = patchedRemove;
+      uninstallFn = () => {
+        Element.prototype.addEventListener = originalAdd;
+        Element.prototype.removeEventListener = originalRemove;
+      };
+    }
+    return uninstallFn;
+  }
+  return () => uninstallFns.forEach((fn) => fn());
+}
+```
+
+#### runtime 性能
+
+应用基于IIFE和Proxy
+
+![image-20250908175533994](https://raw.githubusercontent.com/susanforme/img/main/img/image-20250908175533994.png)
