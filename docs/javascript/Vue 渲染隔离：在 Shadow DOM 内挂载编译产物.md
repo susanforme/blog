@@ -14,11 +14,12 @@ tag:
   - 样式污染问题（全局 CSS 冲突、第三方组件样式覆盖）。
   - 多应用/微前端场景下的 DOM 污染风险。
   - 性能对比iframe：Shadow DOM 更轻量，性能更好。
+  - 除了性能，Shadow DOM 在用户体验方面也提供了更无缝的集成。它允许子应用像原生组件一样融入主页面，避免了 iframe 可能带来的滚动条、安全提示、历史栈管理复杂性以及弹窗定位等问题。
 - Shadow DOM 的优势：样式封闭性、DOM 隔离性、事件机制。
 
 ## Web Components
 
-Web 组件的一个关键特性是创建自定义元素：即由 Web 开发人员定义行为的 HTML 元素，扩展了浏览器中可用的元素集。
+Web 组件的一个关键特性是创建自定义元素：即由 Web 开发人员定义行为的 HTML 元素，扩展了浏览器中可用的元素集。Web Components 提供了一套浏览器原生的组件化标准，其核心由三个主要技术组成：`自定义元素 (Custom Elements)`、`Shadow DOM` 和 `HTML 模板 (HTML Templates)`。自定义元素允许我们定义新的 HTML 标签，Shadow DOM 则提供了这些元素的样式和 DOM 结构封装，而 HTML 模板则为这些自定义元素提供了可复用的结构模板。
 
 如下有个最简示例
 
@@ -133,9 +134,9 @@ DOM 允许你将一个 DOM 树附加到一个元素上，并且使该树的内�
    —— 一个常规 DOM 子树，由 HTML 子元素组成。我们在之前章节看到的所有子树都是直接可见。
 2. Shadow tree —— 一个隐藏的 DOM 子树，不在 HTML 中反映，无法被察觉。
 
-如果一个元素同时有以上两种子树，那么浏览器只渲染 shadow tree。
+如果一个元素同时有以上两种子树，那么浏览器只渲染 shadow tree。值得强调的是，Shadow DOM 的隔离粒度是“元素级别”的，它封装了单个组件的内部结构和样式，而非像 iframe 那样创建了一个全新的“文档级别”隔离环境。这是其在性能和资源消耗上优于 iframe 的根本原因。
 
-**见最简示例**
+见最简示例
 
 ### 渲染
 
@@ -330,8 +331,7 @@ userCard.onclick = e => alert(`Outer target: ${e.target.tagName}`);
 
 接下来我们将一一解决这些技术难点
 
-1. 如何在最小影响下，将编译产物挂载到 Shadow
-   DOM 中,在不对商详入口进行大规模修改的情况下，实现渲染隔离。
+1. 我们需要一种**非侵入式**的方案。这意味着不能要求主应用对现有业务代码进行大量改造，而子应用本身应能被“即插即用”地集成.
 
 ```javascript
 import Vue from 'vue';
@@ -350,7 +350,7 @@ new Vue({
 }).$mount('#app');
 ```
 
-2. 如何在模版内，实现基本无感Vue，Swiper等三方事件绑定，比如点击事件，鼠标事件等。同时需要兼容异步防抖等
+1. 如何在模版内，实现基本无感Vue，Swiper等三方事件绑定，比如点击事件，鼠标事件等。同时需要兼容异步防抖等
 
 ```javascript
 const handleClick = debounce(function (index, e) {
@@ -370,7 +370,7 @@ const handleClick = debounce(function (index, e) {
 }, 100);
 ```
 
-3. font-face 在Shadow DOM 中无法生效 见
+1. font-face 在Shadow DOM 中无法生效 见
    1. [chrome-bug](https://bugs.chromium.org/p/chromium/issues/detail?id=336876)
    2. [firefox-bug](https://github.com/mdn/interactive-examples/issues/887)
 
@@ -415,6 +415,8 @@ const handleClick = debounce(function (index, e) {
    DOM是不可见的，所以需要对编译产物内部DOM查找的方法等处理，我们这里通过IIFE将DOM查找方法转发到Shadow
    Root 上，这样就可以在Shadow DOM 中进行DOM查找，同时不会影响到主应用。
 3. IIFE 方案，只需要对编译产物进行包装，不需要对主应用进行任何修改，同时性能开销非常小，不需要创建额外的window
+
+除了 iframe 初始化耗时和数据共享复杂性，iframe 方案在实现路由同步、历史栈管理、弹窗定位（需要父子通信调整 z-index）以及 SEO 友好性方面也可能引入额外的开发和维护成本。相比之下，IIFE + Shadow DOM 方案在满足渲染隔离需求的同时，提供了更轻量、更灵活的集成方式。
 
 ### 事件处理
 
@@ -521,7 +523,6 @@ flowchart TD
 ```
 
 ## 沙箱实现
-
 
 ### 1. 环境模拟
 
@@ -829,6 +830,14 @@ export function runWrapperShadow(options) {
 }
 ```
 
+#### documentProxy
+
+`documentProxy` 的核心思想是受控地暴露和转发。它确保了子应用执行的所有 DOM 查询（如 `querySelector`）和操作都优先在 shadowRoot 内部进行，从而实现了 DOM 的强隔离。对于那些在 `Shadow DOM` 内部没有等效表示或不需要隔离的属性/方法，它会回退到原生 document 对象，以维持子应用的正常运行。`virtualWindow` 的设计则为子应用提供了一个“假”的全局环境，防止其直接污染外部 window 对象，从而增强了沙箱的隔离性和垃圾回收的效率。
+
+#### proxyGlobalVar
+
+proxyGlobalVar 的设计不仅仅是为了性能和 GC，它也是实现**细粒度环境隔离**的关键。通过明确声明哪些全局变量需要被代理到 virtualWindow，我们可以有效防止子应用意外地或恶意地修改主应用的全局对象。对于未声明的全局变量，子应用依然可以访问到主应用的真实 window 对象，但其赋值操作会被代理拦截到 virtualWindow，从而形成了一层**读多写少、写不污染**的保护机制。
+
 ### 3. 事件处理
 
 通过`monkey patch` 对`addEventListener` 和 `removeEventListener`
@@ -1096,14 +1105,11 @@ flowchart TD
 
 ```
 
-
-
 ## 主应用部分改造
 
 首先对于主应用进行编译分析,可以看到同时产生了多份Vue,Swiper等库的编译产物,因此需要将编译产物进行抽离或external,避免重复加载和击中CDN缓存
 
 ![h5](./img//shadow/h5.png)
-
 
 ### 变更流程
 
@@ -1116,14 +1122,7 @@ flowchart TD
 
     D --> F[调用 getChunkPath 动态获取依赖包代码]
     F --> G[传入 runtimeShadow 执行]
-
 ```
-
-
-
-
-
-
 
 ### 依赖抽离
 
@@ -1350,6 +1349,7 @@ module.exports.virtualPath = virtualPath;
 function notDo(strings, ...values) {
   return String.raw({ raw: strings }, ...values);
 }
+
 ```
 
 ### 入口改造
@@ -1493,6 +1493,7 @@ function(fn,key,time = 10){
 执行55KB，DOM parser共5000次耗时：1297ms
 ```
 
+尽管 DOM Parser 在处理不规范 HTML 时具有更好的健壮性，但对于我们这种**已知结构化且严格规范的编译产物**，正则匹配的性能优势是压倒性的。在需要高性能解析，且产物结构可控的场景下，正则方案无疑是更优的选择，能够显著减少页面加载和渲染的阻塞时间。
 
 ## 性能优化
 
@@ -1550,6 +1551,10 @@ module.exports = {
 ### 沙箱性能优化
 
 #### 垃圾回收
+
+在单页应用（SPA）中，内存泄漏是一个长期存在的问题。所以如果子应用频繁加载和卸载，而其占用的内存不能被及时回收，则会导致主应用长期运行下内存不断上涨，最终影响用户体验甚至导致页面崩溃。因此，一套有效的垃圾回收策略对于沙箱的稳定性至关重要。
+
+---
 
 首先回顾下基础知识**内存管理与垃圾回收**
 
