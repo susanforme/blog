@@ -1352,4 +1352,145 @@ function notDo(strings, ...values) {
 }
 ```
 
+### 入口改造
+
+在主应用加载子应用时，需要将子应用的入口进行改造，需要在兼容老代码的同时，尽可能的不影响性能和使用新功能
+
+```vue
+<!-- prev -->
+<OnlineDescription ref="DetailPC" :goods_desc="goods_desc" name="pc_iframe" />
+<!-- after -->
+<template v-if="onlineDescComponent">
+  <component
+    :is="onlineDescComponent"
+    ref="DetailPC"
+    v-bind="goodDescProps"
+  ></component>
+</template>
+```
+
+```javascript
+function handleDesc() {
+  if (process.client) {
+    const code = this.goods_desc;
+    const regGroup = [
+      /<div\s+data-type="root"[^>]*>([\s\S]*?)<\/div>/,
+      /<style\s+data-type="font"[^>]*>([\s\S]*?)<\/style>/,
+      /<style\s+data-type="style"[^>]*>([\s\S]*?)<\/style>/,
+      /<script\s+data-type="entry"[^>]*>([\s\S]*?)<\/script>/,
+      /<script\s+data-type="config"[^>]*>([\s\S]*?)<\/script>/,
+    ];
+    const results = [];
+    for (let i = 0; i < regGroup.length; i++) {
+      const result = code.match(regGroup[i]);
+      if (result) {
+        results.push(result[1].trim());
+      } else {
+        break;
+      }
+    }
+    // 未匹配特征，使用旧的组件
+    if (results.length === 0) {
+      this.onlineDescComponent = OnlineDescription.name;
+      return;
+    }
+    const [root, font, style, entry, configStr] = results;
+    this.detailDesc = {
+      root,
+      font,
+      style,
+      entry,
+      configStr,
+    };
+    this.onlineDescComponent = ShadowDesc.name;
+  }
+}
+```
+
+**为什么不使用DOM parser？**
+
+> DOM parser 和 正则的性能差异
+
+使用如下代码进行测试
+
+```javascript
+function check(code) {
+  const regGroup = [
+    /<div\s+data-type="root"[^>]*>([\s\S]*?)<\/div>/,
+    /<style\s+data-type="font"[^>]*>([\s\S]*?)<\/style>/,
+    /<style\s+data-type="style"[^>]*>([\s\S]*?)<\/style>/,
+    /<script\s+data-type="entry"[^>]*>([\s\S]*?)<\/script>/,
+    /<script\s+data-type="config"[^>]*>([\s\S]*?)<\/script>/,
+  ];
+  const results = [];
+  for (let i = 0; i < regGroup.length; i++) {
+    const result = code.match(regGroup[i]);
+    if (result) {
+      results.push(result[1].trim());
+    }
+  }
+  return results;
+}
+```
+
+```javascript
+function check(code) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(code, 'text/html');
+  return [
+    doc.querySelector('div[data-type="root"]')?.innerHTML,
+    doc.querySelector('style[data-type="font"]')?.innerHTML,
+    doc.querySelector('style[data-type="style"]')?.innerHTML,
+    doc.querySelector('script[data-type="entry"]')?.innerHTML,
+    doc.querySelector('script[data-type="config"]')?.innerHTML,
+  ];
+}
+```
+
+测试代码
+
+```javascript
+function(fn,key,time = 10){
+  const start = performance.now();
+  let result = fn();
+  for(let i = 0; i < time-1; i++){
+    fn();
+  }
+  const end = performance.now();
+  console.log(`执行${key}共${time}次耗时：${end - start}ms`,result);
+}
+```
+
+使用如下格式代码测试
+
+```html
+<div data-type="root">
+  <div id="app">&nbsp;</div>
+</div>
+<script data-type="entry">
+  import { createApp } from 'vue';
+</script>
+<style data-type="font">
+  * {
+  }
+</style>
+<style data-type="style">
+  * {
+  }
+</style>
+<script data-type="config" type="application/json">
+  { "imports": ["vue", "swiper"] }
+</script>
+```
+
+测试结果
+
+```
+执行最小例，正则共5000次耗时：4.800000000745058ms
+执行最小例，DOM parser共5000次耗时：109.60000000149012ms
+
+执行55KB，正则共5000次耗时：53ms
+执行55KB，DOM parser共5000次耗时：1297ms
+```
+
 ## 性能优化

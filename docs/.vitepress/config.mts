@@ -70,6 +70,7 @@ export default defineConfig({
           iframe: `<frame-box src="${token.content}" />`,
           sandpack: `<Sandpack code="${encodeURIComponent(token.content)}" />`,
           'html-box': `<html-box code="${encodeURIComponent(token.content)}" />`,
+          diff: `<diff code="${encodeURIComponent(token.content)}"  />`,
         };
         const info = token.info.trim();
         if (map[info]) {

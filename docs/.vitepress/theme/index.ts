@@ -3,6 +3,7 @@ import { inject } from '@vercel/analytics';
 import { injectSpeedInsights } from '@vercel/speed-insights';
 import Viewer from 'v-viewer';
 import { Theme } from 'vitepress';
+import Diff from './components/diff.vue';
 import FrameBox from './components/frame-box.vue';
 import HtmlBox from './components/html-box.vue';
 import Mermaid from './components/Mermaid.vue';
@@ -28,6 +29,7 @@ export default {
       .use(Viewer)
       .component('Sandpack', Sandpack)
       .component('html-box', HtmlBox)
+      .component('diff', Diff)
       .component('frame-box', FrameBox);
   },
 } as Theme;
