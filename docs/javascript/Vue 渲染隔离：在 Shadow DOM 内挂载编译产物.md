@@ -522,6 +522,7 @@ flowchart TD
 
 ## 沙箱实现
 
+
 ### 1. 环境模拟
 
 首先，我们需要在shadow
@@ -1034,7 +1035,7 @@ const finalCode = js(`
 new Function(finalCode)();
 ```
 
-#### finalCode
+### 实际代码
 
 ```javascript
 (function () {
@@ -1068,11 +1069,61 @@ new Function(finalCode)();
 })();
 ```
 
+### 完整流程
+
+```mermaid
+flowchart TD
+  A1[开始 调用 wrapperShadow 函数] --> A2[生成 generateScope 函数字符串]
+  A2 --> A3[定义 inject 函数]
+  A3 --> A4[拼接 finalCode 脚本字符串]
+  A4 --> A5[执行立即调用函数]
+
+  A5 --> B1[调用 inject 注入 DOM 和样式]
+  B1 --> B2[查找 host 元素]
+  B2 --> B3[创建 Shadow DOM]
+  B3 --> B4[创建 html head body 元素]
+  B4 --> B5[插入样式和容器内容]
+  B5 --> B6[挂载结构到 Shadow DOM]
+
+  A5 --> C1[调用 generateScope 生成代理对象]
+  C1 --> C2[创建 documentProxy 代理 DOM 方法]
+  C1 --> C3[创建 windowProxy 包装 window 并替换 document]
+
+  A5 --> D1[setTimeout 异步执行用户代码]
+  D1 --> D2[将代理后的 document window 传入用户代码]
+  D2 --> D3[执行用户代码 运行在 Shadow DOM 作用域]
+
+
+```
+
+
+
 ## 主应用部分改造
 
 首先对于主应用进行编译分析,可以看到同时产生了多份Vue,Swiper等库的编译产物,因此需要将编译产物进行抽离或external,避免重复加载和击中CDN缓存
 
 ![h5](./img//shadow/h5.png)
+
+
+### 变更流程
+
+```mermaid
+flowchart TD
+    A[主应用页面] --> B[解析子应用编译产物]
+    B --> C{是否为新结构化产物?}
+    C -- 是 --> D[动态加载 新子应用组件]
+    C -- 否 --> E[渲染 旧组件]
+
+    D --> F[调用 getChunkPath 动态获取依赖包代码]
+    F --> G[传入 runtimeShadow 执行]
+
+```
+
+
+
+
+
+
 
 ### 依赖抽离
 
@@ -1442,6 +1493,7 @@ function(fn,key,time = 10){
 执行55KB，DOM parser共5000次耗时：1297ms
 ```
 
+
 ## 性能优化
 
 ### 子应用模版编译分析
@@ -1629,6 +1681,6 @@ export function runWrapperShadow(options) {
 
 #### runtime 性能
 
-应用基于IIFE和Proxy
+应用基于IIFE和Proxy,并未引入额外的runtime，因此和直接渲染对比，基本没有性能损耗
 
 ![image-20250908175533994](https://raw.githubusercontent.com/susanforme/img/main/img/image-20250908175533994.png)
