@@ -1,5 +1,5 @@
 // 主题独有配置
-import { getThemeConfig } from '@sugarat/theme/node'
+import { getThemeConfig } from '@sugarat/theme/node';
 
 // 开启RSS支持（RSS配置）
 // import type { Theme } from '@sugarat/theme'
@@ -48,6 +48,7 @@ const blogTheme = getThemeConfig({
   // 文章默认作者
   author: '桃花笑春风',
 
+  recommend: false,
 
   // 公告
   // popover: {
@@ -83,6 +84,6 @@ const blogTheme = getThemeConfig({
   //   ],
   //   duration: 0
   // },
-})
+});
 
-export { blogTheme }
+export { blogTheme };
