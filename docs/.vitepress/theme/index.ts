@@ -6,6 +6,7 @@ import { Theme } from 'vitepress';
 import Diff from './components/diff.vue';
 import FrameBox from './components/frame-box.vue';
 import HtmlBox from './components/html-box.vue';
+import InlineHtml from './components/inline-html.vue';
 import Mermaid from './components/Mermaid.vue';
 import Sandpack from './components/Sandpack.vue';
 
@@ -30,6 +31,7 @@ export default {
       .component('Sandpack', Sandpack)
       .component('html-box', HtmlBox)
       .component('diff', Diff)
+      .component('inline-html', InlineHtml)
       .component('frame-box', FrameBox);
   },
 } as Theme;

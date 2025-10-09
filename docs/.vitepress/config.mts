@@ -71,6 +71,7 @@ export default defineConfig({
           sandpack: `<Sandpack code="${encodeURIComponent(token.content)}" />`,
           'html-box': `<html-box code="${encodeURIComponent(token.content)}" />`,
           diff: `<diff code="${encodeURIComponent(token.content)}"  />`,
+          inline: `<inline-html code="${encodeURIComponent(token.content)}"  />`,
         };
         const info = token.info.trim();
         if (map[info]) {
