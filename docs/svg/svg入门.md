@@ -1,4 +1,9 @@
-# 入门
+---
+date: 2025-10-09
+description: SVG 入门
+---
+
+# svg入门
 
 ## svg标签
 
@@ -207,6 +212,97 @@ SVG 的 CSS 属性与网页元素有所不同。
 </svg>
 ```
 
-
-
 上面代码中，`<pattern>`标签将一个圆形定义为`dots`模式。`patternUnits="userSpaceOnUse"`表示`<pattern>`的宽度和长度是实际的像素值。然后，指定这个模式去填充下面的矩形。
+
+## image
+
+`<image>`标签用于插入图片文件。
+
+```inline
+<svg viewBox="0 0 100 100" width="100" height="100">
+  <image xlink:href="https://avatars.githubusercontent.com/u/51266600"
+    width="50%" height="50%"/>
+</svg>
+```
+
+上面代码中，`<image>`的`xlink:href`属性表示图像的来源。
+
+## animate
+
+`<animate>`标签用于产生动画效果。
+
+```inline
+<svg width="500px" height="500px">
+  <rect x="0" y="0" width="100" height="100" fill="#feac5e">
+    <animate attributeName="x" from="0" to="500" dur="2s" repeatCount="indefinite" />
+  </rect>
+</svg>
+```
+
+上面代码中，矩形会不断移动，产生动画效果。
+
+`<animate>`的属性含义如下。
+
+> - attributeName：发生动画效果的属性名。
+> - from：单次动画的初始值。
+> - to：单次动画的结束值。
+> - dur：单次动画的持续时间。
+> - repeatCount：动画的循环模式。
+
+可以在多个属性上面定义动画。
+
+```
+<animate attributeName="x" from="0" to="500" dur="2s" repeatCount="indefinite" />
+<animate attributeName="width" to="500" dur="2s" repeatCount="indefinite" />
+```
+
+## animateTransform
+
+`<animate>`标签对 CSS 的`transform`属性不起作用，如果需要变形，就要使用`<animateTransform>`标签。
+
+```inline
+<svg width="500px" height="500px">
+  <rect x="250" y="250" width="50" height="50" fill="#4bc0c8">
+    <animateTransform attributeName="transform" type="rotate" begin="0s" dur="10s" from="0 200 200" to="360 400 400" repeatCount="indefinite" />
+  </rect>
+</svg>
+```
+
+上面代码中，`<animateTransform>`的效果为旋转（`rotate`），这时`from`和`to`属性值有三个数字，第一个数字是角度值，第二个值和第三个值是旋转中心的坐标。`from="0 200 200"`表示开始时，角度为0，围绕`(200, 200)`开始旋转；`to="360 400 400"`表示结束时，角度为360，围绕`(400, 400)`旋转。
+
+## 实例折线图
+
+下面将一张数据表格画成折线图。
+
+```
+Date |Amount
+-----|------
+2014-01-01 | $10
+2014-02-01 | $20
+2014-03-01 | $40
+2014-04-01 | $80
+```
+
+上面的图形，可以画成一个坐标系，`Date`作为横轴，`Amount`作为纵轴，四行数据画成一个数据点。
+
+```inline
+<svg width="350" height="160">
+  <g class="layer" transform="translate(60,10)">
+    <circle r="5" cx="0"   cy="105" />
+    <circle r="5" cx="90"  cy="90"  />
+    <circle r="5" cx="180" cy="60"  />
+    <circle r="5" cx="270" cy="0"   />
+
+    <g class="y axis">
+      <line x1="0" y1="0" x2="0" y2="120" />
+      <text x="-40" y="105" dy="5">$10</text>
+      <text x="-40" y="0"   dy="5">$80</text>
+    </g>
+    <g class="x axis" transform="translate(0, 120)">
+      <line x1="0" y1="0" x2="270" y2="0" />
+      <text x="-30"   y="20">January 2014</text>
+      <text x="240" y="20">April</text>
+    </g>
+  </g>
+</svg>
+```
