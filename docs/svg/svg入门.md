@@ -136,7 +136,9 @@ SVG 的 CSS 属性与网页元素有所不同。
 `<path>`的`d`属性表示绘制顺序，它的值是一个长字符串，每个字母表示一个绘制动作，后面跟着坐标。闭合也就是自动连线到原点
 
 - M：移动到（moveto）
-- L：画直线到（lineto）
+- L：画直线到（lineto
+  - H：画水平线到（horizontal lineto）
+  - V：画垂直线到（vertical lineto）
 - Z：闭合路径
 
 ## text标签
