@@ -49,6 +49,7 @@ export default defineConfig({
     nav: [
       { text: '首页', link: '/' },
       { text: '关于作者', link: 'https://github.com/susanforme' },
+      { text: 'demo', link: 'https://susan-for-me-demo.vercel.app/' },
     ],
   },
   vite: {
