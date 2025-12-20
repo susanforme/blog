@@ -13,9 +13,87 @@ Motion（React 技术宣讲神器） 适合：对外技术页 / Keynote 风格�
 
 ### 核心概念
 
+- **水合**: 了解VUE/React等前端框架的水合原理
 - **SSG**：了解 SSG 的基本原理和工作流程。
 - **Astro 框架**：了解 Astro 的基本使用方法和特点。
-- **水合**: 了解VUE/React等前端框架的水合原理
+
+## 水合
+
+Dan Abramov（Create React App 和 Redux）对 Hydration 的定义是：_“Hydration 就像用用户交互和事件处理程序的‘水’来浇灌‘干燥的’HTML。”_
+
+### CSR**客户端渲染**
+
+客户端渲染是指所有页面都直接在浏览器中使用 JavaScript 加载和渲染。这样，浏览器负责处理所有请求（_数据获取_）、管理加载状态以及其他交互操作。
+![image-20251220124347208](https://raw.githubusercontent.com/susanforme/img/main/img/2025/12/20/12%E6%97%B643%E5%88%8647%E7%A7%92c559db941a00ca1bb9bc0d97323915f5-image-20251220124347208-d9d389.png)
+
+> 代码结构
+>
+> ```html
+> <!DOCTYPE html>
+> <html lang="en">
+> <head>
+>   <meta charset="UTF-8" />
+>   <title>CSR Example</title>
+> </head>
+> <body>
+>   <!-- 注意这里几乎没有内容，只有一个挂载点 -->
+>   <div id="root"></div>
+> 
+>   <!-- JavaScript 负责渲染整个页面 -->
+>   <script src="/bundle.js"></script>
+> </body>
+> </html>
+> 
+> ```
+
+### SSR服务端渲染
+
+在服务器端渲染（SSR）中，页面在服务器端使用 JavaScript 生成，并以 HTML 格式发送给客户端。此过程优化了服务器端的数据获取，从而提升了用户体验。在 SSR 中，初始 HTML 加载完毕后，交互所需的 JavaScript 代码会在后台加载。
+
+![image-20251220124526785](https://raw.githubusercontent.com/susanforme/img/main/img/2025/12/20/12%E6%97%B645%E5%88%8627%E7%A7%92b8d0b674495a842b03717696ef445331-image-20251220124526785-51d4bd.png)
+
+> 代码结构
+>
+> ```html
+> <!DOCTYPE html>
+> <html lang="en">
+> <head>
+>   <meta charset="UTF-8" />
+>   <title>SSR Example</title>
+> </head>
+> <body>
+>   <!-- 服务器已经渲染好 HTML -->
+>   <div id="root">
+>     <h1>欢迎来到 SSR 页面</h1>
+>     <p>这是服务器端渲染生成的内容。</p>
+>     <button onclick="alert('按钮点击事件')">点击我</button>
+>   </div>
+> 
+>   <!-- JavaScript 只负责 Hydration -->
+>   <script src="/bundle.js"></script>
+> </body>
+> </html>
+> ```
+
+### **什么是水合**
+
+*水合（Hydration）*是指将服务器端预渲染的 HTML 代码在浏览器中实现交互的过程。换句话说，框架(React,Vue)会检查现有的 HTML 代码，并关联必要的 JavaScript 代码来激活组件，从而实现交互功能。
+
+这样可以加快页面加载速度，因为静态内容（初始 HTML）会快速加载，交互功能随后才会启用。
+
+这种做法结合了 SSR 和 CSR（客户端渲染）的优点：
+
+- **服务器端渲染（SSR）** 提供了更快的首屏加载时间和更好的 SEO。
+- **客户端渲染（CSR）** 提供了更丰富的交互体验。
+
+![image-20251220125059048](https://raw.githubusercontent.com/susanforme/img/main/img/2025/12/20/12%E6%97%B650%E5%88%8659%E7%A7%929a5bf695feadfd1747f9dbf1680a8934-image-20251220125059048-873485.png)
+
+>  值得注意的是，*水合作用*并不直接适用于仅在客户端运行的库或框架（_仅限客户端_），例如仅在客户端使用的 React。
+
+除了传统的 Web 开发和现代前端框架外，在一些其他场景中也存在类似的 Hydration 过程：
+
+- **静态站点生成（SSG）** ：在静态站点生成器（如 Gatsby、Next.js 的静态导出模式）中，初始页面会在构建时生成静态 HTML。客户端加载后，这些静态内容通过 JavaScript 变得动态和可交互。
+- **增量静态渲染（ISR）** ：某些现代框架（如 Next.js 提供的 ISR）允许静态页面在构建后的特定时间内动态更新，而客户端加载的过程中依然需要进行 Hydration。
 
 ## SSG
 
@@ -23,9 +101,7 @@ Motion（React 技术宣讲神器） 适合：对外技术页 / Keynote 风格�
 
 静态网站生成器是一种基于原始数据和一组模板生成完整静态 HTML 网站的工具。从本质上讲，静态站点生成器自动完成对单个 HTML 页面进行编码的任务，并让这些页面提前准备好为用户提供服务。因为这些 HTML 页面是预先构建的，所以它们可以在用户的浏览器中非常快速地加载。
 
-静态网站生成器是内容管理系统 (CMS) 的替代品，后者是另一种用于管理 Web 内容、生成网页和实施模板的工具。（模板是 Web 内容的可重用格式；开发人员使用模板来避免一遍又一遍地编写相同的格式。）静态站点生成器通常是
-[JAMstack](https://www.cloudflare.com/learning/performance/what-is-jamstack/)
-Web 开发方法的一部分。
+静态网站生成器是内容管理系统 (CMS) 的替代品，后者是另一种用于管理 Web 内容、生成网页和实施模板的工具。（模板是 Web 内容的可重用格式；开发人员使用模板来避免一遍又一遍地编写相同的格式。）
 
 ### 什么是静态网站？
 
