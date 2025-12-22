@@ -1,3 +1,9 @@
+---
+title: 干掉Docker - Podman入门
+description: Podman是Docker的轻量级替代品,无守护进程的容器引擎,内存占用更低,支持无根模式
+pubDate: 2025-12-22
+---
+
 # 干掉docker
 
 Podman 是一个无守护进程的容器引擎，可以用来开发、管理和运行 OCI 容器和容器化应用程序。它是 Docker 的一个替代品，具有许多相似的功能，但也有一些独特的优势。

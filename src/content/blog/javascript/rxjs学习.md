@@ -1,6 +1,7 @@
 ---
-description: ts 装饰器
-date: 2024-09-25
+title: RxJS学习
+description: RxJS响应式编程库学习笔记,包括Observable、Observer、Subscription等核心概念
+pubDate: 2024-09-25
 tag:
   - javascript
 ---
@@ -29,20 +30,20 @@ RxJS 中解决异步事件管理的基本概念有：
 外部状态
 
 ```ts
-let count = 0;
+let count = 0
 document.addEventListener('click', () =>
-  console.log(`Clicked ${++count} times`),
-);
+	console.log(`Clicked ${++count} times`)
+)
 ```
 
 状态隔离，链式调用
 
 ```ts
-import { fromEvent, scan } from 'rxjs';
+import { fromEvent, scan } from 'rxjs'
 
 fromEvent(document, 'click')
-  .pipe(scan((count) => count + 1, 0))
-  .subscribe((count) => console.log(`Clicked ${count} times`));
+	.pipe(scan((count) => count + 1, 0))
+	.subscribe((count) => console.log(`Clicked ${count} times`))
 ```
 
 ### 流动
@@ -59,15 +60,15 @@ cat access.log | awk '{print $1}' | sort | uniq -c | sort -nr | head -n 1
 
 ```ts
 fromEvent(inputElement, 'input')
-  .pipe(
-    map((event) => event.target.value),
-    filter((text) => text.length > 3),
-    distinctUntilChanged(),
-    debounceTime(300),
-  )
-  .subscribe((text) => {
-    console.log('Filtered Input:', text);
-  });
+	.pipe(
+		map((event) => event.target.value),
+		filter((text) => text.length > 3),
+		distinctUntilChanged(),
+		debounceTime(300)
+	)
+	.subscribe((text) => {
+		console.log('Filtered Input:', text)
+	})
 ```
 
 RxJS 有一系列的操作符，可以帮助你控制事件如何在你的 observables 中流动。
@@ -75,26 +76,26 @@ RxJS 有一系列的操作符，可以帮助你控制事件如何在你的 obser
 下面是使用纯 JavaScript 实现“最多允许每秒单击一次”的方式：
 
 ```ts
-let count = 0;
-let rate = 1000;
-let lastClick = Date.now() - rate;
+let count = 0
+let rate = 1000
+let lastClick = Date.now() - rate
 document.addEventListener('click', () => {
-  if (Date.now() - lastClick >= rate) {
-    console.log(`Clicked ${++count} times`);
-    lastClick = Date.now();
-  }
-});
+	if (Date.now() - lastClick >= rate) {
+		console.log(`Clicked ${++count} times`)
+		lastClick = Date.now()
+	}
+})
 ```
 
 ```ts
-import { fromEvent, throttleTime, scan } from 'rxjs';
+import { fromEvent, throttleTime, scan } from 'rxjs'
 
 fromEvent(document, 'click')
-  .pipe(
-    throttleTime(1000),
-    scan((count) => count + 1, 0),
-  )
-  .subscribe((count) => console.log(`Clicked ${count} times`));
+	.pipe(
+		throttleTime(1000),
+		scan((count) => count + 1, 0)
+	)
+	.subscribe((count) => console.log(`Clicked ${count} times`))
 ```
 
 ## 弹珠语法
@@ -166,12 +167,12 @@ map(project: (value: T, index: number) => R): OperatorFunction<T, R>
 ![替代文本](https://rxjs.dev/assets/images/marble-diagrams/map.png)
 
 ```ts
-import { fromEvent, map } from 'rxjs';
+import { fromEvent, map } from 'rxjs'
 
-const clicks = fromEvent<PointerEvent>(document, 'click');
-const positions = clicks.pipe(map((ev) => ev.clientX));
+const clicks = fromEvent<PointerEvent>(document, 'click')
+const positions = clicks.pipe(map((ev) => ev.clientX))
 
-positions.subscribe((x) => console.log(x));
+positions.subscribe((x) => console.log(x))
 ```
 
 ### switchMap
@@ -183,10 +184,10 @@ switchMap<T, R, O extends ObservableInput<any>>(project: (value: T, index: numbe
 ![](https://rxjs.dev/assets/images/marble-diagrams/switchMap.png)
 
 ```ts
-import { of, switchMap } from 'rxjs';
+import { of, switchMap } from 'rxjs'
 
-const switched = of(1, 2, 3).pipe(switchMap((x) => of(x, x ** 2, x ** 3)));
-switched.subscribe((x) => console.log(x));
+const switched = of(1, 2, 3).pipe(switchMap((x) => of(x, x ** 2, x ** 3)))
+switched.subscribe((x) => console.log(x))
 // outputs
 // 1
 // 1
@@ -208,11 +209,11 @@ scan<V, A, S>(accumulator: (acc: V | A | S, value: V, index: number) => A, seed?
 ![替代文本](https://rxjs.dev/assets/images/marble-diagrams/scan.png)
 
 ```ts
-import { of, scan, map } from 'rxjs';
+import { of, scan, map } from 'rxjs'
 
-const numbers$ = of(1, 2, 3);
+const numbers$ = of(1, 2, 3)
 
-numbers$.pipe(scan((total, n) => total + n)).subscribe(console.log);
+numbers$.pipe(scan((total, n) => total + n)).subscribe(console.log)
 ```
 
 ### from
@@ -224,21 +225,21 @@ from(input: O): Observable<ObservedValueOf<O>>
 ![](https://rxjs.dev/assets/images/marble-diagrams/from.png)
 
 ```ts
-import { from, take } from 'rxjs';
+import { from, take } from 'rxjs'
 
 function* generateDoubles(seed) {
-  let i = seed;
-  while (true) {
-    yield i;
-    i = 2 * i;
-  }
+	let i = seed
+	while (true) {
+		yield i
+		i = 2 * i
+	}
 }
 
-const iterator = generateDoubles(3);
+const iterator = generateDoubles(3)
 // take 仅发送源 Observable 发出的前 count 个值。
-const result = from(iterator).pipe(take(10));
+const result = from(iterator).pipe(take(10))
 
-result.subscribe((x) => console.log(x));
+result.subscribe((x) => console.log(x))
 
 // Logs:
 // 3
@@ -262,13 +263,13 @@ of<T>(...args: (SchedulerLike | T)[]): Observable<T>
 ![](https://rxjs.dev/assets/images/marble-diagrams/of.png)
 
 ```ts
-import { of } from 'rxjs';
+import { of } from 'rxjs'
 
 of(10, 20, 30).subscribe({
-  next: (value) => console.log('next:', value),
-  error: (err) => console.log('error:', err),
-  complete: () => console.log('the end'),
-});
+	next: (value) => console.log('next:', value),
+	error: (err) => console.log('error:', err),
+	complete: () => console.log('the end'),
+})
 
 // Outputs
 // next: 10
@@ -287,17 +288,17 @@ forkJoin(...args: any[]): Observable<any>
 ![](https://rxjs.dev/assets/images/marble-diagrams/forkJoin.png)
 
 ```ts
-import { forkJoin, of, timer } from 'rxjs';
+import { forkJoin, of, timer } from 'rxjs'
 
 const observable = forkJoin({
-  foo: of(1, 2, 3, 4),
-  bar: Promise.resolve(8),
-  baz: timer(4000),
-});
+	foo: of(1, 2, 3, 4),
+	bar: Promise.resolve(8),
+	baz: timer(4000),
+})
 observable.subscribe({
-  next: (value) => console.log(value),
-  complete: () => console.log('This is how it ends!'),
-});
+	next: (value) => console.log(value),
+	complete: () => console.log('This is how it ends!'),
+})
 
 // Logs:
 // { foo: 4, bar: 8, baz: 0 } after 4 seconds
@@ -319,17 +320,17 @@ tap(observerOrNext?: Partial<TapObserver<T>> | ((value: T) => void)): MonoTypeOp
 **热流**： 数据**由一个源产生并共享**，多个订阅者接入时只能接收到那时之后的数据。
 
 ```ts
-import { interval } from 'rxjs';
-import { share } from 'rxjs/operators';
+import { interval } from 'rxjs'
+import { share } from 'rxjs/operators'
 
 // 转为热流（共享一个生产者
-const hot$ = interval(1000).pipe(share());
+const hot$ = interval(1000).pipe(share())
 
-hot$.subscribe((val) => console.log('🔥 A:', val));
+hot$.subscribe((val) => console.log('🔥 A:', val))
 
 setTimeout(() => {
-  hot$.subscribe((val) => console.log('🔥 B:', val));
-}, 3000);
+	hot$.subscribe((val) => console.log('🔥 B:', val))
+}, 3000)
 // 🔥 A: 0
 // 🔥 A: 1
 // 🔥 A: 2

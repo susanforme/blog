@@ -1,5 +1,7 @@
 ---
-date: 2025-07-25
+title: 前端如何学习NestJS
+description: 前端开发者学习NestJS框架指南,包括TypeScript、装饰器、RxJS等必备知识
+pubDate: 2025-07-25
 tag:
   - nodejs
   - backend
@@ -47,14 +49,14 @@ Nest 在这些常见的 Node.js 框架（Express/Fastify）之上提供了更高
 
 ```ts
 //cats.controller.ts
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get } from '@nestjs/common'
 
 @Controller('cats')
 export class CatsController {
-  @Get()
-  findAll(): string {
-    return 'This action returns all cats';
-  }
+	@Get()
+	findAll(): string {
+		return 'This action returns all cats'
+	}
 }
 // route  get cats
 ```
@@ -70,59 +72,59 @@ Provider是 Nest 的一个核心概念。许多基础的 Nest 类，例如servic
 
 ```ts
 // app.module.ts
-import { Module } from '@nestjs/common';
-import { CatsController } from './cats/cats.controller';
-import { CatsService } from './cats/cats.service';
+import { Module } from '@nestjs/common'
+import { CatsController } from './cats/cats.controller'
+import { CatsService } from './cats/cats.service'
 
 @Module({
-  controllers: [CatsController],
-  // 向IOC容器中注入
-  providers: [CatsService],
+	controllers: [CatsController],
+	// 向IOC容器中注入
+	providers: [CatsService],
 })
 export class AppModule {}
 
 // cats.controller.ts
 
-import { Controller, Get, Post, Body } from '@nestjs/common';
-import { CreateCatDto } from './dto/create-cat.dto';
-import { CatsService } from './cats.service';
-import { Cat } from './interfaces/cat.interface';
+import { Controller, Get, Post, Body } from '@nestjs/common'
+import { CreateCatDto } from './dto/create-cat.dto'
+import { CatsService } from './cats.service'
+import { Cat } from './interfaces/cat.interface'
 
 @Controller('cats')
 export class CatsController {
-  constructor(
-    // 注入获取到service
-    private readonly catsService: CatsService,
-  ) {}
+	constructor(
+		// 注入获取到service
+		private readonly catsService: CatsService
+	) {}
 
-  @Post()
-  async create(@Body() createCatDto: CreateCatDto) {
-    this.catsService.create(createCatDto);
-  }
+	@Post()
+	async create(@Body() createCatDto: CreateCatDto) {
+		this.catsService.create(createCatDto)
+	}
 
-  @Get()
-  async findAll(): Promise<Cat[]> {
-    return this.catsService.findAll();
-  }
+	@Get()
+	async findAll(): Promise<Cat[]> {
+		return this.catsService.findAll()
+	}
 }
 
 // cats.service.ts
 
-import { Injectable } from '@nestjs/common';
-import { Cat } from './interfaces/cat.interface';
+import { Injectable } from '@nestjs/common'
+import { Cat } from './interfaces/cat.interface'
 
 // 标记为provider
 @Injectable()
 export class CatsService {
-  private readonly cats: Cat[] = [];
+	private readonly cats: Cat[] = []
 
-  create(cat: Cat) {
-    this.cats.push(cat);
-  }
+	create(cat: Cat) {
+		this.cats.push(cat)
+	}
 
-  findAll(): Cat[] {
-    return this.cats;
-  }
+	findAll(): Cat[] {
+		return this.cats
+	}
 }
 ```
 
@@ -189,13 +191,13 @@ export class CatsService {
 
 ```ts
 // cats.module.ts
-import { Module } from '@nestjs/common';
-import { CatsController } from './cats.controller';
-import { CatsService } from './cats.service';
+import { Module } from '@nestjs/common'
+import { CatsController } from './cats.controller'
+import { CatsService } from './cats.service'
 
 @Module({
-  controllers: [CatsController],
-  providers: [CatsService],
+	controllers: [CatsController],
+	providers: [CatsService],
 })
 export class CatsModule {}
 ```
@@ -216,15 +218,15 @@ export class CatsModule {}
 
 ```ts
 // logger.middleware.ts
-import { Injectable, NestMiddleware } from '@nestjs/common';
-import { Request, Response, NextFunction } from 'express';
+import { Injectable, NestMiddleware } from '@nestjs/common'
+import { Request, Response, NextFunction } from 'express'
 
 @Injectable()
 export class LoggerMiddleware implements NestMiddleware {
-  use(req: Request, res: Response, next: NextFunction) {
-    console.log('Request...');
-    next();
-  }
+	use(req: Request, res: Response, next: NextFunction) {
+		console.log('Request...')
+		next()
+	}
 }
 ```
 
@@ -235,55 +237,55 @@ Nest 内置了一个**异常层**，负责处理应用程序中所有未处理�
 ![](https://docs.nestjs.com/assets/Filter_1.png)
 
 ```ts
-import getConfig from '@/config/configuration';
+import getConfig from '@/config/configuration'
 import {
-  ArgumentsHost,
-  Catch,
-  ExceptionFilter,
-  HttpException,
-  HttpStatus,
-} from '@nestjs/common';
-import { Request, Response } from 'express';
-import { AppLoggerService } from '../modules/logger/logger.service';
-import { ErrorResponseDto } from '../vos/api-response.vo';
+	ArgumentsHost,
+	Catch,
+	ExceptionFilter,
+	HttpException,
+	HttpStatus,
+} from '@nestjs/common'
+import { Request, Response } from 'express'
+import { AppLoggerService } from '../modules/logger/logger.service'
+import { ErrorResponseDto } from '../vos/api-response.vo'
 
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
-  constructor(private readonly loggerService: AppLoggerService) {}
-  catch(exception: any, host: ArgumentsHost) {
-    const ctx = host.switchToHttp();
-    const response = ctx.getResponse<Response>();
-    const request = ctx.getRequest<Request>();
-    const errResponse: ErrorResponseDto = {
-      status: HttpStatus.INTERNAL_SERVER_ERROR,
-      message: 'Internal server error',
-      errors: void 0,
-      timestamp: new Date().toISOString(),
-      path: request.url,
-    };
-    // 属于静态文件服务
-    if (request.url.startsWith(`${getConfig().base}/static`)) {
-      response.status(404).send('Not Found');
-      return;
-    }
-    if (exception instanceof HttpException) {
-      errResponse.status = exception.getStatus();
-      errResponse.message = exception.message;
-      const exceptionRes = exception.getResponse();
-      errResponse.errors =
-        typeof exceptionRes === 'string'
-          ? [exceptionRes]
-          : //@ts-expect-error type
-            (exceptionRes.errors ?? [exceptionRes.message]);
-    } else if (exception instanceof Error) {
-      errResponse.message = exception.message;
-    }
-    this.loggerService.error(
-      `[${errResponse.status}] ${request.method} ${request.url} Error: ${errResponse.message}`,
-      'HttpExceptionFilter',
-    );
-    response.status(200).json(errResponse);
-  }
+	constructor(private readonly loggerService: AppLoggerService) {}
+	catch(exception: any, host: ArgumentsHost) {
+		const ctx = host.switchToHttp()
+		const response = ctx.getResponse<Response>()
+		const request = ctx.getRequest<Request>()
+		const errResponse: ErrorResponseDto = {
+			status: HttpStatus.INTERNAL_SERVER_ERROR,
+			message: 'Internal server error',
+			errors: void 0,
+			timestamp: new Date().toISOString(),
+			path: request.url,
+		}
+		// 属于静态文件服务
+		if (request.url.startsWith(`${getConfig().base}/static`)) {
+			response.status(404).send('Not Found')
+			return
+		}
+		if (exception instanceof HttpException) {
+			errResponse.status = exception.getStatus()
+			errResponse.message = exception.message
+			const exceptionRes = exception.getResponse()
+			errResponse.errors =
+				typeof exceptionRes === 'string'
+					? [exceptionRes]
+					: //@ts-expect-error type
+						(exceptionRes.errors ?? [exceptionRes.message])
+		} else if (exception instanceof Error) {
+			errResponse.message = exception.message
+		}
+		this.loggerService.error(
+			`[${errResponse.status}] ${request.method} ${request.url} Error: ${errResponse.message}`,
+			'HttpExceptionFilter'
+		)
+		response.status(200).json(errResponse)
+	}
 }
 ```
 
@@ -303,13 +305,13 @@ export class HttpExceptionFilter implements ExceptionFilter {
 例如如下DTO中
 
 ```ts
-import { OmitType } from '@nestjs/swagger';
-import { DocumentEntity } from '../entities/document.entity';
-import { IsString } from 'class-validator';
+import { OmitType } from '@nestjs/swagger'
+import { DocumentEntity } from '../entities/document.entity'
+import { IsString } from 'class-validator'
 
 export class CreateDocumentDto {
-  @IsString()
-  name!: string;
+	@IsString()
+	name!: string
 }
 ```
 
@@ -317,7 +319,7 @@ export class CreateDocumentDto {
 
 ```js
 {
-  name: 123123;
+	name: 123123
 }
 ```
 
@@ -343,51 +345,51 @@ export class CreateDocumentDto {
 ![11](https://docs.nestjs.com/assets/Guards_1.png)
 
 ```ts
-import { extractTokenFromHeader } from '@/utils';
+import { extractTokenFromHeader } from '@/utils'
 import {
-  CanActivate,
-  ExecutionContext,
-  Injectable,
-  UnauthorizedException,
-} from '@nestjs/common';
-import { Reflector } from '@nestjs/core';
-import { JwtService } from '@nestjs/jwt';
-import { SKIP_AUTH } from '../decorators/skip-auth.decorator';
-import { UtilService } from '../modules/util/util.service';
+	CanActivate,
+	ExecutionContext,
+	Injectable,
+	UnauthorizedException,
+} from '@nestjs/common'
+import { Reflector } from '@nestjs/core'
+import { JwtService } from '@nestjs/jwt'
+import { SKIP_AUTH } from '../decorators/skip-auth.decorator'
+import { UtilService } from '../modules/util/util.service'
 
 @Injectable()
 export class AuthGuard implements CanActivate {
-  constructor(
-    private jwtService: JwtService,
-    private reflector: Reflector,
-    private readonly utilService: UtilService,
-  ) {}
+	constructor(
+		private jwtService: JwtService,
+		private reflector: Reflector,
+		private readonly utilService: UtilService
+	) {}
 
-  async canActivate(context: ExecutionContext): Promise<boolean> {
-    const skipAuth = this.reflector.getAllAndOverride<boolean>(SKIP_AUTH, [
-      context.getHandler(),
-      context.getClass(),
-    ]);
-    if (skipAuth) {
-      return true;
-    }
+	async canActivate(context: ExecutionContext): Promise<boolean> {
+		const skipAuth = this.reflector.getAllAndOverride<boolean>(SKIP_AUTH, [
+			context.getHandler(),
+			context.getClass(),
+		])
+		if (skipAuth) {
+			return true
+		}
 
-    const request = context.switchToHttp().getRequest();
-    const token = extractTokenFromHeader(request);
-    if (!token) {
-      throw new UnauthorizedException();
-    }
-    try {
-      const payload = await this.jwtService.verifyAsync(
-        token,
-        this.utilService.getJwtVerifyOptions(),
-      );
-      request['user'] = payload;
-    } catch {
-      throw new UnauthorizedException();
-    }
-    return true;
-  }
+		const request = context.switchToHttp().getRequest()
+		const token = extractTokenFromHeader(request)
+		if (!token) {
+			throw new UnauthorizedException()
+		}
+		try {
+			const payload = await this.jwtService.verifyAsync(
+				token,
+				this.utilService.getJwtVerifyOptions()
+			)
+			request['user'] = payload
+		} catch {
+			throw new UnauthorizedException()
+		}
+		return true
+	}
 }
 ```
 
@@ -409,24 +411,24 @@ export class AuthGuard implements CanActivate {
 
 ```ts
 import {
-  Injectable,
-  NestInterceptor,
-  ExecutionContext,
-  CallHandler,
-} from '@nestjs/common';
-import { Observable } from 'rxjs';
-import { tap } from 'rxjs/operators';
+	Injectable,
+	NestInterceptor,
+	ExecutionContext,
+	CallHandler,
+} from '@nestjs/common'
+import { Observable } from 'rxjs'
+import { tap } from 'rxjs/operators'
 
 @Injectable()
 export class LoggingInterceptor implements NestInterceptor {
-  intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
-    console.log('Before...');
+	intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
+		console.log('Before...')
 
-    const now = Date.now();
-    return next
-      .handle()
-      .pipe(tap(() => console.log(`After... ${Date.now() - now}ms`)));
-  }
+		const now = Date.now()
+		return next
+			.handle()
+			.pipe(tap(() => console.log(`After... ${Date.now() - now}ms`)))
+	}
 }
 ```
 
@@ -435,56 +437,56 @@ export class LoggingInterceptor implements NestInterceptor {
 ```ts
 // response.interceptor.ts
 import {
-  CallHandler,
-  ExecutionContext,
-  HttpStatus,
-  Injectable,
-  NestInterceptor,
-} from '@nestjs/common';
-import { Request, Response } from 'express';
-import { Observable } from 'rxjs';
-import { map } from 'rxjs/operators';
-import { MetaData } from 'src/constants/metadata';
+	CallHandler,
+	ExecutionContext,
+	HttpStatus,
+	Injectable,
+	NestInterceptor,
+} from '@nestjs/common'
+import { Request, Response } from 'express'
+import { Observable } from 'rxjs'
+import { map } from 'rxjs/operators'
+import { MetaData } from 'src/constants/metadata'
 
 @Injectable()
 export class ResponseInterceptor<T> implements NestInterceptor<T> {
-  intercept(
-    context: ExecutionContext,
-    next: CallHandler,
-  ): Observable<{
-    status: number;
-    message: string;
-    data: T;
-  }> {
-    // 检查是否有跳过拦截器的元数据
-    const hasSkipInterceptor = Reflect.getMetadata(
-      MetaData.SKIP_RESPONSE_INTERCEPTOR,
-      context.getHandler(),
-    ) as boolean;
-    if (hasSkipInterceptor) {
-      return next.handle(); // 如果有，直接返回，不经过拦截器逻辑
-    }
-    return next.handle().pipe(
-      map((data: T) => {
-        const ctx = context.switchToHttp();
-        const res = ctx.getResponse<Response>();
-        const req = ctx.getRequest<Request>();
-        let status = res.statusCode;
-        if (req.method === 'POST') {
-          if (res.statusCode === HttpStatus.CREATED) {
-            status = HttpStatus.OK;
-            res.status(status);
-          }
-        }
-        return {
-          status,
-          message: 'success',
-          data,
-          timestamp: new Date().toISOString(),
-        };
-      }),
-    );
-  }
+	intercept(
+		context: ExecutionContext,
+		next: CallHandler
+	): Observable<{
+		status: number
+		message: string
+		data: T
+	}> {
+		// 检查是否有跳过拦截器的元数据
+		const hasSkipInterceptor = Reflect.getMetadata(
+			MetaData.SKIP_RESPONSE_INTERCEPTOR,
+			context.getHandler()
+		) as boolean
+		if (hasSkipInterceptor) {
+			return next.handle() // 如果有，直接返回，不经过拦截器逻辑
+		}
+		return next.handle().pipe(
+			map((data: T) => {
+				const ctx = context.switchToHttp()
+				const res = ctx.getResponse<Response>()
+				const req = ctx.getRequest<Request>()
+				let status = res.statusCode
+				if (req.method === 'POST') {
+					if (res.statusCode === HttpStatus.CREATED) {
+						status = HttpStatus.OK
+						res.status(status)
+					}
+				}
+				return {
+					status,
+					message: 'success',
+					data,
+					timestamp: new Date().toISOString(),
+				}
+			})
+		)
+	}
 }
 ```
 
@@ -556,177 +558,177 @@ OpenAPI 文档的顶层对象被称为 OpenAPI 对象。它由一系列固定字
 
 ```json
 {
-  "openapi": "3.0.0",
-  "info": {
-    "title": "lp及商详文档)",
-    "description": "Collection的路径。",
-    "version": "1.0",
-    "contact": {}
-  },
-  "tags": [
-    {
-      "name": "Collection",
-      "description": "与 Collection 相关的操作"
-    }
-  ],
-  "servers": [
-    {
-      "url": "/lp/"
-    }
-  ],
-  "paths": {
-    "/collection/{id}": {
-      "get": {
-        "operationId": "CollectionController_findOne",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "description": "要查询的Collection的ID",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "成功的响应",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "allOf": [
-                    {
-                      "$ref": "#/components/schemas/ApiResponseVo"
-                    },
-                    {
-                      "properties": {
-                        "data": {
-                          "$ref": "#/components/schemas/CollectionVo"
-                        }
-                      }
-                    }
-                  ]
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "根据id查询collection",
-        "tags": ["Collection"]
-      }
-    }
-  },
-  "components": {
-    "securitySchemes": {
-      "bearer": {
-        "scheme": "bearer",
-        "bearerFormat": "JWT",
-        "type": "http",
-        "name": "Authorization",
-        "description": "请输入 JWT token",
-        "in": "header"
-      }
-    },
-    "schemas": {
-      "ApiResponseVo": {
-        "type": "object",
-        "properties": {
-          "status": {
-            "type": "number",
-            "description": "状态码",
-            "example": 200
-          },
-          "data": {
-            "type": "object",
-            "description": "响应数据",
-            "nullable": true
-          },
-          "message": {
-            "type": "string",
-            "description": "消息",
-            "example": "Success"
-          },
-          "timestamp": {
-            "type": "string",
-            "description": "时间戳",
-            "example": "2023-01-01T00:00:00Z"
-          }
-        },
-        "required": ["status", "data", "message", "timestamp"]
-      },
-      "CollectionVo": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string",
-            "description": "模版类型",
-            "enum": ["lp", "detail"]
-          },
-          "id": {
-            "type": "string",
-            "description": "collection id"
-          },
-          "name": {
-            "type": "string",
-            "description": "合集名称"
-          },
-          "desc": {
-            "type": "string",
-            "description": "合集描述"
-          },
-          "createUserId": {
-            "type": "string",
-            "description": "创建人"
-          },
-          "lastModifyUserId": {
-            "type": "string",
-            "description": "最后修改人"
-          },
-          "createTime": {
-            "format": "date-time",
-            "type": "string",
-            "description": "创建时间"
-          },
-          "lastModifyTime": {
-            "format": "date-time",
-            "type": "string",
-            "description": "最后修改时间"
-          },
-          "templateCount": {
-            "type": "number",
-            "description": "模版数量"
-          },
-          "createUserName": {
-            "type": "string",
-            "description": "创建用户名称"
-          },
-          "lastModifyUserName": {
-            "type": "string",
-            "description": "修改用户名称"
-          }
-        },
-        "required": [
-          "type",
-          "id",
-          "name",
-          "desc",
-          "createUserId",
-          "lastModifyUserId",
-          "createTime",
-          "lastModifyTime",
-          "templateCount",
-          "createUserName",
-          "lastModifyUserName"
-        ]
-      }
-    }
-  }
+	"openapi": "3.0.0",
+	"info": {
+		"title": "lp及商详文档)",
+		"description": "Collection的路径。",
+		"version": "1.0",
+		"contact": {}
+	},
+	"tags": [
+		{
+			"name": "Collection",
+			"description": "与 Collection 相关的操作"
+		}
+	],
+	"servers": [
+		{
+			"url": "/lp/"
+		}
+	],
+	"paths": {
+		"/collection/{id}": {
+			"get": {
+				"operationId": "CollectionController_findOne",
+				"parameters": [
+					{
+						"name": "id",
+						"required": true,
+						"in": "path",
+						"description": "要查询的Collection的ID",
+						"schema": {
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "成功的响应",
+						"content": {
+							"application/json": {
+								"schema": {
+									"allOf": [
+										{
+											"$ref": "#/components/schemas/ApiResponseVo"
+										},
+										{
+											"properties": {
+												"data": {
+													"$ref": "#/components/schemas/CollectionVo"
+												}
+											}
+										}
+									]
+								}
+							}
+						}
+					}
+				},
+				"security": [
+					{
+						"bearer": []
+					}
+				],
+				"summary": "根据id查询collection",
+				"tags": ["Collection"]
+			}
+		}
+	},
+	"components": {
+		"securitySchemes": {
+			"bearer": {
+				"scheme": "bearer",
+				"bearerFormat": "JWT",
+				"type": "http",
+				"name": "Authorization",
+				"description": "请输入 JWT token",
+				"in": "header"
+			}
+		},
+		"schemas": {
+			"ApiResponseVo": {
+				"type": "object",
+				"properties": {
+					"status": {
+						"type": "number",
+						"description": "状态码",
+						"example": 200
+					},
+					"data": {
+						"type": "object",
+						"description": "响应数据",
+						"nullable": true
+					},
+					"message": {
+						"type": "string",
+						"description": "消息",
+						"example": "Success"
+					},
+					"timestamp": {
+						"type": "string",
+						"description": "时间戳",
+						"example": "2023-01-01T00:00:00Z"
+					}
+				},
+				"required": ["status", "data", "message", "timestamp"]
+			},
+			"CollectionVo": {
+				"type": "object",
+				"properties": {
+					"type": {
+						"type": "string",
+						"description": "模版类型",
+						"enum": ["lp", "detail"]
+					},
+					"id": {
+						"type": "string",
+						"description": "collection id"
+					},
+					"name": {
+						"type": "string",
+						"description": "合集名称"
+					},
+					"desc": {
+						"type": "string",
+						"description": "合集描述"
+					},
+					"createUserId": {
+						"type": "string",
+						"description": "创建人"
+					},
+					"lastModifyUserId": {
+						"type": "string",
+						"description": "最后修改人"
+					},
+					"createTime": {
+						"format": "date-time",
+						"type": "string",
+						"description": "创建时间"
+					},
+					"lastModifyTime": {
+						"format": "date-time",
+						"type": "string",
+						"description": "最后修改时间"
+					},
+					"templateCount": {
+						"type": "number",
+						"description": "模版数量"
+					},
+					"createUserName": {
+						"type": "string",
+						"description": "创建用户名称"
+					},
+					"lastModifyUserName": {
+						"type": "string",
+						"description": "修改用户名称"
+					}
+				},
+				"required": [
+					"type",
+					"id",
+					"name",
+					"desc",
+					"createUserId",
+					"lastModifyUserId",
+					"createTime",
+					"lastModifyTime",
+					"templateCount",
+					"createUserName",
+					"lastModifyUserName"
+				]
+			}
+		}
+	}
 }
 ```
 
@@ -735,132 +737,132 @@ OpenAPI 文档的顶层对象被称为 OpenAPI 对象。它由一系列固定字
 通过如下装饰器可以为项目统一添加 OpenAPI 注解
 
 ```ts
-import { applyDecorators, Type } from '@nestjs/common';
+import { applyDecorators, Type } from '@nestjs/common'
 import {
-  ApiBearerAuth,
-  ApiExtraModels,
-  ApiResponse,
-  ApiResponseSchemaHost,
-  getSchemaPath,
-} from '@nestjs/swagger';
-import { ApiResponseVo } from '../vos/api-response.vo';
-import { PageDataVo } from '../vos/page-response.vo';
+	ApiBearerAuth,
+	ApiExtraModels,
+	ApiResponse,
+	ApiResponseSchemaHost,
+	getSchemaPath,
+} from '@nestjs/swagger'
+import { ApiResponseVo } from '../vos/api-response.vo'
+import { PageDataVo } from '../vos/page-response.vo'
 
-type SchemaType = ApiResponseSchemaHost['schema'];
+type SchemaType = ApiResponseSchemaHost['schema']
 const primitiveSchemas = {
-  boolean: defineSchemaType({ type: 'boolean', example: true }),
-  string: defineSchemaType({ type: 'string', example: 'text' }),
-  number: defineSchemaType({ type: 'number', example: 123 }),
-  streamFile: defineSchemaType({
-    type: 'string',
-    format: 'binary',
-    description: '文件流',
-  }),
-} as const;
-type PrimitiveKey = keyof typeof primitiveSchemas;
+	boolean: defineSchemaType({ type: 'boolean', example: true }),
+	string: defineSchemaType({ type: 'string', example: 'text' }),
+	number: defineSchemaType({ type: 'number', example: 123 }),
+	streamFile: defineSchemaType({
+		type: 'string',
+		format: 'binary',
+		description: '文件流',
+	}),
+} as const
+type PrimitiveKey = keyof typeof primitiveSchemas
 
-type ApiModel = Type<any> | PrimitiveKey;
-export type ApiResponseWrapperOptionType = 'page' | 'origin';
+type ApiModel = Type<any> | PrimitiveKey
+export type ApiResponseWrapperOptionType = 'page' | 'origin'
 
 export type ApiResponseWrapperOption = {
-  isArray?: boolean;
-  type?: ApiResponseWrapperOptionType;
-};
-export type NestDecorator = ReturnType<typeof applyDecorators>;
+	isArray?: boolean
+	type?: ApiResponseWrapperOptionType
+}
+export type NestDecorator = ReturnType<typeof applyDecorators>
 export function ApiResponseWrapper(
-  model: ApiModel,
-  option: ApiResponseWrapperOption,
-): NestDecorator;
+	model: ApiModel,
+	option: ApiResponseWrapperOption
+): NestDecorator
 export function ApiResponseWrapper(
-  model?: ApiModel,
-  isArray?: boolean,
-): NestDecorator;
+	model?: ApiModel,
+	isArray?: boolean
+): NestDecorator
 export function ApiResponseWrapper(
-  model?: ApiModel,
-  option?: boolean | ApiResponseWrapperOption,
+	model?: ApiModel,
+	option?: boolean | ApiResponseWrapperOption
 ): NestDecorator {
-  const isPrim = typeof model === 'string';
-  const extra: Type<any>[] = [];
-  if (!isPrim && model) extra.push(model);
-  const notNeedResponse: PrimitiveKey[] = ['streamFile'];
-  if (isPrim && notNeedResponse.includes(model)) {
-    return applyDecorators(
-      ApiResponse({
-        status: 200,
-        description: '成功的响应',
-        schema: primitiveSchemas[model],
-      }),
-    );
-  }
-  const isArray =
-    typeof option === 'boolean' ? option : (option?.isArray ?? false);
-  const type =
-    typeof option === 'boolean' ? 'origin' : (option?.type ?? 'origin');
-  const typeMap: Record<ApiResponseWrapperOptionType, () => SchemaType> = {
-    page: () => {
-      return {
-        allOf: [
-          {
-            $ref: getSchemaPath(PageDataVo),
-          },
-          {
-            properties: {
-              items: {
-                type: 'array',
-                items: {
-                  $ref: getSchemaPath(model!),
-                },
-              },
-            },
-          },
-        ],
-      };
-    },
-    origin: () => {
-      return isPrim
-        ? primitiveSchemas[model]
-        : model
-          ? { $ref: getSchemaPath(model) }
-          : { type: 'object', additionalProperties: true };
-    },
-  };
+	const isPrim = typeof model === 'string'
+	const extra: Type<any>[] = []
+	if (!isPrim && model) extra.push(model)
+	const notNeedResponse: PrimitiveKey[] = ['streamFile']
+	if (isPrim && notNeedResponse.includes(model)) {
+		return applyDecorators(
+			ApiResponse({
+				status: 200,
+				description: '成功的响应',
+				schema: primitiveSchemas[model],
+			})
+		)
+	}
+	const isArray =
+		typeof option === 'boolean' ? option : (option?.isArray ?? false)
+	const type =
+		typeof option === 'boolean' ? 'origin' : (option?.type ?? 'origin')
+	const typeMap: Record<ApiResponseWrapperOptionType, () => SchemaType> = {
+		page: () => {
+			return {
+				allOf: [
+					{
+						$ref: getSchemaPath(PageDataVo),
+					},
+					{
+						properties: {
+							items: {
+								type: 'array',
+								items: {
+									$ref: getSchemaPath(model!),
+								},
+							},
+						},
+					},
+				],
+			}
+		},
+		origin: () => {
+			return isPrim
+				? primitiveSchemas[model]
+				: model
+					? { $ref: getSchemaPath(model) }
+					: { type: 'object', additionalProperties: true }
+		},
+	}
 
-  const itemSchema = typeMap[type]();
+	const itemSchema = typeMap[type]()
 
-  const dataSchema: SchemaType = {
-    properties: {
-      data: isArray
-        ? {
-            type: 'array',
-            items: itemSchema,
-          }
-        : itemSchema,
-    },
-  };
+	const dataSchema: SchemaType = {
+		properties: {
+			data: isArray
+				? {
+						type: 'array',
+						items: itemSchema,
+					}
+				: itemSchema,
+		},
+	}
 
-  return applyDecorators(
-    ApiBearerAuth(),
-    ApiExtraModels(...extra),
-    ApiResponse({
-      status: 200,
-      description: '成功的响应',
-      schema: {
-        allOf: [
-          // 引用通用响应 DTO
-          { $ref: getSchemaPath(ApiResponseVo) },
-          dataSchema,
-        ],
-      },
-    }),
-  );
+	return applyDecorators(
+		ApiBearerAuth(),
+		ApiExtraModels(...extra),
+		ApiResponse({
+			status: 200,
+			description: '成功的响应',
+			schema: {
+				allOf: [
+					// 引用通用响应 DTO
+					{ $ref: getSchemaPath(ApiResponseVo) },
+					dataSchema,
+				],
+			},
+		})
+	)
 }
 
 export function ApiPageResponseWrapper(model: ApiModel): NestDecorator {
-  return ApiResponseWrapper(model, { type: 'page' });
+	return ApiResponseWrapper(model, { type: 'page' })
 }
 
 function defineSchemaType(o: SchemaType) {
-  return o;
+	return o
 }
 ```
 
@@ -1001,72 +1003,72 @@ graph TB
 ```typescript
 @Entity('collections')
 export class CollectionEntity extends AbstractTypeEntity {
-  @PrimaryGeneratedColumn()
-  @ApiProperty({
-    description: 'collection id',
-  })
-  id!: string;
-  @ApiProperty({
-    description: '合集名称',
-  })
-  @IsString()
-  @Column({
-    unique: true,
-  })
-  name!: string;
-  @ApiProperty({
-    description: '合集描述',
-  })
-  @IsString()
-  @Column()
-  desc!: string;
-  @ApiProperty({
-    description: '创建人',
-  })
-  @IsString()
-  @Column()
-  @Index()
-  createUserId!: string;
-  @ApiProperty({
-    description: '最后修改人',
-  })
-  @IsString()
-  @Column({
-    nullable: true,
-  })
-  @Index()
-  lastModifyUserId!: string;
-  @ApiProperty({
-    description: '创建时间',
-    type: Date,
-  })
-  @CreateDateColumn({})
-  createTime!: string;
-  @ApiProperty({
-    description: '最后修改时间',
-    type: Date,
-  })
-  @UpdateDateColumn()
-  lastModifyTime!: string;
+	@PrimaryGeneratedColumn()
+	@ApiProperty({
+		description: 'collection id',
+	})
+	id!: string
+	@ApiProperty({
+		description: '合集名称',
+	})
+	@IsString()
+	@Column({
+		unique: true,
+	})
+	name!: string
+	@ApiProperty({
+		description: '合集描述',
+	})
+	@IsString()
+	@Column()
+	desc!: string
+	@ApiProperty({
+		description: '创建人',
+	})
+	@IsString()
+	@Column()
+	@Index()
+	createUserId!: string
+	@ApiProperty({
+		description: '最后修改人',
+	})
+	@IsString()
+	@Column({
+		nullable: true,
+	})
+	@Index()
+	lastModifyUserId!: string
+	@ApiProperty({
+		description: '创建时间',
+		type: Date,
+	})
+	@CreateDateColumn({})
+	createTime!: string
+	@ApiProperty({
+		description: '最后修改时间',
+		type: Date,
+	})
+	@UpdateDateColumn()
+	lastModifyTime!: string
 
-  @OneToMany('templates', 'belongingCollection')
-  templates!: Relation<TemplateEntity>[];
-  @ManyToOne(() => UserEntity, {
-    createForeignKeyConstraints: false,
-  })
-  @JoinColumn({
-    name: 'createUserId',
-  })
-  @Exclude()
-  createUser!: Relation<UserEntity>;
-  @ManyToOne(() => UserEntity, {
-    createForeignKeyConstraints: false,
-  })
-  @JoinColumn({
-    name: 'lastModifyUserId',
-  })
-  @Exclude()
-  lastModifyUser!: Relation<UserEntity>;
+	@OneToMany('templates', 'belongingCollection')
+	templates!: Relation<TemplateEntity>[]
+	@ManyToOne(() => UserEntity, {
+		createForeignKeyConstraints: false,
+	})
+	@JoinColumn({
+		name: 'createUserId',
+	})
+	@Exclude()
+	createUser!: Relation<UserEntity>
+	@ManyToOne(() => UserEntity, {
+		createForeignKeyConstraints: false,
+	})
+	@JoinColumn({
+		name: 'lastModifyUserId',
+	})
+	@Exclude()
+	lastModifyUser!: Relation<UserEntity>
 }
 ```
 
@@ -1075,13 +1077,13 @@ export class CollectionEntity extends AbstractTypeEntity {
 ```ts
 @Controller('collection')
 export class CollectionController {
-  constructor(private readonly collectionService: CollectionService) {}
-  @Get('list')
-  @ApiPageResponseWrapper(CollectionVo)
-  @ApiOperation({ summary: '分页查询collection' })
-  findByCollectionIdPage(@Query() query: CollectionPageQueryDto) {
-    return this.collectionService.findByPage(query);
-  }
+	constructor(private readonly collectionService: CollectionService) {}
+	@Get('list')
+	@ApiPageResponseWrapper(CollectionVo)
+	@ApiOperation({ summary: '分页查询collection' })
+	findByCollectionIdPage(@Query() query: CollectionPageQueryDto) {
+		return this.collectionService.findByPage(query)
+	}
 }
 ```
 
@@ -1090,42 +1092,42 @@ export class CollectionController {
 ```ts
 @Injectable()
 export class CollectionService {
-  constructor(
-    @InjectRepository(CollectionEntity)
-    private collectionRepository: Repository<CollectionEntity>,
-  ) {}
-  findByPage(query: CollectionPageQueryDto) {
-    const { page, pageSize, name, ...rest } = query;
-    return from(
-      this.collectionRepository
-        .createQueryBuilder('collection')
-        .leftJoinAndSelect('collection.createUser', 'createUser')
-        .leftJoinAndSelect('collection.lastModifyUser', 'lastModifyUser')
-        .loadRelationCountAndMap(
-          'collection.templateCount',
-          'collection.templates',
-        )
-        .where(
-          omitOrmUndefined({
-            ...rest,
-            name: likeIf(name),
-          }),
-        )
-        .orderBy('collection.createTime', 'DESC')
-        .skip((page - 1) * pageSize)
-        .take(pageSize)
-        .getManyAndCount(),
-    ).pipe(
-      map(([collections, count]) => {
-        return PageDataDtoFactory({
-          items: plainToInstance(CollectionVo, collections),
-          total: count,
-          page,
-          pageSize,
-        });
-      }),
-    );
-  }
+	constructor(
+		@InjectRepository(CollectionEntity)
+		private collectionRepository: Repository<CollectionEntity>
+	) {}
+	findByPage(query: CollectionPageQueryDto) {
+		const { page, pageSize, name, ...rest } = query
+		return from(
+			this.collectionRepository
+				.createQueryBuilder('collection')
+				.leftJoinAndSelect('collection.createUser', 'createUser')
+				.leftJoinAndSelect('collection.lastModifyUser', 'lastModifyUser')
+				.loadRelationCountAndMap(
+					'collection.templateCount',
+					'collection.templates'
+				)
+				.where(
+					omitOrmUndefined({
+						...rest,
+						name: likeIf(name),
+					})
+				)
+				.orderBy('collection.createTime', 'DESC')
+				.skip((page - 1) * pageSize)
+				.take(pageSize)
+				.getManyAndCount()
+		).pipe(
+			map(([collections, count]) => {
+				return PageDataDtoFactory({
+					items: plainToInstance(CollectionVo, collections),
+					total: count,
+					page,
+					pageSize,
+				})
+			})
+		)
+	}
 }
 ```
 
@@ -1133,36 +1135,36 @@ export class CollectionService {
 
 ```typescript
 export class CollectionPageQueryDto extends IntersectionType(
-  PageDataQueryVo,
-  PartialType(PickType(CollectionEntity, ['name'])),
-  PickType(CollectionEntity, ['type']),
+	PageDataQueryVo,
+	PartialType(PickType(CollectionEntity, ['name'])),
+	PickType(CollectionEntity, ['type'])
 ) {
-  @IsOptional()
-  @ApiPropertyOptional()
-  @IsString()
-  override name?: string;
+	@IsOptional()
+	@ApiPropertyOptional()
+	@IsString()
+	override name?: string
 }
 ```
 
 #### Vo
 
 ```typescript
-import { TransformExposeRelation } from '@/common/decorators/transform-expose-relation.decorator';
-import { ApiProperty } from '@nestjs/swagger';
-import { CollectionEntity } from '../entities/collection.entity';
+import { TransformExposeRelation } from '@/common/decorators/transform-expose-relation.decorator'
+import { ApiProperty } from '@nestjs/swagger'
+import { CollectionEntity } from '../entities/collection.entity'
 
 export class CollectionVo extends CollectionEntity {
-  @ApiProperty({ description: '模版数量', type: Number })
-  templateCount!: number;
-  @TransformExposeRelation<CollectionEntity>({
-    description: '创建用户名称',
-    path: 'createUser.metadata.name',
-  })
-  createUserName!: string;
-  @TransformExposeRelation<CollectionEntity>({
-    description: '修改用户名称',
-    path: 'lastModifyUser.metadata.name',
-  })
-  lastModifyUserName!: string;
+	@ApiProperty({ description: '模版数量', type: Number })
+	templateCount!: number
+	@TransformExposeRelation<CollectionEntity>({
+		description: '创建用户名称',
+		path: 'createUser.metadata.name',
+	})
+	createUserName!: string
+	@TransformExposeRelation<CollectionEntity>({
+		description: '修改用户名称',
+		path: 'lastModifyUser.metadata.name',
+	})
+	lastModifyUserName!: string
 }
 ```

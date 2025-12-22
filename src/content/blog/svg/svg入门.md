@@ -1,6 +1,7 @@
 ---
-date: 2025-10-09
-description: SVG 入门
+title: SVG入门
+description: SVG可缩放矢量图形入门教程,学习SVG标签、circle标签等基础知识
+pubDate: 2025-10-09
 ---
 
 # svg入门
@@ -140,7 +141,6 @@ SVG 的 CSS 属性与网页元素有所不同。
 - L：画直线到（lineto
   - H：画水平线到（horizontal lineto）
   - V：画垂直线到（vertical lineto）
-  
 - Z：闭合路径
 
 - C：三次贝塞尔曲线（cubic Bezier curve）
@@ -152,8 +152,6 @@ SVG 的 CSS 属性与网页元素有所不同。
   (or)
   c dx1 dy1, dx2 dy2, dx dy
   ```
-
-  
 
 ## text标签
 

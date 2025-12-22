@@ -1,6 +1,7 @@
 ---
-description: 基于OpenAPI的ts代码生成
-date: 2023-09-22
+title: 基于OpenAPI的ts代码生成
+description: 基于OpenAPI的ts代码生成,高度自动化和可配置的开发工具,解析OpenAPI规范并生成TypeScript API客户端代码
+pubDate: 2023-09-22
 tag:
   - javascript
 sticky: 99
@@ -356,27 +357,27 @@ v2 风格的 `in: 'body'` 参数，从而统一数据结构。
 // OpenAPI.ts in #generateServiceFile
 // 为了统一处理,人工合成一个parameter
 if (requestBodySchema) {
-  // ... 判断 content-type ...
-  parameters.push({
-    schema: requestBodySchema,
-    in: 'body',
-    name: 'single', // name is irrelevant for 'body'
-  } as OpenAPIParameter);
+	// ... 判断 content-type ...
+	parameters.push({
+		schema: requestBodySchema,
+		in: 'body',
+		name: 'single', // name is irrelevant for 'body'
+	} as OpenAPIParameter)
 }
 
 // 接下来，对所有参数（无论是 v2 原生的还是 v3 伪装的）进行归类
 const paramTypeDict: Record<RequestParamType, OpenAPIParameter[]> = {
-  query: [],
-  path: [],
-  body: [],
-};
+	query: [],
+	path: [],
+	body: [],
+}
 
 parameters.forEach((currentParameter) => {
-  const { in: requestType } = currentParameter;
-  // 'formData' 和 'body' 都归类到 'body' 中，用于生成请求的 data
-  const paramType = requestTypeToParamTypeMap[requestType];
-  paramTypeDict[paramType].push(currentParameter);
-});
+	const { in: requestType } = currentParameter
+	// 'formData' 和 'body' 都归类到 'body' 中，用于生成请求的 data
+	const paramType = requestTypeToParamTypeMap[requestType]
+	paramTypeDict[paramType].push(currentParameter)
+})
 ```
 
 执行完毕后，`paramTypeDict` 会像这样，清晰地分离了不同来源的参数：
@@ -397,27 +398,27 @@ parameters.forEach((currentParameter) => {
 ```typescript
 // OpenAPI.ts in #generateServiceFile
 const parameterTypes = Object.entries(paramTypeDict)
-  .filter(([_, value]) => value.length > 0) // 只处理有参数的类别
-  .map(([propParamName, parameters]) => {
-    const name = propParamName as RequestParamType;
+	.filter(([_, value]) => value.length > 0) // 只处理有参数的类别
+	.map(([propParamName, parameters]) => {
+		const name = propParamName as RequestParamType
 
-    // 1. 调用 #createParamASTByParameter, 内部核心还是 #createFlowTypeBySchema
-    const { result, extraImportModules } =
-      this.#createParamASTByParameter(parameters);
+		// 1. 调用 #createParamASTByParameter, 内部核心还是 #createFlowTypeBySchema
+		const { result, extraImportModules } =
+			this.#createParamASTByParameter(parameters)
 
-    // ... 处理导入语句 ...
+		// ... 处理导入语句 ...
 
-    // 2. 为这个参数类型生成一个唯一的名字
-    const paramIdentifierName = Utils.toBigCamelCase(operationId, paramName); // e.g., GetUserInfoRequestParams
+		// 2. 为这个参数类型生成一个唯一的名字
+		const paramIdentifierName = Utils.toBigCamelCase(operationId, paramName) // e.g., GetUserInfoRequestParams
 
-    // 3. 创建导出的类型别名 AST
-    const requestParamsType = types.exportNamedDeclaration(
-      types.typeAlias(types.identifier(paramIdentifierName), null, result),
-    );
+		// 3. 创建导出的类型别名 AST
+		const requestParamsType = types.exportNamedDeclaration(
+			types.typeAlias(types.identifier(paramIdentifierName), null, result)
+		)
 
-    // ... 添加 JSDoc 注释 ...
-    return requestParamsType;
-  });
+		// ... 添加 JSDoc 注释 ...
+		return requestParamsType
+	})
 
 // ... 在文件末尾，astBody.push(...parameterTypes) 会将这些类型定义加入到文件中
 ```
@@ -430,9 +431,9 @@ const parameterTypes = Object.entries(paramTypeDict)
  * @description 获取用户信息 Query-String 参数
  */
 export type GetUserInfoRequestParams = {
-  userId: string;
-  includeDetails?: boolean;
-};
+	userId: string
+	includeDetails?: boolean
+}
 ```
 
 这些 AST 对象被存储在 `parameterTypes` 数组中，等待最后被写入文件。
@@ -446,28 +447,28 @@ export type GetUserInfoRequestParams = {
 // operationId 是函数名，如 'getUserInfo'
 // outsideRequestBody 是函数参数数组
 const body = types.exportNamedDeclaration(
-  types.functionDeclaration(
-    types.identifier(operationId),
-    outsideRequestBody,
-    types.blockStatement(outsideFnBlockStatement),
-  ),
-);
+	types.functionDeclaration(
+		types.identifier(operationId),
+		outsideRequestBody,
+		types.blockStatement(outsideFnBlockStatement)
+	)
+)
 
 // 构建函数的参数
 const requestFnParams = types.identifier(
-  this.#options.fieldConfig.REQUEST_FN_PARAMS, // e.g., 'requestParams'
-);
+	this.#options.fieldConfig.REQUEST_FN_PARAMS // e.g., 'requestParams'
+)
 
 // 为参数对象添加类型注解
 requestFnParams.typeAnnotation = types.typeAnnotation(
-  types.objectTypeAnnotation(
-    outsideRequestParams, // outsideRequestParams 是上一步生成的参数属性数组
-  ),
-);
+	types.objectTypeAnnotation(
+		outsideRequestParams // outsideRequestParams 是上一步生成的参数属性数组
+	)
+)
 
 // 如果有参数，则将这个带类型的参数对象添加到函数签名中
 if (outsideRequestParams.length > 0) {
-  outsideRequestBody.push(requestFnParams);
+	outsideRequestBody.push(requestFnParams)
 }
 ```
 
@@ -531,18 +532,18 @@ outsideFnBlockStatement.push(request);
 
 ```typescript
 {
-  // 1. 解构
-  const { query } = requestParams;
-  // 2. 返回请求调用
-  return request<GetUserInfoResponse>( // 3. 泛型
-    `/api/v1/user/info`, // 2.1 URL
-    {
-      // 2.2 Options
-      method: 'GET',
-      params: query, // `params` 是由 fieldConfig 配置的
-      ...extraOptions,
-    },
-  );
+	// 1. 解构
+	const { query } = requestParams
+	// 2. 返回请求调用
+	return request<GetUserInfoResponse>( // 3. 泛型
+		`/api/v1/user/info`, // 2.1 URL
+		{
+			// 2.2 Options
+			method: 'GET',
+			params: query, // `params` 是由 fieldConfig 配置的
+			...extraOptions,
+		}
+	)
 }
 ```
 
@@ -681,18 +682,18 @@ array() {
 ```typescript
 // OpenAPI.ts in #createFlowTypeBySchema
 if (!type) {
-  if ($ref && !properties) {
-    // 1. 将 '#/components/schemas/UserVO' 转换为 'UserVO'
-    const typeName = this.#handleName(this.#transform$RefToOriginalRef($ref));
+	if ($ref && !properties) {
+		// 1. 将 '#/components/schemas/UserVO' 转换为 'UserVO'
+		const typeName = this.#handleName(this.#transform$RefToOriginalRef($ref))
 
-    // 2. 创建一个泛型类型注解，即类型标识符
-    const result = types.genericTypeAnnotation(types.identifier(typeName));
+		// 2. 创建一个泛型类型注解，即类型标识符
+		const result = types.genericTypeAnnotation(types.identifier(typeName))
 
-    // 3. 记录下来，这个 'UserVO' 需要从外部导入
-    extraImportModules.push(typeName);
+		// 3. 记录下来，这个 'UserVO' 需要从外部导入
+		extraImportModules.push(typeName)
 
-    return { result, extraImportModules };
-  }
+		return { result, extraImportModules }
+	}
 }
 ```
 
@@ -747,12 +748,12 @@ AST，然后输出一个格式优美的代码字符串。随后，`#formatCode` 
 ```typescript
 // constants/version/version.ts
 export abstract class Version {
-  static PATHS_KEY_PATH: string[];
-  static COMMON_TYPE_KEY: string[];
-  static METHOD_SUCCESS_RESPONSE_KEY: string[];
-  // ... 其他关键路径的定义
+	static PATHS_KEY_PATH: string[]
+	static COMMON_TYPE_KEY: string[]
+	static METHOD_SUCCESS_RESPONSE_KEY: string[]
+	// ... 其他关键路径的定义
 }
-export type VersionType = typeof Version;
+export type VersionType = typeof Version
 ```
 
 `V2.ts` 和 `V3.ts` 提供了具体的实现：
@@ -760,20 +761,20 @@ export type VersionType = typeof Version;
 ```typescript
 // constants/version/V2.ts
 export class V2 extends BaseVersion {
-  static override COMMON_TYPE_KEY = ['definitions']; // v2 的模型在 definitions
-  static override METHOD_SUCCESS_RESPONSE_KEY = ['responses', '200', 'schema'];
+	static override COMMON_TYPE_KEY = ['definitions'] // v2 的模型在 definitions
+	static override METHOD_SUCCESS_RESPONSE_KEY = ['responses', '200', 'schema']
 }
 
 // constants/version/V3.ts
 export class V3 extends BaseVersion {
-  static override COMMON_TYPE_KEY = ['components', 'schemas']; // v3 的模型在 components.schemas
-  static override METHOD_SUCCESS_RESPONSE_KEY = [
-    'responses',
-    '200',
-    'content',
-    WILD_CARD,
-    'schema',
-  ];
+	static override COMMON_TYPE_KEY = ['components', 'schemas'] // v3 的模型在 components.schemas
+	static override METHOD_SUCCESS_RESPONSE_KEY = [
+		'responses',
+		'200',
+		'content',
+		WILD_CARD,
+		'schema',
+	]
 }
 ```
 
@@ -798,22 +799,22 @@ export class V3 extends BaseVersion {
 ```typescript
 // types.ts
 export type Options = {
-  input: string;
-  output: string;
-  version: OPENAPI_VERSION_KEY;
-  // ... 其他配置
-  fieldConfig: Partial<FieldConfigType>;
-};
+	input: string
+	output: string
+	version: OPENAPI_VERSION_KEY
+	// ... 其他配置
+	fieldConfig: Partial<FieldConfigType>
+}
 
 export type FieldConfigType = {
-  REQUEST_FN_PARAMS: string; // 函数的参数对象名，默认 'requestParams'
-  REQUEST_BODY: string; // 解构出的请求体变量名，默认 'data'
-  QUERY_STRING_PARAMETERS: string; // 解构出的查询参数变量名，默认 'params'
-  PATH_PARAMETERS: string; // 解构出的路径参数变量名，默认 'path'
-  REQUEST_FN: string; // 调用的全局请求函数名，默认 'request'
-  COMMON_TYPE_PATH: string; // 公共类型文件的相对路径
-  // ...
-};
+	REQUEST_FN_PARAMS: string // 函数的参数对象名，默认 'requestParams'
+	REQUEST_BODY: string // 解构出的请求体变量名，默认 'data'
+	QUERY_STRING_PARAMETERS: string // 解构出的查询参数变量名，默认 'params'
+	PATH_PARAMETERS: string // 解构出的路径参数变量名，默认 'path'
+	REQUEST_FN: string // 调用的全局请求函数名，默认 'request'
+	COMMON_TYPE_PATH: string // 公共类型文件的相对路径
+	// ...
+}
 ```
 
 通过修改 `fieldConfig`，用户可以轻松地让生成的代码适配任何现有的请求库。例如，如
@@ -824,12 +825,12 @@ export type FieldConfigType = {
 ```javascript
 // 在调用时传入
 const generator = new OpenAPI({
-  // ...
-  fieldConfig: {
-    QUERY_STRING_PARAMETERS: 'query',
-    REQUEST_BODY: 'body',
-  },
-});
+	// ...
+	fieldConfig: {
+		QUERY_STRING_PARAMETERS: 'query',
+		REQUEST_BODY: 'body',
+	},
+})
 ```
 
 工具就会生成 `const { query, body } = requestParams;` 以及在 `request` 调用中传

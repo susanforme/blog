@@ -1,6 +1,7 @@
 ---
-description: 纯前端处理 HEIC 格式图片
-date: 2023-03-22 22:00:00
+title: 如何纯前端处理HEIC格式图片
+description: 使用libheif和WebAssembly在浏览器端处理HEIC格式图片,实现高效的图片格式转换
+pubDate: 2023-03-22
 tag:
   - javascript
   - heic
@@ -92,177 +93,177 @@ USE_WASM=1 ../build-emscripten.sh ..
 ## 简易封装通用方法
 
 ```ts
-import type { MainModule, heif_context } from '../lib/libheif';
-import loadModule from '../lib/libheif';
+import type { MainModule, heif_context } from '../lib/libheif'
+import loadModule from '../lib/libheif'
 
 /**
  * @description heif reader
  */
 export class HEIFReader {
-  /**
-   * @description heif解码器
-   */
-  static heifModule?: MainModule | null;
-  #heifDecoder?: heif_context | null;
-  /**
-   * 初始化heif解码器
-   */
-  static async initHeif() {
-    HEIFReader.heifModule = await loadModule();
-  }
-  #blobToUnit8Array(blob: Blob) {
-    return new Promise<Uint8Array>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        resolve(new Uint8Array(reader.result as ArrayBuffer));
-      };
-      reader.onerror = reject;
-      reader.readAsArrayBuffer(blob);
-    });
-  }
-  /**
-   * @description heif解码以流式方式解码
-   * @param imgFile Uint8Array | Blob | File
-   */
-  async heifDecode(imgFile: Uint8Array | Blob | File) {
-    if (!HEIFReader.heifModule) throw new Error('heif未初始化');
-    if (this.#heifDecoder) {
-      HEIFReader.heifModule.heif_context_free(this.#heifDecoder);
-    }
-    const start = Date.now();
-    console.log(new Date().toLocaleTimeString(), '开始heif解码');
-    let data = imgFile as Uint8Array;
-    if (imgFile instanceof Blob) {
-      data = await this.#blobToUnit8Array(imgFile);
-    }
-    this.#heifDecoder = HEIFReader.heifModule.heif_context_alloc();
-    if (!this.#heifDecoder) {
-      throw new Error('heif解码器初始化失败');
-    }
-    const error = HEIFReader.heifModule.heif_context_read_from_memory(
-      this.#heifDecoder,
-      data,
-    );
-    if (error.code !== HEIFReader.heifModule.heif_error_code.heif_error_Ok) {
-      throw new Error('heif解码失败');
-    }
-    const ids =
-      HEIFReader.heifModule.heif_js_context_get_list_of_top_level_image_IDs(
-        this.#heifDecoder,
-      );
-    if (!ids || ids.code) {
-      throw new Error('加载图片ids失败');
-    }
-    if (!ids.length) {
-      throw new Error('heif容器内没有图片');
-    }
-    const result: Promise<DecodeResult | undefined>[] = [];
-    const handleTo = async (id: number) => {
-      const heifModule = HEIFReader.heifModule!;
-      const handle = heifModule.heif_js_context_get_image_handle(
-        this.#heifDecoder!,
-        id,
-      );
-      if (!handle || handle.code) {
-        console.log('没有获取到图片句柄', id, handle);
-        return;
-      }
-      const width = heifModule.heif_image_handle_get_width(handle);
-      const height = heifModule.heif_image_handle_get_height(handle);
-      const isPrimary = heifModule.heif_image_handle_is_primary_image(handle);
-      // 以RGB格式解码
-      const img = heifModule.heif_js_decode_image2(
-        handle,
-        heifModule.heif_colorspace.heif_colorspace_RGB,
-        heifModule.heif_chroma.heif_chroma_interleaved_RGBA,
-      );
-      if (!img || img.code) {
-        throw new Error('heif handle解码失败');
-      }
-      const imageData = new ImageData(width, height);
-      for (const c of img.channels) {
-        if (c.id === heifModule.heif_channel.heif_channel_interleaved) {
-          // 复制值
-          if (c.stride === c.width * 4) {
-            imageData.data.set(c.data);
-          } else {
-            for (let y = 0; y < c.height; y++) {
-              imageData.data.set(
-                // slice
-                c.data.slice(y * c.stride, y * c.stride + c.width * 4),
-                y * c.width * 4,
-              );
-            }
-          }
-        }
-      }
-      heifModule.heif_image_handle_release(handle);
-      const blob = await this.#imageDataToBlob(imageData);
-      return {
-        data: blob,
-        width,
-        height,
-        isPrimary: Boolean(isPrimary),
-      };
-    };
-    for (let i = 0; i < ids.length; i++) {
-      result.push(handleTo(ids[i]));
-    }
-    const imgs = (await Promise.all(result)).filter(
-      (item) => item,
-    ) as DecodeResult[];
-    console.log(`heif解码:耗时${Date.now() - start}ms`);
-    return imgs;
-  }
-  /**
-   * 释放解码器
-   */
-  free() {
-    if (this.#heifDecoder) {
-      if (HEIFReader.heifModule) {
-        HEIFReader.heifModule.heif_context_free(this.#heifDecoder);
-      }
-      this.#heifDecoder = null;
-    }
-  }
-  /**
-   * 释放导入的模块
-   */
-  static freeModule() {
-    if (HEIFReader.heifModule) {
-      HEIFReader.heifModule = null;
-    }
-  }
-  #imageDataToBlob(imageData: ImageData): Promise<Blob> {
-    // 1. 创建临时canvas
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    canvas.width = imageData.width;
-    canvas.height = imageData.height;
+	/**
+	 * @description heif解码器
+	 */
+	static heifModule?: MainModule | null
+	#heifDecoder?: heif_context | null
+	/**
+	 * 初始化heif解码器
+	 */
+	static async initHeif() {
+		HEIFReader.heifModule = await loadModule()
+	}
+	#blobToUnit8Array(blob: Blob) {
+		return new Promise<Uint8Array>((resolve, reject) => {
+			const reader = new FileReader()
+			reader.onload = () => {
+				resolve(new Uint8Array(reader.result as ArrayBuffer))
+			}
+			reader.onerror = reject
+			reader.readAsArrayBuffer(blob)
+		})
+	}
+	/**
+	 * @description heif解码以流式方式解码
+	 * @param imgFile Uint8Array | Blob | File
+	 */
+	async heifDecode(imgFile: Uint8Array | Blob | File) {
+		if (!HEIFReader.heifModule) throw new Error('heif未初始化')
+		if (this.#heifDecoder) {
+			HEIFReader.heifModule.heif_context_free(this.#heifDecoder)
+		}
+		const start = Date.now()
+		console.log(new Date().toLocaleTimeString(), '开始heif解码')
+		let data = imgFile as Uint8Array
+		if (imgFile instanceof Blob) {
+			data = await this.#blobToUnit8Array(imgFile)
+		}
+		this.#heifDecoder = HEIFReader.heifModule.heif_context_alloc()
+		if (!this.#heifDecoder) {
+			throw new Error('heif解码器初始化失败')
+		}
+		const error = HEIFReader.heifModule.heif_context_read_from_memory(
+			this.#heifDecoder,
+			data
+		)
+		if (error.code !== HEIFReader.heifModule.heif_error_code.heif_error_Ok) {
+			throw new Error('heif解码失败')
+		}
+		const ids =
+			HEIFReader.heifModule.heif_js_context_get_list_of_top_level_image_IDs(
+				this.#heifDecoder
+			)
+		if (!ids || ids.code) {
+			throw new Error('加载图片ids失败')
+		}
+		if (!ids.length) {
+			throw new Error('heif容器内没有图片')
+		}
+		const result: Promise<DecodeResult | undefined>[] = []
+		const handleTo = async (id: number) => {
+			const heifModule = HEIFReader.heifModule!
+			const handle = heifModule.heif_js_context_get_image_handle(
+				this.#heifDecoder!,
+				id
+			)
+			if (!handle || handle.code) {
+				console.log('没有获取到图片句柄', id, handle)
+				return
+			}
+			const width = heifModule.heif_image_handle_get_width(handle)
+			const height = heifModule.heif_image_handle_get_height(handle)
+			const isPrimary = heifModule.heif_image_handle_is_primary_image(handle)
+			// 以RGB格式解码
+			const img = heifModule.heif_js_decode_image2(
+				handle,
+				heifModule.heif_colorspace.heif_colorspace_RGB,
+				heifModule.heif_chroma.heif_chroma_interleaved_RGBA
+			)
+			if (!img || img.code) {
+				throw new Error('heif handle解码失败')
+			}
+			const imageData = new ImageData(width, height)
+			for (const c of img.channels) {
+				if (c.id === heifModule.heif_channel.heif_channel_interleaved) {
+					// 复制值
+					if (c.stride === c.width * 4) {
+						imageData.data.set(c.data)
+					} else {
+						for (let y = 0; y < c.height; y++) {
+							imageData.data.set(
+								// slice
+								c.data.slice(y * c.stride, y * c.stride + c.width * 4),
+								y * c.width * 4
+							)
+						}
+					}
+				}
+			}
+			heifModule.heif_image_handle_release(handle)
+			const blob = await this.#imageDataToBlob(imageData)
+			return {
+				data: blob,
+				width,
+				height,
+				isPrimary: Boolean(isPrimary),
+			}
+		}
+		for (let i = 0; i < ids.length; i++) {
+			result.push(handleTo(ids[i]))
+		}
+		const imgs = (await Promise.all(result)).filter(
+			(item) => item
+		) as DecodeResult[]
+		console.log(`heif解码:耗时${Date.now() - start}ms`)
+		return imgs
+	}
+	/**
+	 * 释放解码器
+	 */
+	free() {
+		if (this.#heifDecoder) {
+			if (HEIFReader.heifModule) {
+				HEIFReader.heifModule.heif_context_free(this.#heifDecoder)
+			}
+			this.#heifDecoder = null
+		}
+	}
+	/**
+	 * 释放导入的模块
+	 */
+	static freeModule() {
+		if (HEIFReader.heifModule) {
+			HEIFReader.heifModule = null
+		}
+	}
+	#imageDataToBlob(imageData: ImageData): Promise<Blob> {
+		// 1. 创建临时canvas
+		const canvas = document.createElement('canvas')
+		const ctx = canvas.getContext('2d')
+		canvas.width = imageData.width
+		canvas.height = imageData.height
 
-    // 2. 将ImageData绘制到canvas上
-    ctx!.putImageData(imageData, 0, 0);
+		// 2. 将ImageData绘制到canvas上
+		ctx!.putImageData(imageData, 0, 0)
 
-    // 3. 将canvas转换为blob
-    return new Promise((resolve) => {
-      canvas.toBlob((blob) => {
-        resolve(blob!);
-      }, 'image/png');
-    });
-  }
+		// 3. 将canvas转换为blob
+		return new Promise((resolve) => {
+			canvas.toBlob((blob) => {
+				resolve(blob!)
+			}, 'image/png')
+		})
+	}
 }
 
 export interface DecodeResult {
-  /**
-   * 以二进制形式存储的图片数据
-   */
-  data: Blob;
-  width: number;
-  height: number;
-  /**
-   * 是否是主图
-   */
-  isPrimary: boolean;
+	/**
+	 * 以二进制形式存储的图片数据
+	 */
+	data: Blob
+	width: number
+	height: number
+	/**
+	 * 是否是主图
+	 */
+	isPrimary: boolean
 }
 ```
 

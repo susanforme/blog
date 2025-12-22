@@ -1,5 +1,7 @@
 ---
-date: 2020-12-20
+title: TypeScript学习
+description: TypeScript基础学习,JavaScript的超集,提供静态类型检查和更好的工具支持
+pubDate: 2020-12-20
 tag:
   - typescript
 ---
@@ -55,7 +57,7 @@ TypeScript 提供了一系列的基础数据类型，用于定义变量和函数
 `boolean`。
 
 ```typescript
-let isDone: boolean = false;
+let isDone: boolean = false
 ```
 
 ### 数字 (Number)
@@ -64,10 +66,10 @@ let isDone: boolean = false;
 `number`。
 
 ```typescript
-let decimal: number = 6;
-let hex: number = 0xf00d;
-let binary: number = 0b1010;
-let octal: number = 0o744;
+let decimal: number = 6
+let hex: number = 0xf00d
+let binary: number = 0b1010
+let octal: number = 0o744
 ```
 
 ### 字符串 (String)
@@ -76,18 +78,18 @@ let octal: number = 0o744;
 单引号 (`'`) 表示字符串。
 
 ```typescript
-let color: string = 'blue';
-color = 'red';
+let color: string = 'blue'
+color = 'red'
 ```
 
 还可以使用模板字符串，它可以定义多行文本和内嵌表达式。
 
 ```typescript
-let fullName: string = `Bob Bobbington`;
-let age: number = 37;
+let fullName: string = `Bob Bobbington`
+let age: number = 37
 let sentence: string = `Hello, my name is ${fullName}.
 
-I'll be ${age + 1} years old next month.`;
+I'll be ${age + 1} years old next month.`
 ```
 
 ### 数组 (Array)
@@ -96,13 +98,13 @@ TypeScript 像 JavaScript 一样可以操作数组元素。 有两种方式可�
 ，可以在元素类型后面接上 `[]`，表示由此类型元素组成的一个数组：
 
 ```typescript
-let list: number[] = [1, 2, 3];
+let list: number[] = [1, 2, 3]
 ```
 
 第二种方式是使用数组泛型，`Array<元素类型>`：
 
 ```typescript
-let list: Array<number> = [1, 2, 3];
+let list: Array<number> = [1, 2, 3]
 ```
 
 ### 元组 (Tuple)
@@ -111,11 +113,11 @@ let list: Array<number> = [1, 2, 3];
 
 ```typescript
 // 声明一个元组类型
-let x: [string, number];
+let x: [string, number]
 // 初始化
-x = ['hello', 10]; // OK
+x = ['hello', 10] // OK
 // 初始化错误
-x = [10, 'hello']; // Error
+x = [10, 'hello'] // Error
 ```
 
 ### 枚举 (Enum)
@@ -125,33 +127,33 @@ x = [10, 'hello']; // Error
 
 ```typescript
 enum Color {
-  Red,
-  Green,
-  Blue,
+	Red,
+	Green,
+	Blue,
 }
-let c: Color = Color.Green;
+let c: Color = Color.Green
 ```
 
 默认情况下，从 `0` 开始为成员编号。 你也可以手动的指定成员的数值。
 
 ```typescript
 enum Color {
-  Red = 1,
-  Green,
-  Blue,
+	Red = 1,
+	Green,
+	Blue,
 }
-let c: Color = Color.Green; // 值为 2
+let c: Color = Color.Green // 值为 2
 ```
 
 或者，全部都采用手动赋值：
 
 ```typescript
 enum Color {
-  Red = 1,
-  Green = 2,
-  Blue = 4,
+	Red = 1,
+	Green = 2,
+	Blue = 4,
 }
-let c: Color = Color.Green;
+let c: Color = Color.Green
 ```
 
 ### Any
@@ -161,9 +163,9 @@ let c: Color = Color.Green;
 而是直接让它们通过编译阶段的检查。 那么我们可以使用 `any` 类型来标记这些变量。
 
 ```typescript
-let notSure: any = 4;
-notSure = 'maybe a string instead';
-notSure = false; // okay, definitely a boolean
+let notSure: any = 4
+notSure = 'maybe a string instead'
+notSure = false // okay, definitely a boolean
 ```
 
 ### Void
@@ -173,7 +175,7 @@ notSure = false; // okay, definitely a boolean
 
 ```typescript
 function warnUser(): void {
-  console.log('This is my warning message');
+	console.log('This is my warning message')
 }
 ```
 
@@ -240,7 +242,7 @@ JavaScript 中的作用类似。
 其类型。
 
 ```typescript
-let myName = 'Alice'; // TypeScript 推断 myName 的类型为 string
+let myName = 'Alice' // TypeScript 推断 myName 的类型为 string
 ```
 
 这种机制可以让你在编码时减少类型注解的书写，同时又能享受到类型检查的好处。
@@ -255,15 +257,15 @@ let myName = 'Alice'; // TypeScript 推断 myName 的类型为 string
 
 ```typescript
 interface LabeledValue {
-  label: string;
+	label: string
 }
 
 function printLabel(labeledObj: LabeledValue) {
-  console.log(labeledObj.label);
+	console.log(labeledObj.label)
 }
 
-let myObj = { size: 10, label: 'Size 10 Object' };
-printLabel(myObj);
+let myObj = { size: 10, label: 'Size 10 Object' }
+printLabel(myObj)
 ```
 
 ### 可选属性
@@ -273,8 +275,8 @@ printLabel(myObj);
 
 ```typescript
 interface SquareConfig {
-  color?: string;
-  width?: number;
+	color?: string
+	width?: number
 }
 ```
 
@@ -285,8 +287,8 @@ interface SquareConfig {
 
 ```typescript
 interface Point {
-  readonly x: number;
-  readonly y: number;
+	readonly x: number
+	readonly y: number
 }
 ```
 
@@ -296,14 +298,14 @@ interface Point {
 
 ```typescript
 interface SearchFunc {
-  (source: string, subString: string): boolean;
+	(source: string, subString: string): boolean
 }
 
-let mySearch: SearchFunc;
+let mySearch: SearchFunc
 mySearch = function (source: string, subString: string) {
-  let result = source.search(subString);
-  return result > -1;
-};
+	let result = source.search(subString)
+	return result > -1
+}
 ```
 
 ### 索引类型
@@ -313,13 +315,13 @@ mySearch = function (source: string, subString: string) {
 
 ```typescript
 interface StringArray {
-  [index: number]: string;
+	[index: number]: string
 }
 
-let myArray: StringArray;
-myArray = ['Bob', 'Fred'];
+let myArray: StringArray
+myArray = ['Bob', 'Fred']
 
-let myStr: string = myArray[0];
+let myStr: string = myArray[0]
 ```
 
 ### 类类型
@@ -329,16 +331,16 @@ let myStr: string = myArray[0];
 
 ```typescript
 interface ClockInterface {
-  currentTime: Date;
-  setTime(d: Date);
+	currentTime: Date
+	setTime(d: Date)
 }
 
 class Clock implements ClockInterface {
-  currentTime: Date;
-  setTime(d: Date) {
-    this.currentTime = d;
-  }
-  constructor(h: number, m: number) {}
+	currentTime: Date
+	setTime(d: Date) {
+		this.currentTime = d
+	}
+	constructor(h: number, m: number) {}
 }
 ```
 
@@ -349,16 +351,16 @@ class Clock implements ClockInterface {
 
 ```typescript
 interface Shape {
-  color: string;
+	color: string
 }
 
 interface Square extends Shape {
-  sideLength: number;
+	sideLength: number
 }
 
-let square = <Square>{};
-square.color = 'blue';
-square.sideLength = 10;
+let square = <Square>{}
+square.color = 'blue'
+square.sideLength = 10
 ```
 
 ## 类 (Classes)
@@ -371,16 +373,16 @@ TypeScript 支持基于类的面向对象编程。
 
 ```typescript
 class Greeter {
-  greeting: string;
-  constructor(message: string) {
-    this.greeting = message;
-  }
-  greet() {
-    return 'Hello, ' + this.greeting;
-  }
+	greeting: string
+	constructor(message: string) {
+		this.greeting = message
+	}
+	greet() {
+		return 'Hello, ' + this.greeting
+	}
 }
 
-let greeter = new Greeter('world');
+let greeter = new Greeter('world')
 ```
 
 ### 继承
@@ -389,20 +391,20 @@ let greeter = new Greeter('world');
 
 ```typescript
 class Animal {
-  move(distanceInMeters: number = 0) {
-    console.log(`Animal moved ${distanceInMeters}m.`);
-  }
+	move(distanceInMeters: number = 0) {
+		console.log(`Animal moved ${distanceInMeters}m.`)
+	}
 }
 
 class Dog extends Animal {
-  bark() {
-    console.log('Woof! Woof!');
-  }
+	bark() {
+		console.log('Woof! Woof!')
+	}
 }
 
-const dog = new Dog();
-dog.bark();
-dog.move(10);
+const dog = new Dog()
+dog.bark()
+dog.move(10)
 ```
 
 ### 公共，私有与受保护的修饰符
@@ -418,11 +420,11 @@ dog.move(10);
 
 ```typescript
 class Octopus {
-  readonly name: string;
-  readonly numberOfLegs: number = 8;
-  constructor(theName: string) {
-    this.name = theName;
-  }
+	readonly name: string
+	readonly numberOfLegs: number = 8
+	constructor(theName: string) {
+		this.name = theName
+	}
 }
 ```
 
@@ -431,22 +433,22 @@ class Octopus {
 TypeScript 支持通过 `getters/setters` 来截取对对象成员的访问。
 
 ```typescript
-let passcode = 'secret passcode';
+let passcode = 'secret passcode'
 
 class Employee {
-  private _fullName: string;
+	private _fullName: string
 
-  get fullName(): string {
-    return this._fullName;
-  }
+	get fullName(): string {
+		return this._fullName
+	}
 
-  set fullName(newName: string) {
-    if (passcode && passcode == 'secret passcode') {
-      this._fullName = newName;
-    } else {
-      console.log('Error: Unauthorized update of employee!');
-    }
-  }
+	set fullName(newName: string) {
+		if (passcode && passcode == 'secret passcode') {
+			this._fullName = newName
+		} else {
+			console.log('Error: Unauthorized update of employee!')
+		}
+	}
 }
 ```
 
@@ -456,13 +458,13 @@ class Employee {
 
 ```typescript
 class Grid {
-  static origin = { x: 0, y: 0 };
-  calculateDistanceFromOrigin(point: { x: number; y: number }) {
-    let xDist = point.x - Grid.origin.x;
-    let yDist = point.y - Grid.origin.y;
-    return Math.sqrt(xDist * xDist + yDist * yDist) / this.scale;
-  }
-  constructor(public scale: number) {}
+	static origin = { x: 0, y: 0 }
+	calculateDistanceFromOrigin(point: { x: number; y: number }) {
+		let xDist = point.x - Grid.origin.x
+		let yDist = point.y - Grid.origin.y
+		return Math.sqrt(xDist * xDist + yDist * yDist) / this.scale
+	}
+	constructor(public scale: number) {}
 }
 ```
 
@@ -472,10 +474,10 @@ class Grid {
 
 ```typescript
 abstract class Animal {
-  abstract makeSound(): void;
-  move(): void {
-    console.log('roaming the earth...');
-  }
+	abstract makeSound(): void
+	move(): void {
+		console.log('roaming the earth...')
+	}
 }
 ```
 
@@ -488,13 +490,13 @@ abstract class Animal {
 ```typescript
 // 具名函数
 function add(x: number, y: number): number {
-  return x + y;
+	return x + y
 }
 
 // 匿名函数
 let myAdd = function (x: number, y: number): number {
-  return x + y;
-};
+	return x + y
+}
 ```
 
 ### 可选参数和默认参数
@@ -504,7 +506,7 @@ TypeScript 里的每个函数参数都是必需的。 但在 TypeScript 里我�
 
 ```typescript
 function buildName(firstName: string, lastName?: string) {
-  // ...
+	// ...
 }
 ```
 
@@ -513,7 +515,7 @@ function buildName(firstName: string, lastName?: string) {
 
 ```typescript
 function buildName(firstName: string, lastName = 'Smith') {
-  // ...
+	// ...
 }
 ```
 
@@ -527,7 +529,7 @@ function buildName(firstName: string, lastName = 'Smith') {
 
 ```typescript
 function buildName(firstName: string, ...restOfName: string[]) {
-  return firstName + ' ' + restOfName.join(' ');
+	return firstName + ' ' + restOfName.join(' ')
 }
 ```
 
@@ -537,14 +539,14 @@ JavaScript 本身是个动态语言，同一个函数可以接受不同数量或
 提供了函数重载的功能来为这种情况提供类型定义。
 
 ```typescript
-function flip(x: number): number;
-function flip(x: string): string;
+function flip(x: number): number
+function flip(x: string): string
 function flip(x: number | string): number | string {
-  if (typeof x === 'number') {
-    return -x;
-  } else {
-    return x.split('').reverse().join('');
-  }
+	if (typeof x === 'number') {
+		return -x
+	} else {
+		return x.split('').reverse().join('')
+	}
 }
 ```
 
@@ -587,8 +589,8 @@ let myIdentity: <U>(arg: U) => U = identity;
 
 ```typescript
 class GenericNumber<T> {
-  zeroValue: T;
-  add: (x: T, y: T) => T;
+	zeroValue: T
+	add: (x: T, y: T) => T
 }
 ```
 
@@ -600,12 +602,12 @@ class GenericNumber<T> {
 
 ```typescript
 interface Lengthwise {
-  length: number;
+	length: number
 }
 
 function loggingIdentity<T extends Lengthwise>(arg: T): T {
-  console.log(arg.length); // Now we know it has a .length property, so no more error
-  return arg;
+	console.log(arg.length) // Now we know it has a .length property, so no more error
+	return arg
 }
 ```
 
@@ -621,9 +623,9 @@ function loggingIdentity<T extends Lengthwise>(arg: T): T {
 
 ```typescript
 // a.ts
-export const name = 'Alice';
+export const name = 'Alice'
 export function add(x: number, y: number): number {
-  return x + y;
+	return x + y
 }
 ```
 
@@ -633,10 +635,10 @@ export function add(x: number, y: number): number {
 
 ```typescript
 // b.ts
-import { name, add } from './a';
+import { name, add } from './a'
 
-console.log(name); // Alice
-console.log(add(1, 2)); // 3
+console.log(name) // Alice
+console.log(add(1, 2)) // 3
 ```
 
 ### 默认导出
@@ -646,7 +648,7 @@ console.log(add(1, 2)); // 3
 ```typescript
 // c.ts
 export default function sayHello() {
-  console.log('Hello!');
+	console.log('Hello!')
 }
 ```
 
@@ -654,9 +656,9 @@ export default function sayHello() {
 
 ```typescript
 // d.ts
-import sayHello from './c';
+import sayHello from './c'
 
-sayHello();
+sayHello()
 ```
 
 ##0. 命名空间 (Namespaces)
@@ -669,9 +671,9 @@ sayHello();
 
 ```typescript
 namespace Validation {
-  export interface StringValidator {
-    isAcceptable(s: string): boolean;
-  }
+	export interface StringValidator {
+		isAcceptable(s: string): boolean
+	}
 }
 ```
 
@@ -689,9 +691,9 @@ namespace Validation {
 
 ```typescript
 function extend<T, U>(first: T, second: U): T & U {
-  let result = <T & U>{};
-  // ...
-  return result;
+	let result = <T & U>{}
+	// ...
+	return result
 }
 ```
 
@@ -702,7 +704,7 @@ function extend<T, U>(first: T, second: U): T & U {
 
 ```typescript
 function padLeft(value: string, padding: string | number) {
-  // ...
+	// ...
 }
 ```
 
@@ -713,7 +715,7 @@ function padLeft(value: string, padding: string | number) {
 
 ```typescript
 function isNumber(x: any): x is number {
-  return typeof x === 'number';
+	return typeof x === 'number'
 }
 ```
 
@@ -729,9 +731,9 @@ TypeScript 引入了 `--strictNullChecks` 编译选项，当开启该选项后�
 联合类型，元组以及其它任何你需要手写的类型。
 
 ```typescript
-type Name = string;
-type NameResolver = () => string;
-type NameOrResolver = Name | NameResolver;
+type Name = string
+type NameResolver = () => string
+type NameOrResolver = Name | NameResolver
 ```
 
 ### 字符串字面量类型 (String Literal Types)
@@ -739,7 +741,7 @@ type NameOrResolver = Name | NameResolver;
 字符串字面量类型允许你指定字符串必须的固定值。
 
 ```typescript
-type Easing = 'ease-in' | 'ease-out' | 'ease-in-out';
+type Easing = 'ease-in' | 'ease-out' | 'ease-in-out'
 ```
 
 ##2. 配置文件 (tsconfig.json)
@@ -753,11 +755,11 @@ type Easing = 'ease-in' | 'ease-out' | 'ease-in-out';
 
 ```json
 {
-  "compilerOptions": {
-    "target": "es5",
-    "module": "commonjs",
-    "strict": true
-  }
+	"compilerOptions": {
+		"target": "es5",
+		"module": "commonjs",
+		"strict": true
+	}
 }
 ```
 

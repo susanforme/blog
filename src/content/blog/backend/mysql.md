@@ -1,6 +1,7 @@
 ---
-description: mysql
-date: 2025-07-25
+title: MySQL基础
+description: MySQL数据库基础操作,包括增删改查等基本SQL语句
+pubDate: 2025-07-25
 tag:
   - backend
 ---

@@ -1,8 +1,9 @@
 ---
-date: 2024-6-25
+title: React Hooks 简单理解
+description: 深入理解React Hooks的状态记录机制,hook列表和fiber树的工作原理
+pubDate: 2024-06-25
 tag:
   - react
-
 ---
 
 # React Hooks 简单理解

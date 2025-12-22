@@ -1,5 +1,7 @@
 ---
-description: CSS 兼容性问题
+title: CSS兼容性问题
+description: 浏览器CSS兼容性问题汇总,特别是Safari浏览器的元素定位等问题
+pubDate: 2025-11-11
 tag:
   - javascript
 sticky: 99

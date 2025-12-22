@@ -1,3 +1,9 @@
+---
+title: 基于ASTRO的高性能SSG方案
+description: 使用Astro静态站点生成器构建高性能网站,深入理解SSG、水合等核心概念
+pubDate: 2025-12-20
+---
+
 # 基于ASTRO的高性能SSG方案
 
 <!-- 搞一个keynote风格的演讲稿 纯前端 Framer
@@ -31,19 +37,18 @@ Dan Abramov（Create React App 和 Redux）对 Hydration 的定义是：_“Hydr
 > ```html
 > <!DOCTYPE html>
 > <html lang="en">
-> <head>
->   <meta charset="UTF-8" />
->   <title>CSR Example</title>
-> </head>
-> <body>
->   <!-- 注意这里几乎没有内容，只有一个挂载点 -->
->   <div id="root"></div>
-> 
->   <!-- JavaScript 负责渲染整个页面 -->
->   <script src="/bundle.js"></script>
-> </body>
+> 	<head>
+> 		<meta charset="UTF-8" />
+> 		<title>CSR Example</title>
+> 	</head>
+> 	<body>
+> 		<!-- 注意这里几乎没有内容，只有一个挂载点 -->
+> 		<div id="root"></div>
+>
+> 		<!-- JavaScript 负责渲染整个页面 -->
+> 		<script src="/bundle.js"></script>
+> 	</body>
 > </html>
-> 
 > ```
 
 ### SSR服务端渲染
@@ -57,21 +62,21 @@ Dan Abramov（Create React App 和 Redux）对 Hydration 的定义是：_“Hydr
 > ```html
 > <!DOCTYPE html>
 > <html lang="en">
-> <head>
->   <meta charset="UTF-8" />
->   <title>SSR Example</title>
-> </head>
-> <body>
->   <!-- 服务器已经渲染好 HTML -->
->   <div id="root">
->     <h1>欢迎来到 SSR 页面</h1>
->     <p>这是服务器端渲染生成的内容。</p>
->     <button onclick="alert('按钮点击事件')">点击我</button>
->   </div>
-> 
->   <!-- JavaScript 只负责 Hydration -->
->   <script src="/bundle.js"></script>
-> </body>
+> 	<head>
+> 		<meta charset="UTF-8" />
+> 		<title>SSR Example</title>
+> 	</head>
+> 	<body>
+> 		<!-- 服务器已经渲染好 HTML -->
+> 		<div id="root">
+> 			<h1>欢迎来到 SSR 页面</h1>
+> 			<p>这是服务器端渲染生成的内容。</p>
+> 			<button onclick="alert('按钮点击事件')">点击我</button>
+> 		</div>
+>
+> 		<!-- JavaScript 只负责 Hydration -->
+> 		<script src="/bundle.js"></script>
+> 	</body>
 > </html>
 > ```
 
@@ -88,7 +93,7 @@ Dan Abramov（Create React App 和 Redux）对 Hydration 的定义是：_“Hydr
 
 ![image-20251220125059048](https://raw.githubusercontent.com/susanforme/img/main/img/2025/12/20/12%E6%97%B650%E5%88%8659%E7%A7%929a5bf695feadfd1747f9dbf1680a8934-image-20251220125059048-873485.png)
 
->  值得注意的是，*水合作用*并不直接适用于仅在客户端运行的库或框架（_仅限客户端_），例如仅在客户端使用的 React。
+> 值得注意的是，*水合作用*并不直接适用于仅在客户端运行的库或框架（_仅限客户端_），例如仅在客户端使用的 React。
 
 除了传统的 Web 开发和现代前端框架外，在一些其他场景中也存在类似的 Hydration 过程：
 

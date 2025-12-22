@@ -1,6 +1,8 @@
 ---
-date: 2024-10-15
-lastUpdated: 2024-10-15
+title: Rust入门
+description: Rust编程语言入门学习笔记,包括变量、可变性、常量、隐藏等编程概念
+pubDate: 2024-10-15
+updatedDate: 2024-10-15
 tag:
   - rust
 ---
