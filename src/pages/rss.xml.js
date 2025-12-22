@@ -5,10 +5,9 @@ export async function GET(context) {
 	const blog = await getCollection('blog')
 	return rss({
 		// `<title>` field in output xml
-		title: 'Saral Theme',
+		title: 'Spring Breeze',
 		// `<description>` field in output xml
-		description:
-			'A simple theme for personal blog sites, created for Astro framework',
+		description: 'Hi',
 		// Pull in your project "site" from the endpoint context
 		// https://docs.astro.build/en/reference/api-reference/#site
 		site: context.site,

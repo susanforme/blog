@@ -1,6 +1,6 @@
-# Contributing to Saral Theme
+# Contributing to Spring Breeze
 
-Thank you for your interest in contributing to Saral Theme! We welcome contributions from the community.
+Thank you for your interest in contributing to Spring Breeze! We welcome contributions from the community.
 
 All kinds of contributions are welcome no matter the size.
 
@@ -90,4 +90,4 @@ Feel free to open an issue for any questions about contributing or reach out to 
 
 ---
 
-Thank you for contributing to Saral Theme! 🎉
+Thank you for contributing to Spring Breeze! 🎉

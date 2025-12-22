@@ -24,7 +24,6 @@ const {
 	slug,
 	remarkPluginFrontmatter,
 } = Astro.props
-
 import BaseLayout from './BaseLayout.astro'
 import { Image } from 'astro:assets'
 import { Icon } from 'astro-icon/components'
@@ -35,9 +34,9 @@ const blogImages = import.meta.glob<{ default: ImageMetadata }>(
 
 const coverImagePath = `/src/assets/blogimages/${slug}/cover.jpg`
 
-const lastModified = dayjs(remarkPluginFrontmatter.lastModified)
-	.utc()
-	.format('D MMM YYYY')
+const lastModified = remarkPluginFrontmatter.lastModified
+	? dayjs(remarkPluginFrontmatter.lastModified).format('YYYY-MM-DD HH:mm')
+	: dayjs(pubDate).format('YYYY-MM-DD HH:mm')
 ---
 
 <BaseLayout title={title} description={description}>
@@ -74,7 +73,7 @@ const lastModified = dayjs(remarkPluginFrontmatter.lastModified)
 											name="mdi:calendar-refresh-outline"
 											class="inline-block text-primary dark:text-primary-dark"
 										/>
-										Last updated on <FormattedDate date={updatedDate} />
+										上次更新于: <FormattedDate date={updatedDate} />
 									</span>
 								)
 							}
@@ -120,10 +119,10 @@ const lastModified = dayjs(remarkPluginFrontmatter.lastModified)
 							rel="noopener noreferrer"
 							class="hover:underline underline-offset-4 opacity-70 hover:opacity-100"
 							><Icon name="mdi:pencil-outline" class="inline-block" />
-							Suggest an edit
+							建议更改
 						</a>
 						<p class="opacity-70">
-							Last modified: {lastModified}
+							上次更新于: {lastModified}
 						</p>
 					</div>
 				</div>
