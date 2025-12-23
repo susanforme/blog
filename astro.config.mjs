@@ -9,10 +9,12 @@ import { rehypeAccessibleEmojis } from 'rehype-accessible-emojis'
 import { remarkReadingTime } from './src/plugins/remark-reading-time.mjs'
 import { remarkModifiedTime } from './src/plugins/remark-modified-time.mjs'
 
+const isGithub = !(process.env.VERCEL || process.env.NODE_ENV !== 'production')
+const base = isGithub ? '/blog' : ''
 // https://astro.build/config
 export default defineConfig({
-	site: 'https://yashjawale.github.io',
-	base: '/saral-theme-astro',
+	site: 'http://localhost:4321/',
+	base,
 	integrations: [
 		mdx(),
 		sitemap(),

@@ -40,7 +40,7 @@ const posts = (await getCollection('blog'))
 		<div class="posts-grid-container">
 			{posts.map((post) => <BlogCard post={post} />)}
 		</div>
-		<a class="btn-secondary" href={`${SITE_BASE}/blog`}>
+		<a class="btn-secondary" href={`${SITE_BASE}/posts`}>
 			阅读更多文章
 			<Icon size={20} name="mdi:arrow-right" />
 		</a>
@@ -50,9 +50,7 @@ const posts = (await getCollection('blog'))
 	<section class="app-container py-42 grid lg:grid-cols-2 gap-28 lg:gap-10">
 		<div class="space-y-6">
 			<h2 class="section-title">关于我</h2>
-			<p class="text-lg max-w-xl pb-4">
-				Gamer, Programmer, Blogger. Welcome to my personal blog site!
-			</p>
+			<p class="text-lg max-w-xl pb-4">Gamer, Programmer, Blogger.</p>
 			<a class="btn-secondary" href={`${SITE_BASE}/about`}>
 				Go
 				<Icon size={20} name="mdi:arrow-right" />
