@@ -4,8 +4,6 @@ description: SVG可缩放矢量图形入门教程,学习SVG标签、circle标签
 pubDate: 2025-10-09
 ---
 
-# svg入门
-
 ## svg标签
 
 SVG 代码都放在顶层标签`<svg>`之中。下面是一个例子。
