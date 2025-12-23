@@ -1,0 +1,30 @@
+// plugins/remark-custom-blocks.mjs
+import { visit } from 'unist-util-visit'
+
+export function remarkCustomBlocks() {
+	return (tree) => {
+		visit(tree, 'code', (node) => {
+			const lang = node.lang || ''
+			const codeContent = node.value
+
+			// 1. Mermaid: 转换为 <mermaid-viewer> 标签
+			if (lang === 'mermaid') {
+				node.type = 'html'
+				node.value = `<mermaid-viewer data-render code="${encodeURIComponent(codeContent)}">
+                 ${codeContent}
+           </mermaid-viewer>`
+				return
+			}
+
+			if (lang === 'inline') {
+				node.type = 'html'
+				node.value = `
+          <inline-preview code="${encodeURIComponent(codeContent)}">
+            <div slot="preview">${codeContent}</div>
+          </inline-preview>
+        `
+				return
+			}
+		})
+	}
+}
