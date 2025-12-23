@@ -62,7 +62,9 @@ jobs:
         with:
           source: ./dist
           destination: ./_site
-
+      # 调试构建输出（可选，方便排查问题）
+      - name: Debug build output
+        run: ls -al ./_site
       # 上传 _site 的资源，用于后续部署
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
