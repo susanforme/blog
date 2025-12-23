@@ -8,8 +8,6 @@ tag:
 sticky: 95
 ---
 
-# 前端如何学习 nest
-
 ## 基础知识
 
 ### TypeScript

@@ -6,8 +6,6 @@ tag:
   - typescript
 ---
 
-# TypeScript
-
 ## 简介
 
 ### 什么是 TypeScript？

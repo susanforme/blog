@@ -8,8 +8,6 @@ tag:
 sticky: 90
 ---
 
-# 使用 IndexedDB 优化资源二次加载速度及状态持久化
-
 ## IndexedDB 是什么?
 
 IndexedDB 是一个基于键值对的数据库，可以用来存储大量结构化数据。它可以用来缓存资

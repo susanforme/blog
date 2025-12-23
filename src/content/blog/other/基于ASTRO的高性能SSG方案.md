@@ -31,23 +31,23 @@ Dan Abramov（Create React App 和 Redux）对 Hydration 的定义是：_“Hydr
 ![image-20251220124347208](https://raw.githubusercontent.com/susanforme/img/main/img/2025/12/20/12%E6%97%B643%E5%88%8647%E7%A7%92c559db941a00ca1bb9bc0d97323915f5-image-20251220124347208-d9d389.png)
 
 > 代码结构
->
-> ```html
-> <!DOCTYPE html>
-> <html lang="en">
-> 	<head>
-> 		<meta charset="UTF-8" />
-> 		<title>CSR Example</title>
-> 	</head>
-> 	<body>
-> 		<!-- 注意这里几乎没有内容，只有一个挂载点 -->
-> 		<div id="root"></div>
->
-> 		<!-- JavaScript 负责渲染整个页面 -->
-> 		<script src="/bundle.js"></script>
-> 	</body>
-> </html>
-> ```
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<title>CSR Example</title>
+	</head>
+	<body>
+		<!-- 注意这里几乎没有内容，只有一个挂载点 -->
+		<div id="root"></div>
+
+		<!-- JavaScript 负责渲染整个页面 -->
+		<script src="/bundle.js"></script>
+	</body>
+</html>
+```
 
 ### SSR服务端渲染
 
@@ -56,31 +56,31 @@ Dan Abramov（Create React App 和 Redux）对 Hydration 的定义是：_“Hydr
 ![image-20251220124526785](https://raw.githubusercontent.com/susanforme/img/main/img/2025/12/20/12%E6%97%B645%E5%88%8627%E7%A7%92b8d0b674495a842b03717696ef445331-image-20251220124526785-51d4bd.png)
 
 > 代码结构
->
-> ```html
-> <!DOCTYPE html>
-> <html lang="en">
-> 	<head>
-> 		<meta charset="UTF-8" />
-> 		<title>SSR Example</title>
-> 	</head>
-> 	<body>
-> 		<!-- 服务器已经渲染好 HTML -->
-> 		<div id="root">
-> 			<h1>欢迎来到 SSR 页面</h1>
-> 			<p>这是服务器端渲染生成的内容。</p>
-> 			<button onclick="alert('按钮点击事件')">点击我</button>
-> 		</div>
->
-> 		<!-- JavaScript 只负责 Hydration -->
-> 		<script src="/bundle.js"></script>
-> 	</body>
-> </html>
-> ```
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<title>SSR Example</title>
+	</head>
+	<body>
+		<!-- 服务器已经渲染好 HTML -->
+		<div id="root">
+			<h1>欢迎来到 SSR 页面</h1>
+			<p>这是服务器端渲染生成的内容。</p>
+			<button onclick="alert('按钮点击事件')">点击我</button>
+		</div>
+
+		<!-- JavaScript 只负责 Hydration -->
+		<script src="/bundle.js"></script>
+	</body>
+</html>
+```
 
 ### **什么是水合**
 
-**水合（Hydration**是指将服务器端预渲染的 HTML 代码在浏览器中实现交互的过程。换句话说，框架(React,Vue)会检查现有的 HTML 代码，并关联必要的 JavaScript 代码来激活组件，从而实现交互功能。
+**水合Hydration**是指将服务器端预渲染的 HTML 代码在浏览器中实现交互的过程。换句话说，框架(React,Vue)会检查现有的 HTML 代码，并关联必要的 JavaScript 代码来激活组件，从而实现交互功能。
 
 这样可以加快页面加载速度，因为静态内容（初始 HTML）会快速加载，交互功能随后才会启用。
 
@@ -136,7 +136,7 @@ CMS 中的内容必须适合 CMS 数据库提供的字段之一，但只要符�
 #### 缺点
 
 - **很少或没有预制模板**无限定制的缺点是可能需要更长的时间才能开始。许多静态网站生成器不附带模板，开发人员一开始要花很多时间从头开始建立模板。
-- **没有用户友好的界面：**非开发人员用户更难使用静态站点生成器发布内容。没有 CMS 界面，处理未格式化的原始数据可能会让用户望而生畏。此外，进行网站更新通常需要开发人员支持。
+- **没有用户友好的界面**非开发人员用户更难使用静态站点生成器发布内容。没有 CMS 界面，处理未格式化的原始数据可能会让用户望而生畏。此外，进行网站更新通常需要开发人员支持。
 
 ## Astro
 

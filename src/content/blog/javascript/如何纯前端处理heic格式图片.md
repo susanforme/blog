@@ -8,8 +8,6 @@ tag:
 sticky: 94
 ---
 
-# 如何纯前端处理 HEIC 格式图片
-
 ## HEIC 是什么？
 
 **高效率图像文件格式**（英语：**H**igh **E**fficiency **I**mage **F**ile

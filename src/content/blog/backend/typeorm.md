@@ -6,8 +6,6 @@ tag:
   - backend
 ---
 
-# TypeORM
-
 ## 基础知识
 
 ### 什么是 ORM？

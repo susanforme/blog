@@ -6,8 +6,6 @@ tag:
   - react
 ---
 
-# React Hooks 简单理解
-
 `react`用什么方式记录了`hooks`的状态？ 多个`react-hooks`用什么来记录每一个`hooks`的顺序的 ？ 换个问法！为什么不能条件语句中，声明`hooks`? `hooks`声明为什么在组件的最顶部？
 
 React 在无状态组件中通过一个叫做 "hook 列表" 的机制来记录 hooks 的状态。每次组件渲染时，React 会按顺序依次调用 `useState`、`useEffect` 等 hook，并为每个 hook 分配一个内部位置索引来存储其状态。这个过程的关键是 **hooks 的顺序不变**，也就是说，每次渲染时，React 会保持相同的顺序来调用 hooks，从而确保每个 hook 都能够找到对应的状态。

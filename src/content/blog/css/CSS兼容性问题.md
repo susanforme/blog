@@ -7,8 +7,6 @@ tag:
 sticky: 99
 ---
 
-# CSS 兼容性问题
-
 ```
 
 Fuck Safari,Fuck Safari,Fuck Safari,Fuck Safari,Fuck Safari,Fuck Safari,Fuck Safari,Fuck Safari,Fuck Safari,Fuck Safari,Fuck Safari,Fuck Safari,Fuck Safari,Fuck Safari,Fuck Safari,
