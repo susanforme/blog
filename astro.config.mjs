@@ -1,4 +1,4 @@
-import { defineConfig } from 'astro/config'
+import { defineConfig, passthroughImageService } from 'astro/config'
 import tailwindcss from '@tailwindcss/vite'
 import mdx from '@astrojs/mdx'
 import sitemap from '@astrojs/sitemap'
@@ -15,6 +15,9 @@ const base = isGithub ? '/blog' : ''
 export default defineConfig({
 	site: 'http://localhost:4321/',
 	base,
+	image: {
+		service: passthroughImageService(),
+	},
 	integrations: [
 		mdx(),
 		sitemap(),
