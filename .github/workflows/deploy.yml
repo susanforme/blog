@@ -55,19 +55,14 @@ jobs:
         run: |
           echo ${{ github.workspace }}
           bun run build
+          touch dist/.nojekyll
 
-      # 资源拷贝 (保持原有逻辑，处理 Jekyll 兼容性)
-      - name: Build with Jekyll
-        uses: actions/jekyll-build-pages@v1
-        with:
-          source: ./dist
-          destination: ./_site
-      # 调试构建输出（可选，方便排查问题）
-      - name: Debug build output
-        run: ls -al ./_site
       # 上传 _site 的资源，用于后续部署
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
+        with:
+          # 直接指向 Astro 的默认输出目录 dist
+          path: ./dist
 
   # 部署任务 (保持不变)
   deploy:
