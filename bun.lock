@@ -1,5 +1,6 @@
 {
   "lockfileVersion": 1,
+  "configVersion": 0,
   "workspaces": {
     "": {
       "name": "yashjawale",
@@ -10,7 +11,7 @@
         "@astrojs/sitemap": "3.6.0",
         "@fontsource-variable/inter": "^5.2.6",
         "@fontsource-variable/jetbrains-mono": "^5.1.2",
-        "@fontsource/silkscreen": "^5.0.18",
+        "@fontsource/silkscreen": "^5.2.8",
         "@iconify-json/mdi": "^1.1.66",
         "@tailwindcss/vite": "^4.1.12",
         "astro": "5.16.6",
@@ -168,7 +169,7 @@
 
     "@fontsource-variable/jetbrains-mono": ["@fontsource-variable/jetbrains-mono@5.2.6", "", {}, "sha512-1pvtyK6H1paBOixbtZ9xfQgArVQ4SJMW3WSGZPOd5PiW3yg0t8umwKnjDMzW2ofb7qSdiXnsnIaHPT36vEOdlg=="],
 
-    "@fontsource/silkscreen": ["@fontsource/silkscreen@5.2.6", "", {}, "sha512-m6n3gW756hNRkkeJAhc0Iiuy3S1Uozqd1IHK3XL8OSX55qLMLrZwS/B6/mdqKxKHllKa2t0uOO8Xbt/FP0e/rQ=="],
+    "@fontsource/silkscreen": ["@fontsource/silkscreen@5.2.8", "", {}, "sha512-PfVe2BRZdjY/UIEXsrpzCo/W8FIGo6jEEMHuQiKfma+E5LXb6WfFFBfCEsO89ZWOSwl2mLE1Yq0d8gagmcaBpQ=="],
 
     "@humanfs/core": ["@humanfs/core@0.19.1", "", {}, "sha512-5DyQ4+1JEUzejeK1JGICcideyfUbGixgS9jNgex5nqkW+cY7WZhxBigmieN5Qnw9ZosSNVC9KQKyb+GUaGyKUA=="],
 
