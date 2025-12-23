@@ -1,9 +1,6 @@
 {
-  "cSpell.words": [
-    "estree",
-    "nuxt",
-    "oxlint",
-    "shiki",
-    "vitepress"
-  ]
+	"editor.defaultFormatter": "esbenp.prettier-vscode",
+	"editor.formatOnSave": true,
+	"editor.tabSize": 2,
+	"markdown.validate.enabled": true
 }

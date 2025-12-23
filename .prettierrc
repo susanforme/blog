@@ -1,13 +1,17 @@
 {
-  "semi": true,
-  "tabWidth": 2,
-  "singleQuote": true,
-  "printWidth": 80,
-  "proseWrap": "always",
-  "trailingComma": "all",
-  "plugins": [
-    "prettier-plugin-embed",
-    "prettier-plugin-organize-imports",
-    "prettier-plugin-packagejson"
-  ]
+	"semi": false,
+	"singleQuote": true,
+	"useTabs": true,
+	"tabWidth": 2,
+	"trailingComma": "es5",
+	"printWidth": 80,
+	"plugins": ["prettier-plugin-astro"],
+	"overrides": [
+		{
+			"files": "*.astro",
+			"options": {
+				"parser": "astro"
+			}
+		}
+	]
 }
