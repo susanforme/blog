@@ -27,7 +27,7 @@ export function remarkCustomBlocks() {
 			if (lang === 'iframe') {
 				node.type = 'html'
 				node.value = `
-					<iframe url="${codeContent}">
+					<iframe src="${codeContent}">
 					</iframe>
 				`
 				return
