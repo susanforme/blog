@@ -16,6 +16,16 @@ export function remarkCustomBlocks() {
 				return
 			}
 
+			if (lang === 'html-box') {
+				node.type = 'html'
+				node.value = `
+					<html-box code="${encodeURIComponent(codeContent)}">
+						<div slot="preview">${codeContent}</div>
+					</html-box>
+				`
+				return
+			}
+
 			if (lang === 'inline') {
 				node.type = 'html'
 				node.value = `
