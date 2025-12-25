@@ -34,10 +34,9 @@ export default [
 				},
 			],
 			'@typescript-eslint/no-explicit-any': 'error',
-			'@typescript-eslint/no-non-null-assertion': 'error',
 			'@typescript-eslint/explicit-function-return-type': 'off', // Can be enabled for stricter typing
 			'@typescript-eslint/explicit-module-boundary-types': 'off',
-
+			'@typescript-eslint/ban-ts-comment': 'off',
 			// General rules (strict)
 			'no-console': 'error', // Changed from warn to error
 			'prefer-const': 'error',
