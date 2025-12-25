@@ -11,7 +11,6 @@ export function remarkCustomBlocks() {
 			if (lang === 'mermaid') {
 				node.type = 'html'
 				node.value = `<mermaid-viewer data-hidden code="${encodeURIComponent(codeContent)}">
-                 ${codeContent}
            </mermaid-viewer>`
 				return
 			}
@@ -20,7 +19,7 @@ export function remarkCustomBlocks() {
 				node.type = 'html'
 				node.value = `
 					<html-box code="${encodeURIComponent(codeContent)}">
-						<div slot="preview">${codeContent}</div>
+						<div slot="preview"></div>
 					</html-box>
 				`
 				return

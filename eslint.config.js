@@ -37,12 +37,12 @@ export default [
 			'@typescript-eslint/explicit-function-return-type': 'off', // Can be enabled for stricter typing
 			'@typescript-eslint/explicit-module-boundary-types': 'off',
 			'@typescript-eslint/ban-ts-comment': 'off',
+			curly: 'off', // Disabled in favor of the base rule
 			// General rules (strict)
 			'no-console': 'error', // Changed from warn to error
 			'prefer-const': 'error',
 			'no-var': 'error',
 			eqeqeq: ['error', 'always'],
-			curly: ['error', 'all'],
 			'no-eval': 'error',
 			'no-implied-eval': 'error',
 			'no-new-func': 'error',

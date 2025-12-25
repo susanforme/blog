@@ -52,3 +52,7 @@ html {
 [data-hidden] {
 	display: none;
 }
+
+iframe {
+	border: none;
+}
