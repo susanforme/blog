@@ -8,7 +8,7 @@ class MermaidViewer extends HTMLElement {
 		super()
 	}
 
-	async connectedCallback(): Promise<void> {
+	async connectedCallback() {
 		if (this._rendered) {
 			return
 		}
@@ -41,6 +41,7 @@ class MermaidViewer extends HTMLElement {
 
 			this.innerHTML = svg
 			this._rendered = true
+			this.removeAttribute('data-hidden')
 		} catch (err) {
 			const errorMessage = err instanceof Error ? err.message : String(err)
 			this.innerHTML = `<pre style="color: red; padding: 10px; border: 1px solid red;">Mermaid Error: ${errorMessage}</pre>`
