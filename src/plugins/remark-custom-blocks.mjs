@@ -2,7 +2,7 @@
 import { visit } from 'unist-util-visit'
 
 export function remarkCustomBlocks(base = '') {
-	return (tree) => {
+	return () => (tree) => {
 		visit(tree, 'code', (node) => {
 			const lang = node.lang || ''
 			const codeContent = node.value
