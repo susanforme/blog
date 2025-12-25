@@ -19,8 +19,16 @@ export function remarkCustomBlocks() {
 				node.type = 'html'
 				node.value = `
 					<html-box code="${encodeURIComponent(codeContent)}">
-						<div slot="preview"></div>
 					</html-box>
+				`
+				return
+			}
+
+			if (lang === 'iframe') {
+				node.type = 'html'
+				node.value = `
+					<iframe url="${codeContent}">
+					</iframe>
 				`
 				return
 			}
