@@ -48,3 +48,10 @@ html {
 .prose iframe {
 	@apply my-16 mx-auto w-11/12 aspect-video rounded-xl;
 }
+
+fence-block {
+	display: none;
+}
+fence-block[data-show] {
+	display: contents;
+}
