@@ -14,7 +14,9 @@ const isGithub = !(process.env.VERCEL || process.env.NODE_ENV !== 'production')
 const base = isGithub ? '/blog' : ''
 // https://astro.build/config
 export default defineConfig({
-	site: 'http://localhost:4321/',
+	site: isGithub
+		? 'https://susanforme.github.io/blog/'
+		: 'https://springbreeze.vercel.app/',
 	base,
 	image: {
 		service: passthroughImageService(),
@@ -33,7 +35,11 @@ export default defineConfig({
 		plugins: [tailwindcss()],
 	},
 	markdown: {
-		remarkPlugins: [remarkReadingTime, remarkModifiedTime, remarkCustomBlocks],
+		remarkPlugins: [
+			remarkReadingTime,
+			remarkModifiedTime,
+			remarkCustomBlocks(base),
+		],
 		rehypePlugins: [rehypeFigureTitle, rehypeAccessibleEmojis],
 	},
 })

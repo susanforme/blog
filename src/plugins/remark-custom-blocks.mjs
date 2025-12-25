@@ -1,7 +1,7 @@
 // plugins/remark-custom-blocks.mjs
 import { visit } from 'unist-util-visit'
 
-export function remarkCustomBlocks() {
+export function remarkCustomBlocks(base = '') {
 	return (tree) => {
 		visit(tree, 'code', (node) => {
 			const lang = node.lang || ''
@@ -27,7 +27,7 @@ export function remarkCustomBlocks() {
 			if (lang === 'iframe') {
 				node.type = 'html'
 				node.value = `
-					<iframe src="${codeContent}">
+					<iframe src="${base}${codeContent}">
 					</iframe>
 				`
 				return
