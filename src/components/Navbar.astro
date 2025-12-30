@@ -17,7 +17,7 @@ import LogoSVG from '../assets/logo.svg'
 					WebsiteLinks.map((link) => (
 						<NavbarLink
 							class="text-lg"
-							href={link.url}
+							href={`${SITE_BASE}/${link.url}`}
 							target={link.url.charAt(0) === 'h' ? '_blank' : '_self'}
 						>
 							{link.name}
