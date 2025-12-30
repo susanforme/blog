@@ -25,7 +25,7 @@ export const SocialLinks = [
 export const WebsiteLinks = [
 	{
 		name: 'Home',
-		url: '',
+		url: '/',
 	},
 	{
 		name: 'Posts',
@@ -35,7 +35,12 @@ export const WebsiteLinks = [
 		name: 'About',
 		url: '/about',
 	},
-].map(({ url, ...rest }) => ({
-	...rest,
-	url: SITE_BASE + url,
-}))
+].map(({ url, ...rest }) => {
+	if (url === '/' && SITE_BASE) {
+		url = ''
+	}
+	return {
+		...rest,
+		url: SITE_BASE + url,
+	}
+})
