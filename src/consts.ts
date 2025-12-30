@@ -29,10 +29,13 @@ export const WebsiteLinks = [
 	},
 	{
 		name: 'Posts',
-		url: 'posts',
+		url: '/posts',
 	},
 	{
 		name: 'About',
-		url: 'about',
+		url: '/about',
 	},
-]
+].map(({ url, ...rest }) => ({
+	...rest,
+	url: SITE_BASE + url,
+}))
