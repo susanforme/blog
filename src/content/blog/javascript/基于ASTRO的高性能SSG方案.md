@@ -28,7 +28,7 @@ Dan Abramov（Create React App 和 Redux）对 Hydration 的定义是：_“Hydr
 ### CSR**客户端渲染**
 
 客户端渲染是指所有页面都直接在浏览器中使用 JavaScript 加载和渲染。这样，浏览器负责处理所有请求（_数据获取_）、管理加载状态以及其他交互操作。
-![image-20251220124347208](https://raw.githubusercontent.com/susanforme/img/main/img/2025/12/20/12%E6%97%B643%E5%88%8647%E7%A7%92c559db941a00ca1bb9bc0d97323915f5-image-20251220124347208-d9d389.png)
+![image-20251220124347208](./img/csr.png)
 
 > 代码结构
 
@@ -53,7 +53,7 @@ Dan Abramov（Create React App 和 Redux）对 Hydration 的定义是：_“Hydr
 
 在服务器端渲染（SSR）中，页面在服务器端使用 JavaScript 生成，并以 HTML 格式发送给客户端。此过程优化了服务器端的数据获取，从而提升了用户体验。在 SSR 中，初始 HTML 加载完毕后，交互所需的 JavaScript 代码会在后台加载。
 
-![image-20251220124526785](https://raw.githubusercontent.com/susanforme/img/main/img/2025/12/20/12%E6%97%B645%E5%88%8627%E7%A7%92b8d0b674495a842b03717696ef445331-image-20251220124526785-51d4bd.png)
+![image-20251220124526785](./img/ssr.png)
 
 > 代码结构
 
@@ -89,7 +89,7 @@ Dan Abramov（Create React App 和 Redux）对 Hydration 的定义是：_“Hydr
 - **服务器端渲染（SSR）** 提供了更快的首屏加载时间和更好的 SEO。
 - **客户端渲染（CSR）** 提供了更丰富的交互体验。
 
-![image-20251220125059048](https://raw.githubusercontent.com/susanforme/img/main/img/2025/12/20/12%E6%97%B650%E5%88%8659%E7%A7%929a5bf695feadfd1747f9dbf1680a8934-image-20251220125059048-873485.png)
+![image-20251220125059048](./img/react-ssr.png)
 
 > 值得注意的是，*水合作用*并不直接适用于仅在客户端运行的库或框架（_仅限客户端_），例如仅在客户端使用的 React。
 
