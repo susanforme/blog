@@ -166,3 +166,170 @@ CMS 中的内容必须适合 CMS 数据库提供的字段之一，但只要符�
 ![](./img//island.png)
 
 ### Astro的群岛架构实现
+
+```ts
+class AstroIsland extends HTMLElement {
+	public Component: any
+	public hydrator: any
+
+	async connectedCallback() {
+		// 等待子节点加载完成（处理 HTML 流式传输的情况）
+		if (
+			this.hasAttribute('await-children') &&
+			document.readyState !== 'complete'
+		) {
+			const mo = new MutationObserver(() => {
+				if (this.lastChild?.nodeValue === 'astro:end') {
+					mo.disconnect()
+					this.start()
+				}
+			})
+			mo.observe(this, { childList: true })
+		} else {
+			this.start()
+		}
+	}
+
+	async start() {
+		const opts = JSON.parse(this.getAttribute('opts')!)
+		const directive = this.getAttribute('client') as string // 如: 'load', 'visible'
+
+		// 调用指令对应的加载策略 (例如：在空闲时加载、在可见时加载)
+		if (Astro[directive] === undefined) {
+			window.addEventListener(`astro:${directive}`, () => this.start(), {
+				once: true,
+			})
+			return
+		}
+
+		await Astro[directive]!(
+			async () => {
+				const rendererUrl = this.getAttribute('renderer-url')
+				// 1. 动态导入：并行加载组件代码和注水器(Hydrator)代码
+				const [componentModule, { default: hydrator }] = await Promise.all([
+					import(this.getAttribute('component-url')!),
+					rendererUrl ? import(rendererUrl) : () => () => {},
+				])
+
+				// 2. 确定导出组件的名字（默认是 'default'）
+				const exportName = this.getAttribute('component-export') || 'default'
+				this.Component = componentModule[exportName]
+				this.hydrator = hydrator
+
+				return this.hydrate // 返回注水函数供指令调用
+			},
+			opts,
+			this
+		)
+	}
+
+	hydrate = async () => {
+		if (!this.hydrator || !this.isConnected) return
+
+		// 递归等待：如果父级也是孤岛且未激活，先等父级注水，确保自顶向下激活
+		const parentSsrIsland = this.parentElement?.closest('astro-island[ssr]')
+		if (parentSsrIsland) {
+			parentSsrIsland.addEventListener('astro:hydrate', this.hydrate, {
+				once: true,
+			})
+			return
+		}
+
+		// 解析插槽 (Slots)
+		const slots: Record<string, string> = {}
+		for (const slot of this.querySelectorAll('astro-slot')) {
+			if (slot.closest(this.tagName) !== this) continue
+			slots[slot.getAttribute('name') || 'default'] = slot.innerHTML
+		}
+
+		// 解析 Props（通过前面的 revive 逻辑）
+		const props = this.hasAttribute('props')
+			? reviveObject(JSON.parse(this.getAttribute('props')!))
+			: {}
+
+		// 最终注水：调用渲染器（如 React, Vue 的渲染函数）将组件挂载到 DOM
+		const hydrator = this.hydrator(this)
+		await hydrator(this.Component, props, slots, {
+			client: this.getAttribute('client'),
+		})
+
+		// 标记注水完成，触发事件
+		this.removeAttribute('ssr')
+		this.dispatchEvent(new CustomEvent('astro:hydrate'))
+	}
+}
+
+// 注册自定义元素
+if (!customElements.get('astro-island')) {
+	customElements.define('astro-island', AstroIsland)
+}
+```
+
+## 技术取舍
+
+在选择使用 Astro 作为静态站点生成器时，需要考虑以下技术取舍：
+
+- **性能 vs. 灵活性**：Astro 默认情况下提供了出色的性能，但在某些情况下，可能需要牺牲一些灵活性来实现最佳性能。
+- **集成复杂性**：将 Astro 集成到现有项目中可能需要额外的工作，特别是如果现有项目已经使用了其他框架或技术栈。
+
+在团队主应用采用Nuxt的情况下,经过综合考虑,决定采用Astro 结合Vue 3 来实现高性能的静态站点生成方案。以此达到性能和开发效率的平衡。
+
+### 为什么?
+
+在主应用采用Nuxt 框架的情况下，使用Astro结合Vue 3 有以下优势：
+
+1. **无额外性能成本** : Astro 支持多种前端框架（包括 Vue 3），因此可以无缝集成到现有的 Vue 3 项目中.而主应用采用Nuxt 框架,本身也是基于Vue 3 构建的. 这样可以最大限度地减少性能开销。 可以将Astro 生成的静态内容直接嵌入到 Nuxt 应用中.需要客户端水合的部分,只需加载必要的Vue3即可.而 Vue 3 本身已经由 Nuxt 应用加载, 所以 不会引入额外的框架开销。
+2. **提升性能** : Astro 的群岛架构允许只为需要交互的部分加载 JavaScript，从而显著减少初始加载时间和提高页面响应速度。这对于提升用户体验和 SEO 非常有利。
+3. **开发效率** : 使用 Vue 3 作为前端框架，可以利用现有的 Vue 生态系统和工具链，提高开发效率。同时，Astro 提供了简洁的语法和强大的功能，使得构建静态站点更加高效。
+
+## 那么问题来了
+
+如何优雅的将Astro 集成到现有项目中？如何在不影响现有主站SSR框架(Nuxt,Next等)架构的前提下，提升网站性能？
+有如下问题需要面对:
+
+1. 如何处理Astro编译产物与现有主站SSR框架的集成？
+   如下是一个最简的Astro 项目结合Vue3 编译的产物示例
+
+   ```html
+      <!DOCTYPE html>
+      <html lang="en"></html>
+   <head>
+     <meta name="generator" content="Astro v5.16.0">
+     <link rel="stylesheet" href="./assets/styles.css">
+   </head>
+   <body>
+     <div class="lp-new-area" data-app="vivaia">
+       <style>
+         astro-island,
+         astro-slot,
+         astro-static-slot {
+           display: contents
+         }
+       </style>
+       <script></script>
+       <script>
+   		 预编译的Astro Island 组件加载脚本
+   		</script>
+       <astro-island uid="PDDNA" prefix="s0"
+         component-url="./assets/_app.BXJsAGJH.js" component-export="default"
+         renderer-url="./assets/client.DAeD31y9.js" props="{}" ssr client="visible"
+         opts="{&quot;name&quot;:&quot;VueApp&quot;,&quot;value&quot;:true}"
+         await-children><!--[-->
+         <div>
+   			  Vue 组件渲染的html内容
+   			 </div><!--]--><!--astro:end-->
+       </astro-island>
+     </div>
+   </body>
+
+   </html>
+   ```
+
+2. 如何处理Astro编译产物中的静态资源引用路径问题？
+   由于Astro 编译产物中的静态资源引用路径通常是相对路径,而现有主站SSR框架(Nuxt,Next等)的静态资源路径可能不同,需要对这些路径进行处理,以确保资源能够正确加载。
+3. 如何确保Astro Vue 3 中的客户端水合逻辑能够正确执行？
+   需要确保Astro 生成的Vue 3 组件在客户端能够正确水合,并且不会与现有主站SSR框架(Nuxt,Next等)的水合逻辑冲突。
+
+4. 如何处理国际化的问题
+
+5. 如何处理在服务端渲染和客户端渲染使用相同Astro产物可能引发的问题？
