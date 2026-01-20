@@ -10,7 +10,7 @@ import { SITE_TITLE, SocialLinks } from '../consts'
 
 	<section class="app-container py-12">
 		<!-- 游戏角色栅格区域 -->
-		<div class="game-grid mb-16">
+		<div class="game-grid mb-16 mx-auto">
 			<!-- 马里奥游戏场景 -->
 			<div class="mario-game-scene" id="mario-game">
 				<!-- 问号砖块 -->
@@ -65,8 +65,13 @@ import { SITE_TITLE, SocialLinks } from '../consts'
 				</h2>
 				<div class="space-y-3 text-lg leading-relaxed">
 					<p>你好！我是 <strong>Spring Breeze</strong>。</p>
-					<p>一名热爱游戏与编程的开发者，喜欢探索新技术，也喜欢在虚拟世界中冒险。</p>
-					<p>从红白机时代的马里奥，到 Switch 上的塞尔达，任天堂游戏陪伴我走过了许多美好时光。这也是为什么这个博客充满了任天堂元素。</p>
+					<p>
+						一名热爱游戏与编程的开发者，喜欢探索新技术，也喜欢在虚拟世界中冒险。
+					</p>
+					<p>
+						从红白机时代的马里奥，到 Switch
+						上的塞尔达，任天堂游戏陪伴我走过了许多美好时光。这也是为什么这个博客充满了任天堂元素。
+					</p>
 				</div>
 			</div>
 
@@ -80,15 +85,18 @@ import { SITE_TITLE, SocialLinks } from '../consts'
 					<p><strong>{SITE_TITLE}</strong> 是我的个人博客，在这里我会分享：</p>
 					<ul class="list-none space-y-2 pl-0">
 						<li class="flex items-center gap-2">
-							<span class="mario-coin" style="width: 16px; height: 16px;"></span>
+							<span class="mario-coin" style="width: 16px; height: 16px;"
+							></span>
 							编程技术与开发经验
 						</li>
 						<li class="flex items-center gap-2">
-							<span class="mario-coin" style="width: 16px; height: 16px;"></span>
+							<span class="mario-coin" style="width: 16px; height: 16px;"
+							></span>
 							游戏体验与评测
 						</li>
 						<li class="flex items-center gap-2">
-							<span class="mario-coin" style="width: 16px; height: 16px;"></span>
+							<span class="mario-coin" style="width: 16px; height: 16px;"
+							></span>
 							生活感悟与随想
 						</li>
 					</ul>
@@ -102,9 +110,17 @@ import { SITE_TITLE, SocialLinks } from '../consts'
 					技术栈
 				</h2>
 				<div class="flex flex-wrap gap-3">
-					<span class="nintendo-badge bg-primary/20 text-primary dark:bg-primary-dark/20 dark:text-primary-dark">Astro</span>
-					<span class="nintendo-badge bg-accent-2/20 text-accent-2">TypeScript</span>
-					<span class="nintendo-badge bg-accent-3/20 text-yellow-600 dark:text-accent-3">Tailwind CSS</span>
+					<span
+						class="nintendo-badge bg-primary/20 text-primary dark:bg-primary-dark/20 dark:text-primary-dark"
+						>Astro</span
+					>
+					<span class="nintendo-badge bg-accent-2/20 text-accent-2"
+						>TypeScript</span
+					>
+					<span
+						class="nintendo-badge bg-accent-3/20 text-yellow-600 dark:text-accent-3"
+						>Tailwind CSS</span
+					>
 					<span class="nintendo-badge bg-accent-1/20 text-accent-1">MDX</span>
 				</div>
 			</div>
@@ -116,16 +132,18 @@ import { SITE_TITLE, SocialLinks } from '../consts'
 					找到我
 				</h2>
 				<div class="flex flex-wrap gap-4">
-					{SocialLinks.map((link) => (
-						<a
-							href={link.url}
-							target="_blank"
-							rel="noopener noreferrer"
-							class="btn-secondary"
-						>
-							{link.name}
-						</a>
-					))}
+					{
+						SocialLinks.map((link) => (
+							<a
+								href={link.url}
+								target="_blank"
+								rel="noopener noreferrer"
+								class="btn-secondary"
+							>
+								{link.name}
+							</a>
+						))
+					}
 				</div>
 			</div>
 		</div>
@@ -134,32 +152,50 @@ import { SITE_TITLE, SocialLinks } from '../consts'
 	<!-- 底部装饰 -->
 	<section class="app-container py-12 mb-8">
 		<div class="flex items-center justify-center gap-6 opacity-40">
-			<div class="mario-block hover-bounce" style="width: 32px; height: 32px; font-size: 14px;"></div>
+			<div
+				class="mario-block hover-bounce"
+				style="width: 32px; height: 32px; font-size: 14px;"
+			>
+			</div>
 			<div class="mario-mushroom" style="width: 28px; height: 25px;"></div>
 			<div class="kirby hover-bounce" style="width: 36px; height: 33px;"></div>
 			<div class="triforce" style="width: 40px; height: 35px;">
-				<div class="triforce-piece" style="border-left-width: 10px; border-right-width: 10px; border-bottom-width: 17px;"></div>
-				<div class="triforce-piece" style="border-left-width: 10px; border-right-width: 10px; border-bottom-width: 17px;"></div>
-				<div class="triforce-piece" style="border-left-width: 10px; border-right-width: 10px; border-bottom-width: 17px;"></div>
+				<div
+					class="triforce-piece"
+					style="border-left-width: 10px; border-right-width: 10px; border-bottom-width: 17px;"
+				>
+				</div>
+				<div
+					class="triforce-piece"
+					style="border-left-width: 10px; border-right-width: 10px; border-bottom-width: 17px;"
+				>
+				</div>
+				<div
+					class="triforce-piece"
+					style="border-left-width: 10px; border-right-width: 10px; border-bottom-width: 17px;"
+				>
+				</div>
 			</div>
 		</div>
 	</section>
 </BaseLayout>
 
-<style>
+<style lang="less">
 	/* ========== 游戏角色栅格 ========== */
 	.game-grid {
 		display: grid;
 		grid-template-columns: repeat(2, 1fr);
 		gap: 24px;
-		max-width: 500px;
-		margin: 0 auto;
+		max-width: 624px;
+		> * {
+			width: 300px;
+			height: 300px;
+		}
 	}
 
 	@media (max-width: 500px) {
 		.game-grid {
 			grid-template-columns: 1fr;
-			max-width: 240px;
 		}
 	}
 
@@ -168,7 +204,6 @@ import { SITE_TITLE, SocialLinks } from '../consts'
 		position: relative;
 		width: 100%;
 		aspect-ratio: 1;
-		max-width: 240px;
 		cursor: pointer;
 		user-select: none;
 		background: linear-gradient(180deg, #87ceeb 0%, #87ceeb 60%, #5a9c5a 100%);
@@ -183,14 +218,13 @@ import { SITE_TITLE, SocialLinks } from '../consts'
 		left: 0;
 		right: 0;
 		height: 20px;
-		background: 
-			repeating-linear-gradient(
-				90deg,
-				#8b4513 0px,
-				#8b4513 20px,
-				#a0522d 20px,
-				#a0522d 40px
-			);
+		background: repeating-linear-gradient(
+			90deg,
+			#8b4513 0px,
+			#8b4513 20px,
+			#a0522d 20px,
+			#a0522d 40px
+		);
 		border-top: 4px solid #654321;
 	}
 
@@ -229,8 +263,13 @@ import { SITE_TITLE, SocialLinks } from '../consts'
 	}
 
 	@keyframes block-bump {
-		0%, 100% { transform: translateX(-50%) translateY(0); }
-		50% { transform: translateX(-50%) translateY(-8px); }
+		0%,
+		100% {
+			transform: translateX(-50%) translateY(0);
+		}
+		50% {
+			transform: translateX(-50%) translateY(-8px);
+		}
 	}
 
 	/* 弹出的金币 */
@@ -241,7 +280,13 @@ import { SITE_TITLE, SocialLinks } from '../consts'
 		transform: translateX(-50%);
 		width: 24px;
 		height: 24px;
-		background: linear-gradient(90deg, #ffd700 0%, #ffed4a 30%, #ffd700 50%, #b8860b 100%);
+		background: linear-gradient(
+			90deg,
+			#ffd700 0%,
+			#ffed4a 30%,
+			#ffd700 50%,
+			#b8860b 100%
+		);
 		border-radius: 50%;
 		border: 3px solid #b8860b;
 		opacity: 0;
@@ -370,7 +415,7 @@ import { SITE_TITLE, SocialLinks } from '../consts'
 		--brown: #6b3e08;
 		--blue: #2058d8;
 		--yellow: #ffd93d;
-		
+
 		position: absolute;
 		bottom: 20px;
 		left: 50%;
@@ -409,8 +454,8 @@ import { SITE_TITLE, SocialLinks } from '../consts'
 			calc(5 * var(--pixel-size)) calc(0 * var(--pixel-size)) var(--red),
 			calc(6 * var(--pixel-size)) calc(0 * var(--pixel-size)) var(--red),
 			calc(7 * var(--pixel-size)) calc(0 * var(--pixel-size)) var(--red),
-			/* 第2行 - 帽子 */
-			calc(2 * var(--pixel-size)) calc(1 * var(--pixel-size)) var(--red),
+			/* 第2行 - 帽子 */ calc(2 * var(--pixel-size)) calc(1 * var(--pixel-size))
+				var(--red),
 			calc(3 * var(--pixel-size)) calc(1 * var(--pixel-size)) var(--red),
 			calc(4 * var(--pixel-size)) calc(1 * var(--pixel-size)) var(--red),
 			calc(5 * var(--pixel-size)) calc(1 * var(--pixel-size)) var(--red),
@@ -418,16 +463,16 @@ import { SITE_TITLE, SocialLinks } from '../consts'
 			calc(7 * var(--pixel-size)) calc(1 * var(--pixel-size)) var(--red),
 			calc(8 * var(--pixel-size)) calc(1 * var(--pixel-size)) var(--red),
 			calc(9 * var(--pixel-size)) calc(1 * var(--pixel-size)) var(--red),
-			/* 第3行 - 头发和脸 */
-			calc(2 * var(--pixel-size)) calc(2 * var(--pixel-size)) var(--brown),
+			/* 第3行 - 头发和脸 */ calc(2 * var(--pixel-size))
+				calc(2 * var(--pixel-size)) var(--brown),
 			calc(3 * var(--pixel-size)) calc(2 * var(--pixel-size)) var(--brown),
 			calc(4 * var(--pixel-size)) calc(2 * var(--pixel-size)) var(--brown),
 			calc(5 * var(--pixel-size)) calc(2 * var(--pixel-size)) var(--skin),
 			calc(6 * var(--pixel-size)) calc(2 * var(--pixel-size)) var(--skin),
 			calc(7 * var(--pixel-size)) calc(2 * var(--pixel-size)) var(--skin),
 			calc(8 * var(--pixel-size)) calc(2 * var(--pixel-size)) var(--skin),
-			/* 第4行 - 脸部 */
-			calc(1 * var(--pixel-size)) calc(3 * var(--pixel-size)) var(--brown),
+			/* 第4行 - 脸部 */ calc(1 * var(--pixel-size)) calc(3 * var(--pixel-size))
+				var(--brown),
 			calc(2 * var(--pixel-size)) calc(3 * var(--pixel-size)) var(--skin),
 			calc(3 * var(--pixel-size)) calc(3 * var(--pixel-size)) var(--brown),
 			calc(4 * var(--pixel-size)) calc(3 * var(--pixel-size)) var(--skin),
@@ -436,8 +481,8 @@ import { SITE_TITLE, SocialLinks } from '../consts'
 			calc(7 * var(--pixel-size)) calc(3 * var(--pixel-size)) var(--skin),
 			calc(8 * var(--pixel-size)) calc(3 * var(--pixel-size)) var(--skin),
 			calc(9 * var(--pixel-size)) calc(3 * var(--pixel-size)) var(--skin),
-			/* 第5行 - 脸部和胡子 */
-			calc(1 * var(--pixel-size)) calc(4 * var(--pixel-size)) var(--brown),
+			/* 第5行 - 脸部和胡子 */ calc(1 * var(--pixel-size))
+				calc(4 * var(--pixel-size)) var(--brown),
 			calc(2 * var(--pixel-size)) calc(4 * var(--pixel-size)) var(--skin),
 			calc(3 * var(--pixel-size)) calc(4 * var(--pixel-size)) var(--brown),
 			calc(4 * var(--pixel-size)) calc(4 * var(--pixel-size)) var(--brown),
@@ -447,8 +492,8 @@ import { SITE_TITLE, SocialLinks } from '../consts'
 			calc(8 * var(--pixel-size)) calc(4 * var(--pixel-size)) var(--skin),
 			calc(9 * var(--pixel-size)) calc(4 * var(--pixel-size)) var(--skin),
 			calc(10 * var(--pixel-size)) calc(4 * var(--pixel-size)) var(--skin),
-			/* 第6行 - 胡子 */
-			calc(1 * var(--pixel-size)) calc(5 * var(--pixel-size)) var(--brown),
+			/* 第6行 - 胡子 */ calc(1 * var(--pixel-size)) calc(5 * var(--pixel-size))
+				var(--brown),
 			calc(2 * var(--pixel-size)) calc(5 * var(--pixel-size)) var(--brown),
 			calc(3 * var(--pixel-size)) calc(5 * var(--pixel-size)) var(--skin),
 			calc(4 * var(--pixel-size)) calc(5 * var(--pixel-size)) var(--skin),
@@ -457,15 +502,15 @@ import { SITE_TITLE, SocialLinks } from '../consts'
 			calc(7 * var(--pixel-size)) calc(5 * var(--pixel-size)) var(--brown),
 			calc(8 * var(--pixel-size)) calc(5 * var(--pixel-size)) var(--brown),
 			calc(9 * var(--pixel-size)) calc(5 * var(--pixel-size)) var(--brown),
-			/* 第7行 - 脸部下方 */
-			calc(3 * var(--pixel-size)) calc(6 * var(--pixel-size)) var(--skin),
+			/* 第7行 - 脸部下方 */ calc(3 * var(--pixel-size))
+				calc(6 * var(--pixel-size)) var(--skin),
 			calc(4 * var(--pixel-size)) calc(6 * var(--pixel-size)) var(--skin),
 			calc(5 * var(--pixel-size)) calc(6 * var(--pixel-size)) var(--skin),
 			calc(6 * var(--pixel-size)) calc(6 * var(--pixel-size)) var(--skin),
 			calc(7 * var(--pixel-size)) calc(6 * var(--pixel-size)) var(--skin),
 			calc(8 * var(--pixel-size)) calc(6 * var(--pixel-size)) var(--skin),
-			/* 第8行 - 衣服上部 */
-			calc(2 * var(--pixel-size)) calc(7 * var(--pixel-size)) var(--red),
+			/* 第8行 - 衣服上部 */ calc(2 * var(--pixel-size))
+				calc(7 * var(--pixel-size)) var(--red),
 			calc(3 * var(--pixel-size)) calc(7 * var(--pixel-size)) var(--red),
 			calc(4 * var(--pixel-size)) calc(7 * var(--pixel-size)) var(--blue),
 			calc(5 * var(--pixel-size)) calc(7 * var(--pixel-size)) var(--red),
@@ -474,8 +519,8 @@ import { SITE_TITLE, SocialLinks } from '../consts'
 			calc(8 * var(--pixel-size)) calc(7 * var(--pixel-size)) var(--blue),
 			calc(9 * var(--pixel-size)) calc(7 * var(--pixel-size)) var(--red),
 			calc(10 * var(--pixel-size)) calc(7 * var(--pixel-size)) var(--red),
-			/* 第9行 - 衣服中部 */
-			calc(1 * var(--pixel-size)) calc(8 * var(--pixel-size)) var(--red),
+			/* 第9行 - 衣服中部 */ calc(1 * var(--pixel-size))
+				calc(8 * var(--pixel-size)) var(--red),
 			calc(2 * var(--pixel-size)) calc(8 * var(--pixel-size)) var(--red),
 			calc(3 * var(--pixel-size)) calc(8 * var(--pixel-size)) var(--red),
 			calc(4 * var(--pixel-size)) calc(8 * var(--pixel-size)) var(--blue),
@@ -486,8 +531,8 @@ import { SITE_TITLE, SocialLinks } from '../consts'
 			calc(9 * var(--pixel-size)) calc(8 * var(--pixel-size)) var(--red),
 			calc(10 * var(--pixel-size)) calc(8 * var(--pixel-size)) var(--red),
 			calc(11 * var(--pixel-size)) calc(8 * var(--pixel-size)) var(--red),
-			/* 第10行 - 衣服和手 */
-			calc(0 * var(--pixel-size)) calc(9 * var(--pixel-size)) var(--skin),
+			/* 第10行 - 衣服和手 */ calc(0 * var(--pixel-size))
+				calc(9 * var(--pixel-size)) var(--skin),
 			calc(1 * var(--pixel-size)) calc(9 * var(--pixel-size)) var(--skin),
 			calc(2 * var(--pixel-size)) calc(9 * var(--pixel-size)) var(--red),
 			calc(3 * var(--pixel-size)) calc(9 * var(--pixel-size)) var(--blue),
@@ -499,8 +544,8 @@ import { SITE_TITLE, SocialLinks } from '../consts'
 			calc(9 * var(--pixel-size)) calc(9 * var(--pixel-size)) var(--red),
 			calc(10 * var(--pixel-size)) calc(9 * var(--pixel-size)) var(--skin),
 			calc(11 * var(--pixel-size)) calc(9 * var(--pixel-size)) var(--skin),
-			/* 第11行 - 手和裤子 */
-			calc(0 * var(--pixel-size)) calc(10 * var(--pixel-size)) var(--skin),
+			/* 第11行 - 手和裤子 */ calc(0 * var(--pixel-size))
+				calc(10 * var(--pixel-size)) var(--skin),
 			calc(1 * var(--pixel-size)) calc(10 * var(--pixel-size)) var(--skin),
 			calc(2 * var(--pixel-size)) calc(10 * var(--pixel-size)) var(--skin),
 			calc(3 * var(--pixel-size)) calc(10 * var(--pixel-size)) var(--blue),
@@ -512,29 +557,29 @@ import { SITE_TITLE, SocialLinks } from '../consts'
 			calc(9 * var(--pixel-size)) calc(10 * var(--pixel-size)) var(--blue),
 			calc(10 * var(--pixel-size)) calc(10 * var(--pixel-size)) var(--skin),
 			calc(11 * var(--pixel-size)) calc(10 * var(--pixel-size)) var(--skin),
-			/* 第12行 - 裤子 */
-			calc(3 * var(--pixel-size)) calc(11 * var(--pixel-size)) var(--blue),
+			/* 第12行 - 裤子 */ calc(3 * var(--pixel-size))
+				calc(11 * var(--pixel-size)) var(--blue),
 			calc(4 * var(--pixel-size)) calc(11 * var(--pixel-size)) var(--blue),
 			calc(5 * var(--pixel-size)) calc(11 * var(--pixel-size)) var(--blue),
 			calc(6 * var(--pixel-size)) calc(11 * var(--pixel-size)) var(--blue),
 			calc(7 * var(--pixel-size)) calc(11 * var(--pixel-size)) var(--blue),
 			calc(8 * var(--pixel-size)) calc(11 * var(--pixel-size)) var(--blue),
-			/* 第13行 - 裤子下部 */
-			calc(2 * var(--pixel-size)) calc(12 * var(--pixel-size)) var(--blue),
+			/* 第13行 - 裤子下部 */ calc(2 * var(--pixel-size))
+				calc(12 * var(--pixel-size)) var(--blue),
 			calc(3 * var(--pixel-size)) calc(12 * var(--pixel-size)) var(--blue),
 			calc(4 * var(--pixel-size)) calc(12 * var(--pixel-size)) var(--blue),
 			calc(7 * var(--pixel-size)) calc(12 * var(--pixel-size)) var(--blue),
 			calc(8 * var(--pixel-size)) calc(12 * var(--pixel-size)) var(--blue),
 			calc(9 * var(--pixel-size)) calc(12 * var(--pixel-size)) var(--blue),
-			/* 第14行 - 鞋子 */
-			calc(1 * var(--pixel-size)) calc(13 * var(--pixel-size)) var(--brown),
+			/* 第14行 - 鞋子 */ calc(1 * var(--pixel-size))
+				calc(13 * var(--pixel-size)) var(--brown),
 			calc(2 * var(--pixel-size)) calc(13 * var(--pixel-size)) var(--brown),
 			calc(3 * var(--pixel-size)) calc(13 * var(--pixel-size)) var(--brown),
 			calc(8 * var(--pixel-size)) calc(13 * var(--pixel-size)) var(--brown),
 			calc(9 * var(--pixel-size)) calc(13 * var(--pixel-size)) var(--brown),
 			calc(10 * var(--pixel-size)) calc(13 * var(--pixel-size)) var(--brown),
-			/* 第15行 - 鞋子底部 */
-			calc(0 * var(--pixel-size)) calc(14 * var(--pixel-size)) var(--brown),
+			/* 第15行 - 鞋子底部 */ calc(0 * var(--pixel-size))
+				calc(14 * var(--pixel-size)) var(--brown),
 			calc(1 * var(--pixel-size)) calc(14 * var(--pixel-size)) var(--brown),
 			calc(2 * var(--pixel-size)) calc(14 * var(--pixel-size)) var(--brown),
 			calc(3 * var(--pixel-size)) calc(14 * var(--pixel-size)) var(--brown),
@@ -567,8 +612,7 @@ import { SITE_TITLE, SocialLinks } from '../consts'
 	/* ========== 林克场景 ========== */
 	.link-scene {
 		position: relative;
-		width: 200px;
-		height: 200px;
+
 		cursor: pointer;
 		user-select: none;
 		background: linear-gradient(180deg, #87ceeb 0%, #98d8c8 70%, #7bc77b 100%);
@@ -597,9 +641,16 @@ import { SITE_TITLE, SocialLinks } from '../consts'
 		border-bottom: 12px solid #3d7c3d;
 	}
 
-	.grass-1 { left: 20px; }
-	.grass-2 { left: 60px; border-bottom-color: #4a8c4a; }
-	.grass-3 { right: 30px; }
+	.grass-1 {
+		left: 20px;
+	}
+	.grass-2 {
+		left: 60px;
+		border-bottom-color: #4a8c4a;
+	}
+	.grass-3 {
+		right: 30px;
+	}
 
 	/* 林克 */
 	.pixel-link {
@@ -612,7 +663,7 @@ import { SITE_TITLE, SocialLinks } from '../consts'
 		--brown-light: #8b5a2b;
 		--white: #ffffff;
 		--blue: #4fc3f7;
-		
+
 		position: absolute;
 		bottom: 30px;
 		left: 50%;
@@ -629,9 +680,15 @@ import { SITE_TITLE, SocialLinks } from '../consts'
 	}
 
 	@keyframes link-attack {
-		0% { transform: translateX(-50%) translateX(0); }
-		30% { transform: translateX(-50%) translateX(15px); }
-		100% { transform: translateX(-50%) translateX(0); }
+		0% {
+			transform: translateX(-50%) translateX(0);
+		}
+		30% {
+			transform: translateX(-50%) translateX(15px);
+		}
+		100% {
+			transform: translateX(-50%) translateX(0);
+		}
 	}
 
 	.pixel-link::before {
@@ -646,8 +703,8 @@ import { SITE_TITLE, SocialLinks } from '../consts'
 			calc(9 * var(--pixel-size)) calc(1 * var(--pixel-size)) var(--green),
 			calc(10 * var(--pixel-size)) calc(1 * var(--pixel-size)) var(--green),
 			calc(10 * var(--pixel-size)) calc(2 * var(--pixel-size)) var(--green),
-			/* 帽子主体 */
-			calc(4 * var(--pixel-size)) calc(1 * var(--pixel-size)) var(--green),
+			/* 帽子主体 */ calc(4 * var(--pixel-size)) calc(1 * var(--pixel-size))
+				var(--green),
 			calc(5 * var(--pixel-size)) calc(1 * var(--pixel-size)) var(--green),
 			calc(6 * var(--pixel-size)) calc(1 * var(--pixel-size)) var(--green),
 			calc(7 * var(--pixel-size)) calc(1 * var(--pixel-size)) var(--green),
@@ -659,36 +716,36 @@ import { SITE_TITLE, SocialLinks } from '../consts'
 			calc(7 * var(--pixel-size)) calc(2 * var(--pixel-size)) var(--green),
 			calc(8 * var(--pixel-size)) calc(2 * var(--pixel-size)) var(--green),
 			calc(9 * var(--pixel-size)) calc(2 * var(--pixel-size)) var(--green),
-			/* 头发和脸 */
-			calc(3 * var(--pixel-size)) calc(3 * var(--pixel-size)) var(--hair),
+			/* 头发和脸 */ calc(3 * var(--pixel-size)) calc(3 * var(--pixel-size))
+				var(--hair),
 			calc(4 * var(--pixel-size)) calc(3 * var(--pixel-size)) var(--hair),
 			calc(5 * var(--pixel-size)) calc(3 * var(--pixel-size)) var(--skin),
 			calc(6 * var(--pixel-size)) calc(3 * var(--pixel-size)) var(--skin),
 			calc(7 * var(--pixel-size)) calc(3 * var(--pixel-size)) var(--skin),
 			calc(8 * var(--pixel-size)) calc(3 * var(--pixel-size)) var(--hair),
-			/* 耳朵和脸 */
-			calc(2 * var(--pixel-size)) calc(4 * var(--pixel-size)) var(--skin),
+			/* 耳朵和脸 */ calc(2 * var(--pixel-size)) calc(4 * var(--pixel-size))
+				var(--skin),
 			calc(3 * var(--pixel-size)) calc(4 * var(--pixel-size)) var(--hair),
 			calc(4 * var(--pixel-size)) calc(4 * var(--pixel-size)) var(--skin),
 			calc(5 * var(--pixel-size)) calc(4 * var(--pixel-size)) var(--blue),
 			calc(6 * var(--pixel-size)) calc(4 * var(--pixel-size)) var(--skin),
 			calc(7 * var(--pixel-size)) calc(4 * var(--pixel-size)) var(--blue),
 			calc(8 * var(--pixel-size)) calc(4 * var(--pixel-size)) var(--skin),
-			/* 脸部 */
-			calc(3 * var(--pixel-size)) calc(5 * var(--pixel-size)) var(--skin),
+			/* 脸部 */ calc(3 * var(--pixel-size)) calc(5 * var(--pixel-size))
+				var(--skin),
 			calc(4 * var(--pixel-size)) calc(5 * var(--pixel-size)) var(--skin),
 			calc(5 * var(--pixel-size)) calc(5 * var(--pixel-size)) var(--skin),
 			calc(6 * var(--pixel-size)) calc(5 * var(--pixel-size)) var(--skin),
 			calc(7 * var(--pixel-size)) calc(5 * var(--pixel-size)) var(--skin),
-			/* 衣服上部 */
-			calc(3 * var(--pixel-size)) calc(6 * var(--pixel-size)) var(--green),
+			/* 衣服上部 */ calc(3 * var(--pixel-size)) calc(6 * var(--pixel-size))
+				var(--green),
 			calc(4 * var(--pixel-size)) calc(6 * var(--pixel-size)) var(--green),
 			calc(5 * var(--pixel-size)) calc(6 * var(--pixel-size)) var(--green-light),
 			calc(6 * var(--pixel-size)) calc(6 * var(--pixel-size)) var(--green-light),
 			calc(7 * var(--pixel-size)) calc(6 * var(--pixel-size)) var(--green),
 			calc(8 * var(--pixel-size)) calc(6 * var(--pixel-size)) var(--green),
-			/* 衣服和手臂 */
-			calc(1 * var(--pixel-size)) calc(7 * var(--pixel-size)) var(--skin),
+			/* 衣服和手臂 */ calc(1 * var(--pixel-size)) calc(7 * var(--pixel-size))
+				var(--skin),
 			calc(2 * var(--pixel-size)) calc(7 * var(--pixel-size)) var(--green),
 			calc(3 * var(--pixel-size)) calc(7 * var(--pixel-size)) var(--green),
 			calc(4 * var(--pixel-size)) calc(7 * var(--pixel-size)) var(--green-light),
@@ -697,8 +754,8 @@ import { SITE_TITLE, SocialLinks } from '../consts'
 			calc(7 * var(--pixel-size)) calc(7 * var(--pixel-size)) var(--green),
 			calc(8 * var(--pixel-size)) calc(7 * var(--pixel-size)) var(--green),
 			calc(9 * var(--pixel-size)) calc(7 * var(--pixel-size)) var(--skin),
-			/* 腰带和剑 */
-			calc(0 * var(--pixel-size)) calc(8 * var(--pixel-size)) var(--brown),
+			/* 腰带和剑 */ calc(0 * var(--pixel-size)) calc(8 * var(--pixel-size))
+				var(--brown),
 			calc(1 * var(--pixel-size)) calc(8 * var(--pixel-size)) var(--skin),
 			calc(2 * var(--pixel-size)) calc(8 * var(--pixel-size)) var(--green),
 			calc(3 * var(--pixel-size)) calc(8 * var(--pixel-size)) var(--brown),
@@ -709,41 +766,46 @@ import { SITE_TITLE, SocialLinks } from '../consts'
 			calc(8 * var(--pixel-size)) calc(8 * var(--pixel-size)) var(--green),
 			calc(9 * var(--pixel-size)) calc(8 * var(--pixel-size)) var(--skin),
 			calc(10 * var(--pixel-size)) calc(8 * var(--pixel-size)) var(--white),
-			/* 裙摆 */
-			calc(3 * var(--pixel-size)) calc(9 * var(--pixel-size)) var(--green),
+			/* 裙摆 */ calc(3 * var(--pixel-size)) calc(9 * var(--pixel-size))
+				var(--green),
 			calc(4 * var(--pixel-size)) calc(9 * var(--pixel-size)) var(--green-light),
 			calc(5 * var(--pixel-size)) calc(9 * var(--pixel-size)) var(--green-light),
 			calc(6 * var(--pixel-size)) calc(9 * var(--pixel-size)) var(--green-light),
 			calc(7 * var(--pixel-size)) calc(9 * var(--pixel-size)) var(--green),
 			calc(10 * var(--pixel-size)) calc(9 * var(--pixel-size)) var(--white),
-			/* 裙摆下部 */
-			calc(2 * var(--pixel-size)) calc(10 * var(--pixel-size)) var(--green),
+			/* 裙摆下部 */ calc(2 * var(--pixel-size)) calc(10 * var(--pixel-size))
+				var(--green),
 			calc(3 * var(--pixel-size)) calc(10 * var(--pixel-size)) var(--green),
-			calc(4 * var(--pixel-size)) calc(10 * var(--pixel-size)) var(--green-light),
-			calc(5 * var(--pixel-size)) calc(10 * var(--pixel-size)) var(--green-light),
-			calc(6 * var(--pixel-size)) calc(10 * var(--pixel-size)) var(--green-light),
+			calc(4 * var(--pixel-size)) calc(10 * var(--pixel-size))
+				var(--green-light),
+			calc(5 * var(--pixel-size)) calc(10 * var(--pixel-size))
+				var(--green-light),
+			calc(6 * var(--pixel-size)) calc(10 * var(--pixel-size))
+				var(--green-light),
 			calc(7 * var(--pixel-size)) calc(10 * var(--pixel-size)) var(--green),
 			calc(8 * var(--pixel-size)) calc(10 * var(--pixel-size)) var(--green),
 			calc(10 * var(--pixel-size)) calc(10 * var(--pixel-size)) var(--white),
-			/* 腿部 */
-			calc(3 * var(--pixel-size)) calc(11 * var(--pixel-size)) var(--brown-light),
+			/* 腿部 */ calc(3 * var(--pixel-size)) calc(11 * var(--pixel-size))
+				var(--brown-light),
 			calc(4 * var(--pixel-size)) calc(11 * var(--pixel-size)) var(--skin),
 			calc(5 * var(--pixel-size)) calc(11 * var(--pixel-size)) var(--skin),
 			calc(6 * var(--pixel-size)) calc(11 * var(--pixel-size)) var(--skin),
-			calc(7 * var(--pixel-size)) calc(11 * var(--pixel-size)) var(--brown-light),
+			calc(7 * var(--pixel-size)) calc(11 * var(--pixel-size))
+				var(--brown-light),
 			calc(10 * var(--pixel-size)) calc(11 * var(--pixel-size)) var(--white),
-			/* 腿部下 */
-			calc(3 * var(--pixel-size)) calc(12 * var(--pixel-size)) var(--brown-light),
+			/* 腿部下 */ calc(3 * var(--pixel-size)) calc(12 * var(--pixel-size))
+				var(--brown-light),
 			calc(4 * var(--pixel-size)) calc(12 * var(--pixel-size)) var(--skin),
 			calc(6 * var(--pixel-size)) calc(12 * var(--pixel-size)) var(--skin),
-			calc(7 * var(--pixel-size)) calc(12 * var(--pixel-size)) var(--brown-light),
-			/* 靴子 */
-			calc(3 * var(--pixel-size)) calc(13 * var(--pixel-size)) var(--brown),
+			calc(7 * var(--pixel-size)) calc(12 * var(--pixel-size))
+				var(--brown-light),
+			/* 靴子 */ calc(3 * var(--pixel-size)) calc(13 * var(--pixel-size))
+				var(--brown),
 			calc(4 * var(--pixel-size)) calc(13 * var(--pixel-size)) var(--brown),
 			calc(6 * var(--pixel-size)) calc(13 * var(--pixel-size)) var(--brown),
 			calc(7 * var(--pixel-size)) calc(13 * var(--pixel-size)) var(--brown),
-			/* 靴子底 */
-			calc(2 * var(--pixel-size)) calc(14 * var(--pixel-size)) var(--brown),
+			/* 靴子底 */ calc(2 * var(--pixel-size)) calc(14 * var(--pixel-size))
+				var(--brown),
 			calc(3 * var(--pixel-size)) calc(14 * var(--pixel-size)) var(--brown),
 			calc(4 * var(--pixel-size)) calc(14 * var(--pixel-size)) var(--brown),
 			calc(5 * var(--pixel-size)) calc(14 * var(--pixel-size)) var(--brown),
@@ -759,7 +821,12 @@ import { SITE_TITLE, SocialLinks } from '../consts'
 		left: 65%;
 		width: 60px;
 		height: 8px;
-		background: linear-gradient(90deg, #81d4fa 0%, #4fc3f7 50%, transparent 100%);
+		background: linear-gradient(
+			90deg,
+			#81d4fa 0%,
+			#4fc3f7 50%,
+			transparent 100%
+		);
 		border-radius: 0 50% 50% 0;
 		opacity: 0;
 		pointer-events: none;
@@ -801,9 +868,17 @@ import { SITE_TITLE, SocialLinks } from '../consts'
 	}
 
 	@keyframes triforce-shine {
-		0% { opacity: 0.3; }
-		50% { opacity: 1; filter: drop-shadow(0 0 10px #ffd700); }
-		100% { opacity: 0.3; filter: none; }
+		0% {
+			opacity: 0.3;
+		}
+		50% {
+			opacity: 1;
+			filter: drop-shadow(0 0 10px #ffd700);
+		}
+		100% {
+			opacity: 0.3;
+			filter: none;
+		}
 	}
 
 	.link-triforce .triforce-piece {
@@ -849,123 +924,123 @@ import { SITE_TITLE, SocialLinks } from '../consts'
 </style>
 
 <script>
-	const gameScene = document.getElementById('mario-game');
-	const mario = document.getElementById('pixel-mario');
-	const block = document.getElementById('game-block');
-	const coin = document.getElementById('popup-coin');
-	const mushroom = document.getElementById('popup-mushroom');
-	const hint = document.getElementById('game-hint');
-	
-	let isAnimating = false;
-	let hitCount = 0;
+	const gameScene = document.getElementById('mario-game')
+	const mario = document.getElementById('pixel-mario')
+	const block = document.getElementById('game-block')
+	const coin = document.getElementById('popup-coin')
+	const mushroom = document.getElementById('popup-mushroom')
+	const hint = document.getElementById('game-hint')
+
+	let isAnimating = false
+	let hitCount = 0
 
 	function resetAnimationClasses() {
 		// 移除所有动画类，准备下一次动画
-		coin?.classList.remove('animate');
-		mushroom?.classList.remove('animate', 'walk');
+		coin?.classList.remove('animate')
+		mushroom?.classList.remove('animate', 'walk')
 	}
 
 	gameScene?.addEventListener('click', () => {
-		if (isAnimating) return;
-		
-		isAnimating = true;
-		
+		if (isAnimating) return
+
+		isAnimating = true
+
 		// 重置之前的动画状态
-		resetAnimationClasses();
-		
+		resetAnimationClasses()
+
 		// 强制浏览器重排，确保动画可以重新播放
-		void coin?.offsetWidth;
-		void mushroom?.offsetWidth;
+		void coin?.offsetWidth
+		void mushroom?.offsetWidth
 
 		// 马里奥跳跃
-		mario?.classList.add('jump');
+		mario?.classList.add('jump')
 
 		// 砖块被顶
 		setTimeout(() => {
-			block?.classList.add('hit');
-			
+			block?.classList.add('hit')
+
 			// 金币飞出
-			coin?.classList.add('animate');
-			
+			coin?.classList.add('animate')
+
 			// 蘑菇出现
-			mushroom?.classList.add('animate');
-			
-			hitCount++;
-			
+			mushroom?.classList.add('animate')
+
+			hitCount++
+
 			// 更新提示
 			if (hint) {
-				hint.textContent = `1-UP! x${hitCount}`;
-				hint.style.opacity = '1';
+				hint.textContent = `1-UP! x${hitCount}`
+				hint.style.opacity = '1'
 			}
-		}, 200);
+		}, 200)
 
 		// 蘑菇开始走动
 		setTimeout(() => {
-			mushroom?.classList.add('walk');
-		}, 800);
+			mushroom?.classList.add('walk')
+		}, 800)
 
 		// 马里奥落地，砖块恢复
 		setTimeout(() => {
-			mario?.classList.remove('jump');
-			block?.classList.remove('hit');
-		}, 500);
+			mario?.classList.remove('jump')
+			block?.classList.remove('hit')
+		}, 500)
 
 		// 动画完全结束后允许再次点击
 		setTimeout(() => {
-			isAnimating = false;
-		}, 600);
-	});
+			isAnimating = false
+		}, 600)
+	})
 
 	// ========== 林克场景交互 ==========
-	const linkScene = document.getElementById('link-scene');
-	const link = document.getElementById('pixel-link');
-	const swordBeam = document.getElementById('sword-beam');
-	const linkTriforce = document.getElementById('link-triforce');
-	const linkHint = document.getElementById('link-hint');
+	const linkScene = document.getElementById('link-scene')
+	const link = document.getElementById('pixel-link')
+	const swordBeam = document.getElementById('sword-beam')
+	const linkTriforce = document.getElementById('link-triforce')
+	const linkHint = document.getElementById('link-hint')
 
-	let isLinkAnimating = false;
-	let attackCount = 0;
+	let isLinkAnimating = false
+	let attackCount = 0
 
 	linkScene?.addEventListener('click', () => {
-		if (isLinkAnimating) return;
+		if (isLinkAnimating) return
 
-		isLinkAnimating = true;
+		isLinkAnimating = true
 
 		// 重置动画
-		swordBeam?.classList.remove('animate');
-		linkTriforce?.classList.remove('glow');
-		void swordBeam?.offsetWidth;
-		void linkTriforce?.offsetWidth;
+		swordBeam?.classList.remove('animate')
+		linkTriforce?.classList.remove('glow')
+		void swordBeam?.offsetWidth
+		void linkTriforce?.offsetWidth
 
 		// 林克攻击
-		link?.classList.add('attack');
+		link?.classList.add('attack')
 
 		// 剑气飞出
 		setTimeout(() => {
-			swordBeam?.classList.add('animate');
-		}, 100);
+			swordBeam?.classList.add('animate')
+		}, 100)
 
 		// 三角力量闪光
 		setTimeout(() => {
-			linkTriforce?.classList.add('glow');
-		}, 200);
+			linkTriforce?.classList.add('glow')
+		}, 200)
 
-		attackCount++;
+		attackCount++
 
 		// 更新提示
 		if (linkHint) {
-			const messages = ['Hyaaa!', 'Take this!', 'Hiyaaa!', 'Sei!'];
-			linkHint.textContent = `${messages[attackCount % messages.length]} x${attackCount}`;
+			const messages = ['Hyaaa!', 'Take this!', 'Hiyaaa!', 'Sei!']
+			linkHint.textContent = `${messages[attackCount % messages.length]} x${attackCount}`
 		}
 
 		// 重置林克动画
 		setTimeout(() => {
-			link?.classList.remove('attack');
-		}, 400);
+			link?.classList.remove('attack')
+		}, 400)
 
 		// 允许再次点击
 		setTimeout(() => {
-			isLinkAnimating = false;
-		}, 500);
-	});
+			isLinkAnimating = false
+		}, 500)
+	})
 </script>
