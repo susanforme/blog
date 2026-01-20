@@ -53,19 +53,26 @@ import { SITE_TITLE, SocialLinks } from '../consts'
 			</div>
 
 			<div class="game-scene ac-scene" id="ac-scene">
-				<div class="balloon-container" id="balloon-container">
-					<div class="pixel-balloon"></div>
-					<div class="balloon-string"></div>
-					<div class="pixel-present"></div>
+				<div class="nook-leaf-bg"></div>
+
+				<div class="pixel-isabelle" id="pixel-isabelle">
+					<div class="hair-bell"></div>
 				</div>
-				<div class="ground-present" id="ground-present"></div>
-				<div class="pixel-shrub"></div>
+
+				<div class="celebrate-effects" id="celebrate-effects">
+					<div class="sparkle s1"></div>
+					<div class="sparkle s2"></div>
+					<div class="sparkle s3"></div>
+					<div class="flower f1"></div>
+					<div class="flower f2"></div>
+				</div>
+
 				<div class="ac-ground">
 					<div class="grass-triangle t1"></div>
 					<div class="grass-triangle t2"></div>
 					<div class="grass-triangle t3"></div>
 				</div>
-				<p class="scene-hint" id="ac-hint">Click to pop!</p>
+				<p class="scene-hint" id="ac-hint">Click to greet!</p>
 			</div>
 		</div>
 
@@ -1040,7 +1047,371 @@ import { SITE_TITLE, SocialLinks } from '../consts'
 			transform: translateX(-50%) translateY(40px) scale(2) rotate(180deg);
 		}
 	}
+	/* =========================================
+     4. 动物森友会场景 (Isabelle)
+     ========================================= */
+	.ac-scene .ac-ground {
+		position: absolute;
+		bottom: 0;
+		left: 0;
+		right: 0;
+		height: 30px;
+		background: #78ac58;
+		overflow: hidden;
+	}
+	.grass-triangle {
+		position: absolute;
+		width: 0;
+		height: 0;
+		border-left: 8px solid transparent;
+		border-right: 8px solid transparent;
+		border-bottom: 12px solid #95c875;
+	}
+	.t1 {
+		left: 20%;
+		bottom: 10px;
+	}
+	.t2 {
+		left: 50%;
+		bottom: 5px;
+	}
+	.t3 {
+		right: 20%;
+		bottom: 12px;
+	}
 
+	/* 背景 Nook 叶子 */
+	.nook-leaf-bg {
+		--p: 4px;
+		--l: #95c875;
+		position: absolute;
+		top: 20px;
+		right: 20px;
+		width: calc(8 * var(--p));
+		height: calc(8 * var(--p));
+		opacity: 0.3;
+	}
+	.nook-leaf-bg::before {
+		content: '';
+		position: absolute;
+		width: var(--p);
+		height: var(--p);
+		box-shadow:
+			calc(3 * var(--p)) 0 var(--l),
+			calc(4 * var(--p)) 0 var(--l),
+			calc(2 * var(--p)) var(--p) var(--l),
+			calc(5 * var(--p)) var(--p) var(--l),
+			calc(6 * var(--p)) var(--p) var(--l),
+			calc(1 * var(--p)) calc(2 * var(--p)) var(--l),
+			calc(4 * var(--p)) calc(2 * var(--p)) var(--l),
+			calc(7 * var(--p)) calc(2 * var(--p)) var(--l),
+			calc(1 * var(--p)) calc(3 * var(--p)) var(--l),
+			calc(3 * var(--p)) calc(3 * var(--p)) var(--l),
+			calc(7 * var(--p)) calc(3 * var(--p)) var(--l),
+			calc(2 * var(--p)) calc(4 * var(--p)) var(--l),
+			calc(6 * var(--p)) calc(4 * var(--p)) var(--l),
+			calc(3 * var(--p)) calc(5 * var(--p)) var(--l),
+			calc(4 * var(--p)) calc(5 * var(--p)) var(--l),
+			calc(5 * var(--p)) calc(5 * var(--p)) var(--l),
+			calc(4 * var(--p)) calc(6 * var(--p)) var(--l),
+			calc(4 * var(--p)) calc(7 * var(--p)) var(--l);
+	}
+
+	/* 西施惠像素画 */
+	.pixel-isabelle {
+		--p: 5px; /* 像素大小 */
+		--yellow: #fada5e;
+		--cream: #fff8e7;
+		--brown: #8c6239;
+		--green: #68b046;
+		--dark: #4a3b2a;
+		--red: #e62e2e;
+		position: absolute;
+		bottom: 28px;
+		left: 50%;
+		transform: translateX(-50%);
+		width: calc(14 * var(--p));
+		height: calc(18 * var(--p));
+		image-rendering: pixelated;
+		z-index: 3;
+		animation: isabelle-idle 2s ease-in-out infinite;
+	}
+	/* 闲置呼吸动画 */
+	@keyframes isabelle-idle {
+		0%,
+		100% {
+			transform: translateX(-50%) translateY(0);
+		}
+		50% {
+			transform: translateX(-50%) translateY(2px);
+		}
+	}
+
+	/* 互动时的庆祝动作 */
+	.pixel-isabelle.celebrating {
+		animation: isabelle-jump 0.6s ease-out;
+	}
+	@keyframes isabelle-jump {
+		0%,
+		100% {
+			transform: translateX(-50%) translateY(0) scale(1);
+		}
+		20% {
+			transform: translateX(-50%) translateY(4px) scale(1.05, 0.95);
+		} /* 蓄力 */
+		50% {
+			transform: translateX(-50%) translateY(-20px) scale(0.95, 1.05);
+		} /* 跳起 */
+		80% {
+			transform: translateX(-50%) translateY(0) scale(1.02, 0.98);
+		} /* 落地弹性 */
+	}
+
+	.pixel-isabelle::before {
+		content: '';
+		position: absolute;
+		width: var(--p);
+		height: var(--p);
+		box-shadow:
+      /* 耳朵 (棕色) */
+			calc(1 * var(--p)) calc(2 * var(--p)) var(--brown),
+			calc(2 * var(--p)) calc(1 * var(--p)) var(--brown),
+			calc(3 * var(--p)) calc(1 * var(--p)) var(--brown),
+			calc(4 * var(--p)) calc(2 * var(--p)) var(--brown),
+			calc(9 * var(--p)) calc(2 * var(--p)) var(--brown),
+			calc(10 * var(--p)) calc(1 * var(--p)) var(--brown),
+			calc(11 * var(--p)) calc(1 * var(--p)) var(--brown),
+			calc(12 * var(--p)) calc(2 * var(--p)) var(--brown),
+			calc(0 * var(--p)) calc(3 * var(--p)) var(--brown),
+			calc(0 * var(--p)) calc(4 * var(--p)) var(--brown),
+			calc(1 * var(--p)) calc(5 * var(--p)) var(--brown),
+			calc(13 * var(--p)) calc(3 * var(--p)) var(--brown),
+			calc(13 * var(--p)) calc(4 * var(--p)) var(--brown),
+			calc(12 * var(--p)) calc(5 * var(--p)) var(--brown),
+			/* 头顶毛发 (黄色) */ calc(5 * var(--p)) 0 var(--yellow),
+			calc(6 * var(--p)) 0 var(--yellow),
+			calc(7 * var(--p)) 0 var(--yellow),
+			calc(8 * var(--p)) 0 var(--yellow),
+			calc(4 * var(--p)) calc(1 * var(--p)) var(--yellow),
+			calc(9 * var(--p)) calc(1 * var(--p)) var(--yellow),
+			/* 脸部底色 (黄色) */ calc(3 * var(--p)) calc(2 * var(--p)) var(--yellow),
+			calc(4 * var(--p)) calc(2 * var(--p)) var(--yellow),
+			calc(5 * var(--p)) calc(2 * var(--p)) var(--yellow),
+			calc(6 * var(--p)) calc(2 * var(--p)) var(--yellow),
+			calc(7 * var(--p)) calc(2 * var(--p)) var(--yellow),
+			calc(8 * var(--p)) calc(2 * var(--p)) var(--yellow),
+			calc(9 * var(--p)) calc(2 * var(--p)) var(--yellow),
+			calc(10 * var(--p)) calc(2 * var(--p)) var(--yellow),
+			calc(2 * var(--p)) calc(3 * var(--p)) var(--yellow),
+			calc(11 * var(--p)) calc(3 * var(--p)) var(--yellow),
+			/* 眼睛和鼻子区域 (奶油色) */ calc(3 * var(--p)) calc(3 * var(--p))
+				var(--cream),
+			calc(4 * var(--p)) calc(3 * var(--p)) var(--cream),
+			calc(5 * var(--p)) calc(3 * var(--p)) var(--cream),
+			calc(6 * var(--p)) calc(3 * var(--p)) var(--cream),
+			calc(7 * var(--p)) calc(3 * var(--p)) var(--cream),
+			calc(8 * var(--p)) calc(3 * var(--p)) var(--cream),
+			calc(9 * var(--p)) calc(3 * var(--p)) var(--cream),
+			calc(10 * var(--p)) calc(3 * var(--p)) var(--cream),
+			calc(2 * var(--p)) calc(4 * var(--p)) var(--cream),
+			calc(11 * var(--p)) calc(4 * var(--p)) var(--cream),
+			calc(2 * var(--p)) calc(5 * var(--p)) var(--cream),
+			calc(11 * var(--p)) calc(5 * var(--p)) var(--cream),
+			calc(3 * var(--p)) calc(6 * var(--p)) var(--cream),
+			calc(4 * var(--p)) calc(6 * var(--p)) var(--cream),
+			calc(5 * var(--p)) calc(6 * var(--p)) var(--cream),
+			calc(6 * var(--p)) calc(6 * var(--p)) var(--cream),
+			calc(7 * var(--p)) calc(6 * var(--p)) var(--cream),
+			calc(8 * var(--p)) calc(6 * var(--p)) var(--cream),
+			calc(9 * var(--p)) calc(6 * var(--p)) var(--cream),
+			calc(10 * var(--p)) calc(6 * var(--p)) var(--cream),
+			/* 眼睛和鼻子 (深色) */ calc(4 * var(--p)) calc(4 * var(--p)) var(--dark),
+			calc(9 * var(--p)) calc(4 * var(--p)) var(--dark),
+			calc(6 * var(--p)) calc(5 * var(--p)) var(--dark),
+			calc(7 * var(--p)) calc(5 * var(--p)) var(--dark),
+			/* 腮红 (粉色/深色虚化) */ calc(3 * var(--p)) calc(5 * var(--p)) #f0a0a0,
+			calc(10 * var(--p)) calc(5 * var(--p)) #f0a0a0,
+			/* 微笑嘴巴 */ calc(6 * var(--p)) calc(7 * var(--p)) var(--dark),
+			calc(7 * var(--p)) calc(7 * var(--p)) var(--dark),
+			/* 身体/背心 (绿色) */ calc(4 * var(--p)) calc(8 * var(--p)) var(--green),
+			calc(5 * var(--p)) calc(8 * var(--p)) var(--green),
+			calc(6 * var(--p)) calc(8 * var(--p)) var(--cream),
+			calc(7 * var(--p)) calc(8 * var(--p)) var(--cream),
+			calc(8 * var(--p)) calc(8 * var(--p)) var(--green),
+			calc(9 * var(--p)) calc(8 * var(--p)) var(--green),
+			calc(3 * var(--p)) calc(9 * var(--p)) var(--green),
+			calc(10 * var(--p)) calc(9 * var(--p)) var(--green),
+			calc(3 * var(--p)) calc(10 * var(--p)) var(--green),
+			calc(4 * var(--p)) calc(10 * var(--p)) var(--green),
+			calc(5 * var(--p)) calc(10 * var(--p)) var(--green),
+			calc(6 * var(--p)) calc(10 * var(--p)) var(--green),
+			calc(7 * var(--p)) calc(10 * var(--p)) var(--green),
+			calc(8 * var(--p)) calc(10 * var(--p)) var(--green),
+			calc(9 * var(--p)) calc(10 * var(--p)) var(--green),
+			calc(10 * var(--p)) calc(10 * var(--p)) var(--green),
+			calc(3 * var(--p)) calc(11 * var(--p)) var(--green),
+			calc(10 * var(--p)) calc(11 * var(--p)) var(--green),
+			calc(3 * var(--p)) calc(12 * var(--p)) var(--green),
+			calc(4 * var(--p)) calc(12 * var(--p)) var(--green),
+			calc(5 * var(--p)) calc(12 * var(--p)) var(--green),
+			calc(6 * var(--p)) calc(12 * var(--p)) var(--green),
+			calc(7 * var(--p)) calc(12 * var(--p)) var(--green),
+			calc(8 * var(--p)) calc(12 * var(--p)) var(--green),
+			calc(9 * var(--p)) calc(12 * var(--p)) var(--green),
+			calc(10 * var(--p)) calc(12 * var(--p)) var(--green),
+			/* 裙子 (深棕色) */ calc(4 * var(--p)) calc(13 * var(--p)) var(--dark),
+			calc(5 * var(--p)) calc(13 * var(--p)) var(--dark),
+			calc(6 * var(--p)) calc(13 * var(--p)) var(--dark),
+			calc(7 * var(--p)) calc(13 * var(--p)) var(--dark),
+			calc(8 * var(--p)) calc(13 * var(--p)) var(--dark),
+			calc(9 * var(--p)) calc(13 * var(--p)) var(--dark),
+			calc(3 * var(--p)) calc(14 * var(--p)) var(--dark),
+			calc(10 * var(--p)) calc(14 * var(--p)) var(--dark),
+			calc(3 * var(--p)) calc(15 * var(--p)) var(--dark),
+			calc(10 * var(--p)) calc(15 * var(--p)) var(--dark),
+			/* 手和脚 (黄色/奶油色) */ calc(2 * var(--p)) calc(10 * var(--p))
+				var(--yellow),
+			calc(2 * var(--p)) calc(11 * var(--p)) var(--yellow),
+			/* 左手 */ calc(11 * var(--p)) calc(10 * var(--p)) var(--yellow),
+			calc(11 * var(--p)) calc(11 * var(--p)) var(--yellow),
+			/* 右手 */ calc(4 * var(--p)) calc(16 * var(--p)) var(--cream),
+			calc(5 * var(--p)) calc(16 * var(--p)) var(--cream),
+			/* 左脚 */ calc(8 * var(--p)) calc(16 * var(--p)) var(--cream),
+			calc(9 * var(--p)) calc(16 * var(--p)) var(--cream),
+			/* 右脚 */ calc(4 * var(--p)) calc(17 * var(--p)) var(--dark),
+			calc(5 * var(--p)) calc(17 * var(--p)) var(--dark),
+			/* 左鞋 */ calc(8 * var(--p)) calc(17 * var(--p)) var(--dark),
+			calc(9 * var(--p)) calc(17 * var(--p)) var(--dark); /* 右鞋 */
+	}
+
+	/* 头上的铃铛/发圈 */
+	.hair-bell {
+		--p: 5px;
+		--red: #e62e2e;
+		--gold: #ffd700;
+		position: absolute;
+		top: calc(-2 * var(--p));
+		left: calc(6 * var(--p));
+		width: var(--p);
+		height: var(--p);
+		box-shadow:
+			var(--p) 0 var(--red),
+			calc(2 * var(--p)) 0 var(--red),
+			0 var(--p) var(--red),
+			calc(3 * var(--p)) var(--p) var(--red),
+			var(--p) calc(2 * var(--p)) var(--red),
+			calc(2 * var(--p)) calc(2 * var(--p)) var(--gold);
+	}
+
+	/* 庆祝特效容器 */
+	.celebrate-effects {
+		position: absolute;
+		top: 0;
+		left: 0;
+		width: 100%;
+		height: 100%;
+		pointer-events: none;
+	}
+	/* 通用特效元素 */
+	.sparkle,
+	.flower {
+		position: absolute;
+		opacity: 0;
+	}
+
+	/* 星星闪烁 */
+	.sparkle {
+		width: 8px;
+		height: 8px;
+		background: #ffd700;
+		clip-path: polygon(
+			50% 0%,
+			61% 35%,
+			98% 35%,
+			68% 57%,
+			79% 91%,
+			50% 70%,
+			21% 91%,
+			32% 57%,
+			2% 35%,
+			39% 35%
+		);
+	}
+	.s1 {
+		top: 20px;
+		left: 20%;
+		--dest-y: -30px;
+		--dest-x: -20px;
+	}
+	.s2 {
+		top: 10px;
+		left: 50%;
+		--dest-y: -40px;
+		--dest-x: 0px;
+	}
+	.s3 {
+		top: 25px;
+		right: 25%;
+		--dest-y: -25px;
+		--dest-x: 25px;
+	}
+
+	/* 花朵 */
+	.flower {
+		width: 10px;
+		height: 10px;
+		background: pink;
+		border-radius: 50%;
+		box-shadow: 0 0 0 2px #ff69b4;
+	}
+	.flower::after {
+		content: '';
+		position: absolute;
+		top: 50%;
+		left: 50%;
+		width: 4px;
+		height: 4px;
+		background: yellow;
+		border-radius: 50%;
+		transform: translate(-50%, -50%);
+	}
+	.f1 {
+		top: 40px;
+		left: 15%;
+		--dest-y: -20px;
+		--dest-x: -30px;
+	}
+	.f2 {
+		top: 35px;
+		right: 15%;
+		--dest-y: -25px;
+		--dest-x: 30px;
+	}
+
+	/* 触发动画 */
+	.ac-scene.active .sparkle,
+	.ac-scene.active .flower {
+		animation: pop-effect 0.8s ease-out forwards;
+	}
+	.ac-scene.active .s2 {
+		animation-delay: 0.1s;
+	}
+	.ac-scene.active .s3,
+	.ac-scene.active .f2 {
+		animation-delay: 0.2s;
+	}
+
+	@keyframes pop-effect {
+		0% {
+			opacity: 1;
+			transform: translate(0, 0) scale(0.5) rotate(0deg);
+		}
+		100% {
+			opacity: 0;
+			transform: translate(var(--dest-x), var(--dest-y)) scale(1.2)
+				rotate(180deg);
+		}
+	}
 	/* =========================================
      4. 动物森友会场景 (Animal Crossing)
      ========================================= */
@@ -1422,9 +1793,9 @@ import { SITE_TITLE, SocialLinks } from '../consts'
 	})
 
 	// 4. 动物森友会逻辑
+	// 4. 动物森友会逻辑 (Isabelle)
 	const acScene = document.getElementById('ac-scene')
-	const balloon = document.getElementById('balloon-container')
-	const groundPresent = document.getElementById('ground-present')
+	const isabelle = document.getElementById('pixel-isabelle')
 	const acHint = document.getElementById('ac-hint')
 	let isAcAnimating = false
 
@@ -1432,27 +1803,30 @@ import { SITE_TITLE, SocialLinks } from '../consts'
 		if (isAcAnimating) return
 		isAcAnimating = true
 
-		// 重置
-		groundPresent?.classList.remove('drop')
-		balloon?.classList.remove('pop')
-		balloon!.style.opacity = '1'
-		balloon!.style.transform = 'translateX(-50%)'
+		// 重置状态 (移除之前的动画类以允许重新触发)
+		acScene.classList.remove('active')
+		isabelle?.classList.remove('celebrating')
+		// 强制回流
+		void acScene.offsetWidth
 
-		// 击中
-		setTimeout(() => {
-			balloon?.classList.add('pop')
-			groundPresent?.classList.add('drop')
-			if (acHint) acHint.textContent = 'Plop!'
-		}, 50)
+		// 开始动画
+		acScene.classList.add('active') // 触发背景特效
+		isabelle?.classList.add('celebrating') // 触发西施惠跳跃
 
-		// 恢复
+		// 更新提示文字
+		if (acHint) {
+			const greetings = ['Hello!', 'Welcome!', 'Yay!', 'Happy day!']
+			acHint.textContent =
+				greetings[Math.floor(Math.random() * greetings.length)]
+		}
+
+		// 动画结束后恢复状态
 		setTimeout(() => {
 			isAcAnimating = false
+			// 可选：在一段时间后恢复默认提示语
 			setTimeout(() => {
-				balloon?.classList.remove('pop')
-				groundPresent?.classList.remove('drop')
-				if (acHint) acHint.textContent = 'Click to pop!'
-			}, 2000) // 保持礼物在地上久一点
-		}, 800)
+				if (acHint && !isAcAnimating) acHint.textContent = 'Click to greet!'
+			}, 2000)
+		}, 800) // 动画持续时间略长于 CSS 定义，确保安全
 	})
 </script>

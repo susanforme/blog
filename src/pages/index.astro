@@ -1,6 +1,6 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro'
-import { SITE_BASE, SocialLinks } from '../consts'
+import { SITE_BASE } from '../consts'
 import { Icon } from 'astro-icon/components'
 import BlogCard from '../components/BlogCard.astro'
 import { getCollection } from 'astro:content'
@@ -12,41 +12,52 @@ const posts = (await getCollection('blog'))
 
 <BaseLayout>
 	<main
-		class="app-container flex flex-col gap-12 justify-center py-36 md:py-48 pt-44 md:pt-56 relative"
+		class="app-container flex flex-col gap-12 justify-center py-10 pt-44 md:pt-56 relative"
 	>
 		<!-- 漂浮的游戏元素装饰 -->
-		<div class="absolute top-32 right-8 md:right-24 opacity-60 float-animation hidden md:block">
+		<div
+			class="absolute top-32 right-8 md:right-24 opacity-60 float-animation hidden md:block"
+		>
 			<div class="mario-star"></div>
 		</div>
-		<div class="absolute top-48 left-4 md:left-16 opacity-50 float-animation hidden md:block" style="animation-delay: 0.5s;">
+		<div
+			class="absolute top-48 left-4 md:left-16 opacity-50 float-animation hidden md:block"
+			style="animation-delay: 0.5s;"
+		>
 			<div class="mario-coin"></div>
 		</div>
-		<div class="absolute top-64 right-16 md:right-48 opacity-40 float-animation hidden md:block" style="animation-delay: 1s;">
+		<div
+			class="absolute top-64 right-16 md:right-48 opacity-40 float-animation hidden md:block"
+			style="animation-delay: 1s;"
+		>
 			<div class="zelda-heart"></div>
 		</div>
 
 		<div>
-			<p class="block text-2xl opacity-70 mt-9 mb-4" style="font-family: var(--font-pixel);">Welcome to</p>
-			<h1 class="text-6xl md:text-7xl leading-tight" style="font-family: var(--font-pixel); color: var(--color-primary); text-shadow: 5px 5px 0 rgba(0, 0, 0, 0.1); letter-spacing: 0.05em;">Spring Breeze</h1>
-		</div>
-		<p class="text-2xl max-w-2xl font-light leading-normal">Hello</p>
-		<div class="flex flex-wrap gap-8">
-			{
-				SocialLinks.map((link) => (
-					<a
-						class="text-xl text-primary dark:text-primary-dark underline hover:underline underline-offset-4"
-						href={link.url}
-						target="_blank"
-					>
-						{link.name}
-					</a>
-				))
-			}
+			<p
+				class="block text-2xl opacity-70 mt-9 mb-4"
+				style="font-family: var(--font-pixel);"
+			>
+				Welcome to
+			</p>
+			<h1
+				class="text-6xl md:text-7xl leading-tight"
+				style="font-family: var(--font-pixel); color: var(--color-primary); text-shadow: 5px 5px 0 rgba(0, 0, 0, 0.1); letter-spacing: 0.05em;"
+			>
+				Spring Breeze
+			</h1>
 		</div>
 
 		<!-- 任天堂游戏元素展示区 -->
-		<div class="mt-8 p-6 rounded-2xl bg-foreground/5 dark:bg-foreground-dark/5">
-			<p class="text-sm opacity-60 mb-4" style="font-family: var(--font-pixel);">Favorite Games</p>
+		<div
+			class="my-12 p-6 rounded-2xl bg-foreground/5 dark:bg-foreground-dark/5"
+		>
+			<p
+				class="text-sm opacity-60 mb-4"
+				style="font-family: var(--font-pixel);"
+			>
+				Favorite Games
+			</p>
 			<div class="game-elements">
 				<div class="game-element-wrapper" title="Super Mario">
 					<div class="mario-block"></div>
@@ -115,9 +126,21 @@ const posts = (await getCollection('blog'))
 		</div>
 		<div class="hidden lg:flex items-center justify-center">
 			<div class="triforce" style="width: 120px; height: 104px;">
-				<div class="triforce-piece" style="border-left-width: 30px; border-right-width: 30px; border-bottom-width: 52px;"></div>
-				<div class="triforce-piece" style="border-left-width: 30px; border-right-width: 30px; border-bottom-width: 52px;"></div>
-				<div class="triforce-piece" style="border-left-width: 30px; border-right-width: 30px; border-bottom-width: 52px;"></div>
+				<div
+					class="triforce-piece"
+					style="border-left-width: 30px; border-right-width: 30px; border-bottom-width: 52px;"
+				>
+				</div>
+				<div
+					class="triforce-piece"
+					style="border-left-width: 30px; border-right-width: 30px; border-bottom-width: 52px;"
+				>
+				</div>
+				<div
+					class="triforce-piece"
+					style="border-left-width: 30px; border-right-width: 30px; border-bottom-width: 52px;"
+				>
+				</div>
 			</div>
 		</div>
 	</section>
