@@ -9,55 +9,38 @@ import { SITE_TITLE, SocialLinks } from '../consts'
 	</main>
 
 	<section class="app-container py-12">
-		<!-- 游戏角色栅格区域 -->
 		<div class="game-grid mb-16 mx-auto">
-			<!-- 马里奥游戏场景 -->
 			<div class="mario-game-scene" id="mario-game">
-				<!-- 问号砖块 -->
 				<div class="game-block" id="game-block">
 					<span class="block-question">?</span>
 				</div>
-				<!-- 金币（顶出来的） -->
 				<div class="popup-coin" id="popup-coin"></div>
-				<!-- 蘑菇 -->
 				<div class="popup-mushroom" id="popup-mushroom">
 					<div class="mushroom-cap"></div>
 					<div class="mushroom-stem"></div>
 				</div>
-				<!-- 马里奥 -->
 				<div class="pixel-mario" id="pixel-mario"></div>
-				<!-- 地面 -->
 				<div class="game-ground"></div>
-				<!-- 提示文字 -->
 				<p class="game-hint" id="game-hint">Click to play!</p>
 			</div>
 
-			<!-- 林克场景 -->
 			<div class="link-scene" id="link-scene">
-				<!-- 草地装饰 -->
 				<div class="grass-patch grass-1"></div>
 				<div class="grass-patch grass-2"></div>
 				<div class="grass-patch grass-3"></div>
-				<!-- 林克 -->
 				<div class="pixel-link" id="pixel-link"></div>
-				<!-- 剑气特效 -->
 				<div class="sword-beam" id="sword-beam"></div>
-				<!-- 三角力量 -->
 				<div class="link-triforce" id="link-triforce">
 					<div class="triforce-piece"></div>
 					<div class="triforce-piece"></div>
 					<div class="triforce-piece"></div>
 				</div>
-				<!-- 地面 -->
 				<div class="link-ground"></div>
-				<!-- 提示文字 -->
 				<p class="link-hint" id="link-hint">Click to attack!</p>
 			</div>
 		</div>
 
-		<!-- 介绍内容区域 -->
 		<div class="grid md:grid-cols-2 gap-12">
-			<!-- 关于我 -->
 			<div class="space-y-4">
 				<h2 class="text-3xl flex items-center gap-3">
 					<span class="zelda-heart" style="width: 24px; height: 21px;"></span>
@@ -75,7 +58,6 @@ import { SITE_TITLE, SocialLinks } from '../consts'
 				</div>
 			</div>
 
-			<!-- 关于网站 -->
 			<div class="space-y-4">
 				<h2 class="text-3xl flex items-center gap-3">
 					<span class="mario-star" style="width: 24px; height: 24px;"></span>
@@ -103,7 +85,6 @@ import { SITE_TITLE, SocialLinks } from '../consts'
 				</div>
 			</div>
 
-			<!-- 技术栈 -->
 			<div class="space-y-4">
 				<h2 class="text-3xl flex items-center gap-3">
 					<span class="pikachu-bolt" style="width: 18px; height: 30px;"></span>
@@ -125,7 +106,6 @@ import { SITE_TITLE, SocialLinks } from '../consts'
 				</div>
 			</div>
 
-			<!-- 联系方式 -->
 			<div class="space-y-4">
 				<h2 class="text-3xl flex items-center gap-3">
 					<span class="ac-leaf" style="width: 20px; height: 23px;"></span>
@@ -149,7 +129,6 @@ import { SITE_TITLE, SocialLinks } from '../consts'
 		</div>
 	</section>
 
-	<!-- 底部装饰 -->
 	<section class="app-container py-12 mb-8">
 		<div class="flex items-center justify-center gap-6 opacity-40">
 			<div
@@ -206,18 +185,18 @@ import { SITE_TITLE, SocialLinks } from '../consts'
 		aspect-ratio: 1;
 		cursor: pointer;
 		user-select: none;
-		background: linear-gradient(180deg, #87ceeb 0%, #87ceeb 60%, #5a9c5a 100%);
+		background: transparent; /* 透明背景 */
 		border-radius: 12px;
 		overflow: hidden;
 	}
 
-	/* 地面 */
+	/* 地面 - 调整高度为 26px + 4px border = 30px */
 	.game-ground {
 		position: absolute;
 		bottom: 0;
 		left: 0;
 		right: 0;
-		height: 20px;
+		height: 26px; /* 原为 20px */
 		background: repeating-linear-gradient(
 			90deg,
 			#8b4513 0px,
@@ -312,7 +291,7 @@ import { SITE_TITLE, SocialLinks } from '../consts'
 		}
 	}
 
-	/* 1UP蘑菇 - 绿色 */
+	/* 1UP蘑菇 */
 	.popup-mushroom {
 		position: absolute;
 		top: 12px;
@@ -339,13 +318,11 @@ import { SITE_TITLE, SocialLinks } from '../consts'
 		transform: translateX(-50%);
 		width: 36px;
 		height: 22px;
-		/* 1UP蘑菇是绿色的 */
 		background: radial-gradient(circle at 30% 40%, #43a047 60%, #2e7d32 100%);
 		border-radius: 50% 50% 30% 30%;
 		border: 3px solid #1b5e20;
 	}
 
-	/* 蘑菇白点 */
 	.mushroom-cap::before,
 	.mushroom-cap::after {
 		content: '';
@@ -407,9 +384,9 @@ import { SITE_TITLE, SocialLinks } from '../consts'
 		}
 	}
 
-	/* 马里奥 */
+	/* 马里奥 - 位置调整 */
 	.pixel-mario {
-		--pixel-size: 6px;
+		--pixel-size: 6px; /* 保持 6px */
 		--red: #e52521;
 		--skin: #ffa64d;
 		--brown: #6b3e08;
@@ -417,7 +394,7 @@ import { SITE_TITLE, SocialLinks } from '../consts'
 		--yellow: #ffd93d;
 
 		position: absolute;
-		bottom: 20px;
+		bottom: 30px; /* 从 20px 调整为 30px，站在加厚的地面上 */
 		left: 50%;
 		transform: translateX(-50%);
 		width: calc(12 * var(--pixel-size));
@@ -442,13 +419,15 @@ import { SITE_TITLE, SocialLinks } from '../consts'
 		}
 	}
 
+	/* 马里奥像素点重绘（保持不变，代码略长省略部分未变动逻辑，确保引用正确） */
 	.pixel-mario::before {
 		content: '';
 		position: absolute;
 		width: var(--pixel-size);
 		height: var(--pixel-size);
 		box-shadow:
-			/* 第1行 - 帽子顶部 */
+      /* ... 此处省略大段像素点代码，与原来完全一致，仅通过 --pixel-size 缩放 ... */
+      /* 第1行 - 帽子顶部 */
 			calc(3 * var(--pixel-size)) calc(0 * var(--pixel-size)) var(--red),
 			calc(4 * var(--pixel-size)) calc(0 * var(--pixel-size)) var(--red),
 			calc(5 * var(--pixel-size)) calc(0 * var(--pixel-size)) var(--red),
@@ -612,15 +591,14 @@ import { SITE_TITLE, SocialLinks } from '../consts'
 	/* ========== 林克场景 ========== */
 	.link-scene {
 		position: relative;
-
 		cursor: pointer;
 		user-select: none;
-		background: linear-gradient(180deg, #87ceeb 0%, #98d8c8 70%, #7bc77b 100%);
+		background: transparent; /* 透明背景 */
 		border-radius: 12px;
 		overflow: hidden;
 	}
 
-	/* 草地 */
+	/* 草地 - 高度 30px，与马里奥对齐 */
 	.link-ground {
 		position: absolute;
 		bottom: 0;
@@ -630,10 +608,10 @@ import { SITE_TITLE, SocialLinks } from '../consts'
 		background: linear-gradient(180deg, #5a9c5a 0%, #4a8c4a 100%);
 	}
 
-	/* 草丛装饰 */
+	/* 草丛装饰 - 位置微调 */
 	.grass-patch {
 		position: absolute;
-		bottom: 25px;
+		bottom: 26px; /* 调整以适应新的高度 */
 		width: 0;
 		height: 0;
 		border-left: 6px solid transparent;
@@ -652,9 +630,9 @@ import { SITE_TITLE, SocialLinks } from '../consts'
 		right: 30px;
 	}
 
-	/* 林克 */
+	/* 林克 - 调整大小和位置 */
 	.pixel-link {
-		--pixel-size: 5px;
+		--pixel-size: 6px; /* 从 5px 增加到 6px，与马里奥统一 */
 		--green: #2e7d32;
 		--green-light: #43a047;
 		--skin: #ffcc99;
@@ -665,7 +643,7 @@ import { SITE_TITLE, SocialLinks } from '../consts'
 		--blue: #4fc3f7;
 
 		position: absolute;
-		bottom: 30px;
+		bottom: 30px; /* 保持 30px，站在地面上 */
 		left: 50%;
 		transform: translateX(-50%);
 		width: calc(12 * var(--pixel-size));
@@ -691,13 +669,14 @@ import { SITE_TITLE, SocialLinks } from '../consts'
 		}
 	}
 
+	/* 林克像素点重绘（代码省略，保持不变，仅缩放 --pixel-size） */
 	.pixel-link::before {
 		content: '';
 		position: absolute;
 		width: var(--pixel-size);
 		height: var(--pixel-size);
 		box-shadow:
-			/* 帽子尖端 */
+      /* 帽子尖端 */
 			calc(8 * var(--pixel-size)) calc(0 * var(--pixel-size)) var(--green),
 			calc(9 * var(--pixel-size)) calc(0 * var(--pixel-size)) var(--green),
 			calc(9 * var(--pixel-size)) calc(1 * var(--pixel-size)) var(--green),
@@ -814,10 +793,10 @@ import { SITE_TITLE, SocialLinks } from '../consts'
 			calc(8 * var(--pixel-size)) calc(14 * var(--pixel-size)) var(--brown);
 	}
 
-	/* 剑气特效 */
+	/* 剑气特效 - 位置微调 */
 	.sword-beam {
 		position: absolute;
-		bottom: 75px;
+		bottom: 85px; /* 上调以匹配变大的林克 */
 		left: 65%;
 		width: 60px;
 		height: 8px;
