@@ -14,10 +14,20 @@ const posts = (await getCollection('blog'))
 	<main
 		class="app-container flex flex-col gap-12 justify-center py-36 md:py-48 pt-44 md:pt-56 relative"
 	>
+		<!-- 漂浮的游戏元素装饰 -->
+		<div class="absolute top-32 right-8 md:right-24 opacity-60 float-animation hidden md:block">
+			<div class="mario-star"></div>
+		</div>
+		<div class="absolute top-48 left-4 md:left-16 opacity-50 float-animation hidden md:block" style="animation-delay: 0.5s;">
+			<div class="mario-coin"></div>
+		</div>
+		<div class="absolute top-64 right-16 md:right-48 opacity-40 float-animation hidden md:block" style="animation-delay: 1s;">
+			<div class="zelda-heart"></div>
+		</div>
+
 		<div>
 			<p class="block text-2xl opacity-70 mt-9 mb-4" style="font-family: var(--font-pixel);">Welcome to</p>
 			<h1 class="text-6xl md:text-7xl leading-tight" style="font-family: var(--font-pixel); color: var(--color-primary); text-shadow: 5px 5px 0 rgba(0, 0, 0, 0.1); letter-spacing: 0.05em;">Spring Breeze</h1>
-			<div class="pixel-divider mt-6 w-32"></div>
 		</div>
 		<p class="text-2xl max-w-2xl font-light leading-normal">Hello</p>
 		<div class="flex flex-wrap gap-8">
@@ -33,11 +43,49 @@ const posts = (await getCollection('blog'))
 				))
 			}
 		</div>
+
+		<!-- 任天堂游戏元素展示区 -->
+		<div class="mt-8 p-6 rounded-2xl bg-foreground/5 dark:bg-foreground-dark/5">
+			<p class="text-sm opacity-60 mb-4" style="font-family: var(--font-pixel);">Favorite Games</p>
+			<div class="game-elements">
+				<div class="game-element-wrapper" title="Super Mario">
+					<div class="mario-block"></div>
+				</div>
+				<div class="game-element-wrapper" title="Mario Coin">
+					<div class="mario-coin"></div>
+				</div>
+				<div class="game-element-wrapper" title="Super Star">
+					<div class="mario-star"></div>
+				</div>
+				<div class="game-element-wrapper" title="The Legend of Zelda">
+					<div class="triforce">
+						<div class="triforce-piece"></div>
+						<div class="triforce-piece"></div>
+						<div class="triforce-piece"></div>
+					</div>
+				</div>
+				<div class="game-element-wrapper" title="Zelda Heart">
+					<div class="zelda-heart"></div>
+				</div>
+				<div class="game-element-wrapper" title="Pokemon">
+					<div class="pikachu-bolt"></div>
+				</div>
+				<div class="game-element-wrapper" title="Kirby">
+					<div class="kirby"></div>
+				</div>
+				<div class="game-element-wrapper" title="Animal Crossing">
+					<div class="ac-leaf"></div>
+				</div>
+			</div>
+		</div>
 	</main>
 
 	<!-- Recent Posts Section -->
 	<section class="app-container">
-		<h2 class="section-title">最近文章</h2>
+		<div class="flex items-center gap-4 mb-2">
+			<h2 class="section-title">最近文章</h2>
+			<div class="mario-coin" style="width: 24px; height: 24px;"></div>
+		</div>
 		<div class="posts-grid-container">
 			{posts.map((post) => <BlogCard post={post} />)}
 		</div>
@@ -47,15 +95,30 @@ const posts = (await getCollection('blog'))
 		</a>
 	</section>
 
-	<!-- Recent Posts Section -->
+	<!-- About Section -->
 	<section class="app-container py-42 grid lg:grid-cols-2 gap-28 lg:gap-10">
 		<div class="space-y-6">
-			<h2 class="section-title">关于我</h2>
+			<div class="flex items-center gap-4">
+				<h2 class="section-title">关于我</h2>
+				<div class="zelda-heart" style="width: 24px; height: 21px;"></div>
+			</div>
 			<p class="text-lg max-w-xl pb-4">Gamer, Programmer, Blogger.</p>
+			<div class="flex gap-3 mb-4">
+				<div class="mario-star" style="width: 20px; height: 20px;"></div>
+				<div class="mario-star" style="width: 20px; height: 20px;"></div>
+				<div class="mario-star" style="width: 20px; height: 20px;"></div>
+			</div>
 			<a class="btn-secondary" href={`${SITE_BASE}/about`}>
 				Go
 				<Icon size={20} name="mdi:arrow-right" />
 			</a>
+		</div>
+		<div class="hidden lg:flex items-center justify-center">
+			<div class="triforce" style="width: 120px; height: 104px;">
+				<div class="triforce-piece" style="border-left-width: 30px; border-right-width: 30px; border-bottom-width: 52px;"></div>
+				<div class="triforce-piece" style="border-left-width: 30px; border-right-width: 30px; border-bottom-width: 52px;"></div>
+				<div class="triforce-piece" style="border-left-width: 30px; border-right-width: 30px; border-bottom-width: 52px;"></div>
+			</div>
 		</div>
 	</section>
 </BaseLayout>

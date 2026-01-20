@@ -11,17 +11,26 @@ const today = new Date()
 		class="app-container grid md:grid-cols-3 gap-12 py-16 border-t-2 border-foreground/50 dark:border-foreground-dark/50"
 	>
 		<div>
-			<a href={`${SITE_BASE}/`} class="block w-fit" aria-label="Home">
+			<a href={`${SITE_BASE}/`} class="block w-fit group" aria-label="Home">
 				<LogoSVG height={36} width={36} />
 			</a>
+			<!-- 游戏元素装饰 -->
+			<div class="flex gap-3 mt-6">
+				<div class="mario-block hover-bounce" style="width: 32px; height: 32px; font-size: 16px;"></div>
+				<div class="mario-coin" style="width: 24px; height: 24px;"></div>
+				<div class="mario-star" style="width: 24px; height: 24px;"></div>
+			</div>
 		</div>
 		<div>
-			<h3 class="font-semibold text-2xl">Links</h3>
+			<h3 class="font-semibold text-2xl flex items-center gap-3">
+				Links
+				<div class="ac-leaf" style="width: 20px; height: 23px;"></div>
+			</h3>
 			<div class="flex flex-wrap gap-4 mt-4">
 				{
 					WebsiteLinks.filter((link) => link.name !== 'Home').map((link) => (
 						<a
-							class="text-lg"
+							class="text-lg hover:text-primary dark:hover:text-primary-dark transition-colors"
 							href={link.url}
 							target="_blank"
 							rel="noopener noreferrer"
@@ -42,12 +51,15 @@ const today = new Date()
 			</div>
 		</div>
 		<div>
-			<h3 class="font-semibold text-2xl">Socials</h3>
+			<h3 class="font-semibold text-2xl flex items-center gap-3">
+				Socials
+				<div class="zelda-heart" style="width: 20px; height: 18px;"></div>
+			</h3>
 			<div class="flex flex-wrap gap-4 mt-4">
 				{
 					SocialLinks.map((link) => (
 						<a
-							class="text-lg"
+							class="text-lg hover:text-primary dark:hover:text-primary-dark transition-colors"
 							href={link.url}
 							target="_blank"
 							rel="noopener noreferrer"
@@ -59,13 +71,37 @@ const today = new Date()
 			</div>
 		</div>
 	</div>
-	<div class="app-container flex justify-between items-center pb-6 text-center">
-		<p class="text-left md:text-center w-full">
+
+	<!-- 任天堂游戏角色装饰条 -->
+	<div class="app-container py-6">
+		<div class="flex items-center justify-center gap-8 opacity-50">
+			<div class="kirby hover-bounce" style="width: 36px; height: 33px;"></div>
+			<div class="triforce" style="width: 40px; height: 35px;">
+				<div class="triforce-piece" style="border-left-width: 10px; border-right-width: 10px; border-bottom-width: 17px;"></div>
+				<div class="triforce-piece" style="border-left-width: 10px; border-right-width: 10px; border-bottom-width: 17px;"></div>
+				<div class="triforce-piece" style="border-left-width: 10px; border-right-width: 10px; border-bottom-width: 17px;"></div>
+			</div>
+			<div class="pikachu-bolt" style="width: 16px; height: 27px;"></div>
+			<div class="mario-mushroom" style="width: 28px; height: 25px;"></div>
+		</div>
+	</div>
+
+	<div class="app-container flex flex-col md:flex-row justify-between items-center pb-6 text-center gap-4">
+		<p class="text-left md:text-center w-full flex items-center justify-center gap-2">
+			<span class="mario-coin" style="width: 16px; height: 16px;"></span>
 			&copy; {today.getFullYear()} Copyright By <a
-				class="underline"
+				class="underline hover:text-primary dark:hover:text-primary-dark transition-colors"
 				href="https://github.com/susanforme"
 				target="_blank">Spring Breeze</a
 			>
+			<span class="mario-coin" style="width: 16px; height: 16px;"></span>
 		</p>
 	</div>
+
 </footer>
+
+<style>
+	.mario-block::after {
+		font-size: inherit;
+	}
+</style>

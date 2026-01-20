@@ -7,16 +7,20 @@ import LogoSVG from '../assets/logo.svg'
 ---
 
 <header class="fixed top-0 w-full z-40 bg-background dark:bg-background-dark">
+	<!-- 顶部彩虹装饰条 -->
+	<div class="h-1 rainbow-bg"></div>
 	<nav class="">
 		<div class="app-container flex justify-between items-center py-5">
-			<a href={`${SITE_BASE}/`} aria-label="Home">
+			<a href={`${SITE_BASE}/`} aria-label="Home" class="flex items-center gap-3 group">
 				<LogoSVG height={36} width={36} />
+				<!-- 小马里奥星星装饰 -->
+				<div class="mario-star hidden sm:block" style="width: 16px; height: 16px; opacity: 0; transition: opacity 0.3s;"></div>
 			</a>
 			<div class="gap-8 hidden md:flex items-center">
 				{
-					WebsiteLinks.map((link) => (
+					WebsiteLinks.map((link, index) => (
 						<NavbarLink
-							class="text-lg"
+							class="text-lg nav-link-nintendo"
 							href={link.url}
 							target={link.url.charAt(0) === 'h' ? '_blank' : '_self'}
 						>
@@ -25,6 +29,8 @@ import LogoSVG from '../assets/logo.svg'
 					))
 				}
 				<ThemeSelector />
+				<!-- 导航栏金币装饰 -->
+				<div class="mario-coin" style="width: 20px; height: 20px;"></div>
 			</div>
 			<button
 				class="md:hidden cursor-pointer"
@@ -60,6 +66,12 @@ import LogoSVG from '../assets/logo.svg'
 						))
 					}
 					<ThemeSelector class:list="mt-4" />
+					<!-- 移动端菜单底部游戏元素装饰 -->
+					<div class="flex gap-4 mt-auto mb-24">
+						<div class="mario-star" style="width: 24px; height: 24px;"></div>
+						<div class="zelda-heart" style="width: 24px; height: 21px;"></div>
+						<div class="mario-coin" style="width: 24px; height: 24px;"></div>
+					</div>
 				</div>
 			</div>
 		</div>
@@ -78,8 +90,54 @@ import LogoSVG from '../assets/logo.svg'
 		document
 			.querySelector('#nav-close-btn')
 			?.addEventListener('click', toggleNav)
+
+		// Logo hover 显示星星
+		const logoLink = document.querySelector('a[aria-label="Home"]')
+		const star = logoLink?.querySelector('.mario-star')
+		if (logoLink && star) {
+			logoLink.addEventListener('mouseenter', () => {
+				(star as HTMLElement).style.opacity = '1'
+			})
+			logoLink.addEventListener('mouseleave', () => {
+				(star as HTMLElement).style.opacity = '0'
+			})
+		}
 	</script>
 </header>
+
+<style>
+	/* 导航链接任天堂风格悬停效果 */
+	:global(.nav-link-nintendo) {
+		position: relative;
+		transition: color 0.3s ease;
+		text-decoration: none !important;
+	}
+
+	:global(.nav-link-nintendo:hover) {
+		text-decoration: none !important;
+	}
+
+	:global(.nav-link-nintendo.active) {
+		text-decoration: none !important;
+	}
+
+	:global(.nav-link-nintendo::after) {
+		content: '';
+		position: absolute;
+		bottom: -4px;
+		left: 0;
+		width: 0;
+		height: 3px;
+		background: linear-gradient(90deg, var(--color-primary), var(--color-accent-2));
+		border-radius: 2px;
+		transition: width 0.3s ease;
+	}
+
+	:global(.nav-link-nintendo:hover::after),
+	:global(.nav-link-nintendo.active::after) {
+		width: 100%;
+	}
+</style>
 
 <script is:inline>
 	function reComputeTheme() {

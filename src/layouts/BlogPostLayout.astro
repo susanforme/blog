@@ -41,7 +41,7 @@ const lastModified = remarkPluginFrontmatter.lastModified
 
 <BaseLayout title={title} description={description}>
 	<main>
-		<article>
+		<article class="blog-post-content">
 			<div
 				class="app-container flex flex-col lg:flex-row-reverse justify-between gap-8 py-24 relative"
 			>
@@ -130,3 +130,21 @@ const lastModified = remarkPluginFrontmatter.lastModified
 		</article>
 	</main>
 </BaseLayout>
+
+<style>
+	/* 文章内容使用普通字体，不使用像素字体 */
+	.blog-post-content {
+		font-family: 'Inter Variable', sans-serif;
+	}
+
+	.blog-post-content h1,
+	.blog-post-content h2,
+	.blog-post-content h3,
+	.blog-post-content h4,
+	.blog-post-content h5,
+	.blog-post-content h6 {
+		font-family: 'Inter Variable', sans-serif;
+		font-weight: 700;
+		letter-spacing: normal;
+	}
+</style>
