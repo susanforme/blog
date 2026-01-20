@@ -6,18 +6,54 @@
 @theme {
 	--font-sans: 'Inter Variable', sans-serif;
 	--font-mono: 'JetBrains Mono Variable', monospace;
+	--font-pixel: 'Fusion Pixel 12px Proportional SC', 'Silkscreen', monospace;
 
-	--color-foreground: #0c0c0c;
-	--color-foreground-dark: #fafafa;
-	--color-background: #ffffff;
-	--color-background-dark: #2b2b2b;
-	--color-primary: #0784b5;
-	--color-primary-dark: #9bd4e4;
+	/* 柔和的配色方案 - 融合原有风格和任天堂感觉 */
+	--color-foreground: #1a1a1a;
+	--color-foreground-dark: #f5f5f5;
+	--color-background: #fafafa;
+	--color-background-dark: #2a2a2a;
+
+	/* 主色调 - 柔和的蓝色（保留原有风格） */
+	--color-primary: #4a90e2;
+	--color-primary-dark: #7ab8ff;
+
+	/* 辅助色 - 柔和的任天堂风格色彩 */
+	--color-accent-1: #ff6b6b; /* 柔和的红色 */
+	--color-accent-2: #4ecdc4; /* 青绿色 */
+	--color-accent-3: #ffd93d; /* 柔和的黄色 */
+	--color-accent-4: #95e1d3; /* 薄荷绿 */
+
+	/* 任天堂辅助色（保留但调整为更柔和的版本） */
+	--color-nintendo-blue: #5ba8d6;
+	--color-nintendo-yellow: #ffd93d;
+	--color-nintendo-green: #86d293;
+
+	/* 卡片和阴影 */
+	--shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.08);
+	--shadow-md: 0 4px 8px rgba(0, 0, 0, 0.12);
+	--shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.15);
+	--shadow-xl: 0 12px 24px rgba(0, 0, 0, 0.18);
+
+	/* 立体感的边框阴影（类似Switch按钮） */
+	--shadow-nintendo: 0 6px 0 rgba(0, 0, 0, 0.15), 0 8px 12px rgba(0, 0, 0, 0.1);
+	--shadow-nintendo-hover:
+		0 4px 0 rgba(0, 0, 0, 0.15), 0 6px 10px rgba(0, 0, 0, 0.1);
 }
 
 html {
 	scroll-padding-top: 6.5rem;
 	scroll-behavior: smooth;
+	font-family: var(--font-sans);
+}
+
+/* 任天堂风格的标题字体 - 支持中英文 */
+h1,
+h2,
+h3 {
+	font-family: var(--font-pixel);
+	font-weight: 400;
+	letter-spacing: 0.05em;
 }
 
 .app-container {
@@ -29,15 +65,54 @@ html {
 }
 
 .btn-primary {
-	@apply w-fit flex gap-2 bg-foreground text-background dark:bg-foreground-dark dark:text-background-dark px-5 py-3 md:px-4 md:py-2 rounded-lg items-center mt-4 hover:opacity-75 transition-opacity;
+	@apply w-fit flex gap-2 bg-primary text-white dark:bg-primary-dark dark:text-white px-5 py-3 md:px-4 md:py-2 rounded-xl items-center mt-4 font-bold transition-all;
+	box-shadow: 0 3px 0 0 rgba(0, 0, 0, 0.15);
+}
+
+.btn-primary:hover {
+	transform: translateY(1px);
+	box-shadow: 0 2px 0 0 rgba(0, 0, 0, 0.15);
+}
+
+.btn-primary:active {
+	transform: translateY(3px);
+	box-shadow: 0 0 0 0 rgba(0, 0, 0, 0.15);
 }
 
 .btn-secondary {
-	@apply w-fit flex gap-2 bg-foreground/10 text-foreground dark:bg-foreground-dark/10 dark:text-foreground-dark px-5 py-3 md:px-4 md:py-2 rounded-lg items-center mt-4 hover:opacity-75 transition-opacity;
+	@apply w-fit flex gap-2 bg-foreground/10 text-foreground dark:bg-foreground-dark/10 dark:text-foreground-dark px-5 py-3 md:px-4 md:py-2 rounded-xl items-center mt-4 font-semibold transition-all;
+	box-shadow: 0 3px 0 0 rgba(0, 0, 0, 0.08);
+}
+
+.btn-secondary:hover {
+	transform: translateY(1px);
+	box-shadow: 0 2px 0 0 rgba(0, 0, 0, 0.08);
+	background: var(--color-foreground);
+	color: var(--color-background);
+}
+
+.dark .btn-secondary:hover {
+	background: var(--color-foreground-dark);
+	color: var(--color-background-dark);
+}
+
+.btn-secondary:active {
+	transform: translateY(3px);
+	box-shadow: 0 0 0 0 rgba(0, 0, 0, 0.08);
 }
 
 .section-title {
-	@apply text-4xl font-semibold pb-3;
+	@apply text-4xl pb-3;
+	font-family: var(--font-pixel);
+	font-weight: 400;
+	letter-spacing: 0.05em;
+	color: var(--color-primary);
+	text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.08);
+}
+
+.dark .section-title {
+	color: var(--color-primary-dark);
+	text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.2);
 }
 
 .posts-grid-container {
@@ -58,4 +133,62 @@ iframe {
 	margin: 0 !important;
 	padding: 0 !important;
 	width: 100% !important;
+}
+
+/* 任天堂风格的卡片效果 */
+.nintendo-card {
+	@apply bg-white dark:bg-background-dark rounded-2xl overflow-hidden transition-all transform;
+	box-shadow: var(--shadow-md);
+}
+
+.nintendo-card:hover {
+	transform: translateY(-4px);
+	box-shadow: var(--shadow-lg);
+}
+
+/* 像素风格的分隔线 */
+.pixel-divider {
+	height: 4px;
+	background: linear-gradient(
+		90deg,
+		var(--color-primary) 0%,
+		var(--color-accent-2) 33%,
+		var(--color-accent-3) 66%,
+		var(--color-accent-4) 100%
+	);
+	background-size: 200% 100%;
+	animation: rainbow 3s linear infinite;
+}
+
+@keyframes rainbow {
+	0% {
+		background-position: 0% 0%;
+	}
+	100% {
+		background-position: 200% 0%;
+	}
+}
+
+/* 任天堂风格的徽章/标签 */
+.nintendo-badge {
+	@apply inline-block px-4 py-2 rounded-full text-sm font-bold;
+	font-family: var(--font-pixel);
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	box-shadow: var(--shadow-sm);
+}
+
+/* 悬停时的可爱缩放效果 */
+.hover-bounce:hover {
+	animation: bounce 0.5s ease;
+}
+
+@keyframes bounce {
+	0%,
+	100% {
+		transform: translateY(0);
+	}
+	50% {
+		transform: translateY(-8px);
+	}
 }

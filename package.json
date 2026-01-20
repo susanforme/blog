@@ -20,6 +20,7 @@
 		"@astrojs/sitemap": "3.6.0",
 		"@fontsource-variable/inter": "^5.2.6",
 		"@fontsource-variable/jetbrains-mono": "^5.1.2",
+		"@fontsource/fusion-pixel-12px-proportional-sc": "^5.2.5",
 		"@fontsource/silkscreen": "^5.0.18",
 		"@iconify-json/mdi": "^1.1.66",
 		"@tailwindcss/vite": "^4.1.12",
