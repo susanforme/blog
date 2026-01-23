@@ -28,7 +28,7 @@ class MermaidViewer extends HTMLElement {
 
 			const config: MermaidConfig = {
 				startOnLoad: false,
-				theme: 'default',
+				theme: 'base',
 				// 如果需要，这里可以根据 window.matchMedia('(prefers-color-scheme: dark)') 设置 'dark'
 			}
 

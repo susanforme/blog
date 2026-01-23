@@ -321,7 +321,7 @@ if (!customElements.get('astro-island')) {
        </astro-island>
      </div>
    </body>
-
+   
    </html>
    ```
 
@@ -333,3 +333,98 @@ if (!customElements.get('astro-island')) {
 4. 如何处理国际化的问题
 
 5. 如何处理在服务端渲染和客户端渲染使用相同Astro产物可能引发的问题？
+
+## 架构图
+
+```mermaid
+graph TD
+    %% =======================
+    %% 样式定义
+    %% =======================
+    classDef s3 fill:#FF9900,stroke:#232F3E,stroke-width:2px,color:white;
+    classDef nuxt fill:#00C58E,stroke:#333,stroke-width:2px,color:white;
+    classDef cdn fill:#4285F4,stroke:#333,stroke-width:2px,color:white;
+    classDef user fill:#f9f9f9,stroke:#333,stroke-width:2px;
+    classDef config fill:#9933cc,stroke:#333,stroke-width:2px,color:white;
+    classDef file fill:#fff,stroke:#999,stroke-dasharray: 5 5;
+
+    %% =======================
+    %% 1. 配置与发布 (Deployment)
+    %% =======================
+    subgraph Deploy ["1. 配置与发布阶段"]
+        direction TB
+        Admin("管理员") -->|配置SEO & 上传| ConfigPlatform["配置平台"]:::config
+        ConfigPlatform -->|生成目录 & 上传| S3bucket[("AWS S3 存储桶")]:::s3
+    end
+
+    %% =======================
+    %% 2. S3 存储结构 (Storage)
+    %% =======================
+    subgraph S3_Structure ["S3 目录结构 (Bucket)"]
+        direction TB
+        BusinessDir["业务目录 (e.g. test)"]
+        PathJson("path.json (指针)")
+        HashDir["时间戳/Hash 目录"]
+
+        BusinessDir --- PathJson
+        BusinessDir --- HashDir
+
+        subgraph Langs ["多语言隔离"]
+            EnDir["en 目录"] --- EnFiles["编译产物 + setting.json"]:::file
+            DeDir["de 目录"] --- DeFiles["编译产物 + setting.json"]:::file
+        end
+
+        HashDir --- EnDir
+        HashDir --- DeDir
+    end
+
+    S3bucket -.-> BusinessDir
+
+    %% =======================
+    %% 3. 用户访问与缓存策略 (Runtime)
+    %% =======================
+    subgraph Access_Flow ["2. 用户访问与双端缓存策略"]
+        User(("用户")):::user
+
+        %% CDN 层
+        subgraph CDN_Layer ["CDN 边缘节点"]
+            direction TB
+            Cache_Page["页面缓存 HTML<br/>/lp/test<br/>(TTL: 10分钟)"]:::cdn
+            Cache_API["接口缓存 JSON<br/>/server-api/lp/*<br/>(TTL: 10分钟)"]:::cdn
+            Cache_Static["静态资源缓存<br/>/static-lp/*<br/>(TTL: 永久)"]:::cdn
+        end
+
+        User -->|1. 首屏访问| Cache_Page
+        User -->|2. SPA/API调用| Cache_API
+        User -->|3. 资源加载| Cache_Static
+
+        %% 路径 3: 静态资源回源
+        Cache_Static -->|回源映射 S3| S3bucket
+
+        %% 路径 1 & 2: 动态回源到 Nuxt
+        Cache_Page -- 未命中 --> NuxtServer
+        Cache_API -- 未命中 --> NuxtServer
+
+        %% Nuxt 服务端逻辑
+        subgraph Nuxt_Logic ["Nuxt 服务端"]
+            NuxtServer["Nuxt Server"]:::nuxt
+
+            subgraph API_Impl ["API: /server-api/lp/:id"]
+                direction TB
+                Logic1["解析参数"] --> Logic2["Fetch path.json"]
+                Logic2 --> Logic3["Fetch Content"]
+                Logic3 --> Logic4["返回 JSON (无内部缓存)"]
+            end
+
+            NuxtServer --> API_Impl
+
+            API_Impl -->|JSON Data| NuxtServer
+            NuxtServer -->|SSR渲染 HTML| Cache_Page
+            NuxtServer -.->|返回 JSON| Cache_API
+        end
+
+        %% Nuxt 取数连接 S3
+        Logic2 -->|直连 S3| S3bucket
+        Logic3 -->|直连 S3| S3bucket
+    end
+```
