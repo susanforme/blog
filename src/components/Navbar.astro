@@ -11,14 +11,22 @@ import LogoSVG from '../assets/logo.svg'
 	<div class="h-1 rainbow-bg"></div>
 	<nav class="">
 		<div class="app-container flex justify-between items-center py-5">
-			<a href={`${SITE_BASE}/`} aria-label="Home" class="flex items-center gap-3 group">
+			<a
+				href={`${SITE_BASE}/`}
+				aria-label="Home"
+				class="flex items-center gap-3 group"
+			>
 				<LogoSVG height={36} width={36} />
 				<!-- 小马里奥星星装饰 -->
-				<div class="mario-star hidden sm:block" style="width: 16px; height: 16px; opacity: 0; transition: opacity 0.3s;"></div>
+				<div
+					class="mario-star hidden sm:block"
+					style="width: 16px; height: 16px; opacity: 0; transition: opacity 0.3s;"
+				>
+				</div>
 			</a>
 			<div class="gap-8 hidden md:flex items-center">
 				{
-					WebsiteLinks.map((link, index) => (
+					WebsiteLinks.map((link) => (
 						<NavbarLink
 							class="text-lg nav-link-nintendo"
 							href={link.url}
@@ -96,10 +104,10 @@ import LogoSVG from '../assets/logo.svg'
 		const star = logoLink?.querySelector('.mario-star')
 		if (logoLink && star) {
 			logoLink.addEventListener('mouseenter', () => {
-				(star as HTMLElement).style.opacity = '1'
+				;(star as HTMLElement).style.opacity = '1'
 			})
 			logoLink.addEventListener('mouseleave', () => {
-				(star as HTMLElement).style.opacity = '0'
+				;(star as HTMLElement).style.opacity = '0'
 			})
 		}
 	</script>
@@ -128,7 +136,11 @@ import LogoSVG from '../assets/logo.svg'
 		left: 0;
 		width: 0;
 		height: 3px;
-		background: linear-gradient(90deg, var(--color-primary), var(--color-accent-2));
+		background: linear-gradient(
+			90deg,
+			var(--color-primary),
+			var(--color-accent-2)
+		);
 		border-radius: 2px;
 		transition: width 0.3s ease;
 	}

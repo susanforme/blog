@@ -24,7 +24,12 @@ export default defineConfig({
 	integrations: [
 		mdx(),
 		sitemap(),
-		icon(),
+		icon({
+			include: {
+				mdi: ['*'],
+				pixelarticons: ['*'],
+			},
+		}),
 		partytown({
 			config: {
 				forward: ['dataLayer.push'],
