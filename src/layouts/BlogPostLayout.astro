@@ -46,7 +46,7 @@ const lastModified = remarkPluginFrontmatter.lastModified
 				class="app-container flex flex-col lg:flex-row-reverse justify-between gap-8 py-24 relative"
 			>
 				<div class="md:w-1/4 relative">
-					<div class="sticky top-0 md:top-28 hidden lg:block">
+					<div class="toc-container sticky top-0 md:top-28 hidden lg:block max-h-[calc(100vh-8rem)] overflow-y-auto">
 						<TableOfContents headings={headings} />
 					</div>
 				</div>
@@ -146,5 +146,50 @@ const lastModified = remarkPluginFrontmatter.lastModified
 		font-family: 'Inter Variable', sans-serif;
 		font-weight: 700;
 		letter-spacing: normal;
+	}
+
+	/* 目录滚动条样式 - 仅针对目录容器 */
+	.toc-container {
+		scrollbar-width: none; /* Firefox - 默认隐藏 */
+	}
+	
+	.toc-container::-webkit-scrollbar {
+		width: 4px;
+	}
+	
+	.toc-container::-webkit-scrollbar-track {
+		background: transparent;
+	}
+	
+	.toc-container::-webkit-scrollbar-thumb {
+		background-color: transparent;
+		border-radius: 2px;
+	}
+	
+	/* hover时显示滚动条 */
+	.toc-container:hover {
+		scrollbar-width: thin; /* Firefox */
+		scrollbar-color: rgba(156, 163, 175, 0.4) transparent;
+	}
+	
+	.toc-container:hover::-webkit-scrollbar-thumb {
+		background-color: rgba(156, 163, 175, 0.4);
+	}
+	
+	.toc-container:hover::-webkit-scrollbar-thumb:hover {
+		background-color: rgba(156, 163, 175, 0.6);
+	}
+	
+	/* 深色模式 */
+	:global(.dark) .toc-container:hover {
+		scrollbar-color: rgba(75, 85, 99, 0.4) transparent;
+	}
+	
+	:global(.dark) .toc-container:hover::-webkit-scrollbar-thumb {
+		background-color: rgba(75, 85, 99, 0.4);
+	}
+	
+	:global(.dark) .toc-container:hover::-webkit-scrollbar-thumb:hover {
+		background-color: rgba(75, 85, 99, 0.6);
 	}
 </style>
