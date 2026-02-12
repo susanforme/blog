@@ -271,3 +271,101 @@ Gemini said
 你可以隐藏 **Retainers**，以查明是否还有**其他**对象保留了当前选中的对象。通过使用此选项，你就不必为了测试而先从代码中移除该引用，然后再重新拍摄堆快照了。
 
 ![忽略保留者](./img/ignore-retainer.png)
+
+## 分析问题
+
+首先通过压测工具和podman拿到压测前后的堆快照
+
+wrk
+
+```
+ wrk -t2 -c10 -d20s --latency --timeout 5s -s test_uri.lua http://localhost:4010
+Running 20s test @ http://localhost:4010
+  2 threads and 10 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency   437.12ms  260.72ms   2.21s    93.53%
+    Req/Sec    13.41      7.03    40.00     82.48%
+  Latency Distribution
+     50%  444.43ms
+     75%  504.08ms
+     90%  591.50ms
+     99%    1.60s
+  484 requests in 20.04s, 84.86MB read
+  Non-2xx or 3xx responses: 250
+Requests/sec:     24.15
+Transfer/sec:      4.23MB
+```
+
+pm2
+
+| **id** | **name** | **mode** | **pid** | **uptime** | **status** | **cpu** | **mem** | **user** | **watching** |
+| ------ | -------- | -------- | ------- | ---------- | ---------- | ------- | ------- | -------- | ------------ |
+| 0      | vivaia   | cluster  | 233     | 53s        | online     | 0%      | 401.4mb | root     | disabled     |
+| 1      | vivaia   | cluster  | 245     | 53s        | online     | 0%      | 398.1mb | root     | disabled     |
+| 2      | vivaia   | cluster  | 253     | 53s        | online     | 0%      | 627.5mb | root     | disabled     |
+| 3      | vivaia   | cluster  | 268     | 52s        | online     | 0%      | 540.5mb | root     | disabled     |
+
+### 单例错误?
+
+我猜测是日志服务出了问题,可能logger并没有正确的单例模式,导致每次请求都创建了一个新的logger实例,从而导致内存泄漏
+
+风险代码如下
+
+```typescript
+export default defineNitroPlugin((nitroApp) => {
+	const serverLogger = ServerLogger.getInstance({
+		serverEmitter,
+	})
+})
+```
+
+经过排查,发现内存中只有一个logger实例,并没有出现多个实例的情况,所以单例模式是正确的,并不是单例错误导致的内存泄漏
+
+![单例](./img/singleton.png)
+
+### 多次监听?
+
+在单例的问题排除后,我又怀疑是多次监听了事件,导致每次请求都创建了一个新的监听器,从而导致内存泄漏,可见如下代码,如果多次调用startTrack方法,就会多次监听nuxtNodeLog事件,从而导致内存泄漏
+
+```typescript
+class Logger {
+	startTrack(): void {
+		this.#serverEmitter.on('nuxtNodeLog', (reqData) => {
+			this.#traceData.push(reqData)
+		})
+		if (this.#loggerTimer) return
+		// eslint-disable-next-line custom/no-setinterval-server
+		this.#loggerTimer = setInterval(() => {
+			if (process.env.NODE_ENV === 'development') {
+				return
+			}
+			if (this.#traceData.length > 0) {
+				// 每次处理10条日志
+				const reqDataList = this.#traceData.splice(
+					0,
+					Math.min(this.#traceData.length, 10)
+				)
+				this.#handleLogs(reqDataList)
+			}
+		}, 500)
+	}
+}
+```
+
+1. 首先找到单例的ServerLogger实例(内存区域为@219219)
+   ![单例实例](./img/logger.png)
+2. 顺藤摸瓜找到EventEmitter实例(内存区域为@124443)
+   ![事件监听器](./img/emitter.png)
+   可以清晰的看到 nuxtNodeLog它指向 `() @219019` 这代表当前事件只有一个监听器
+
+> Tips:
+>
+> Node.js 的 `EventEmitter` 为了优化性能，存储方式有两种情况：
+>
+> 情况 A：只有一个监听器
+>
+> - **结构**：`_events.eventName` -> `Function`
+>
+> 情况 B：有多个监听器
+>
+> - **结构**：`_events.eventName` -> `Array`
