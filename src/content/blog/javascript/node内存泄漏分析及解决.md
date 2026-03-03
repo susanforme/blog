@@ -1,6 +1,6 @@
 ---
-title: node内存泄漏分析及解决
-description: 本文分析了Node.js中常见的内存泄漏问题及其解决方案，帮助开发者优化应用性能。
+title: Node.js 内存泄漏分析及解决
+description: 本文分析了 Node.js 中常见的内存泄漏问题及其解决方案，帮助开发者优化应用性能。
 pubDate: 2026-02-05
 ---
 
@@ -10,9 +10,11 @@ pubDate: 2026-02-05
 
 ![内存泄漏](./img/oom.png)
 
+本文将基于此次内存泄漏问题的排查过程，介绍相关背景知识和分析工具，最终定位根因并给出解决方案。
+
 ## 术语
 
-本部分介绍了内存分析中常用的术语，适用于适用于不同语言的各种内存性能分析工具。
+本部分介绍了内存分析中常用的术语，适用于不同语言的各种内存分析工具。
 
 ### 对象大小
 
@@ -22,38 +24,38 @@ pubDate: 2026-02-05
 
 对象可以通过以下两种方式占用内存：
 
-- 直接由对象本身进行调用。
-- 隐式地保留对其他对象的引用，从而防止这些对象被垃圾回收器自动处置。
+- 直接由对象本身占用。
+- 通过隐式地持有对其他对象的引用，阻止垃圾回收器自动回收这些对象。
 
-在 DevTools 中使用堆性能分析器,主要关注Shallow Size和Retained Size。
+在 DevTools 中使用堆分析器（Heap Profiler）时，主要关注 Shallow Size 和 Retained Size 两个指标。
 
 ![shallow](./img/shallow-retained-size.png)
 
-### 浅层大小
+### 浅层大小 Shallow Size
 
 这是对象本身占用的内存大小。
 
-典型的 JavaScript 对象会预留一些内存来存储其说明和立即值。通常，只有数组和字符串可以具有较大的浅层大小。不过，字符串和外部数组的主要存储空间通常位于渲染程序内存中，并且只在 JavaScript 堆上公开一个小型封装容器对象。
+典型的 JavaScript 对象会预留一些内存来存储其描述信息和直接值。通常，只有数组和字符串可以具有较大的浅层大小。不过，字符串和外部数组的主要存储空间通常位于渲染程序内存中，并且只在 JavaScript 堆上公开一个小型封装容器对象。
 
 渲染程序内存是指用于渲染受检页面的进程的所有内存：原生内存 + 页面的 JS 堆内存 + 由页面启动的所有专用工作器的 JS 堆内存。不过，即使是小对象，也可以通过阻止自动垃圾回收进程处置其他对象，间接占用大量内存。
 
-### 保留的大小
+### 保留的大小 Retained Size
 
-这是在删除对象本身及其无法从 **GC 根**访问的依赖对象后释放的内存大小。
+这是在删除对象本身及其无法从 **GC Root**访问的依赖对象后释放的内存大小。
 
-**GC 根**由在从原生代码引用 V8 之外的 JavaScript 对象时创建的*句柄*（本地或全局）组成。您可以在堆快照的 **GC 根** > **Handle 作用域**和 **GC 根** > **全局句柄**下找到所有此类句柄。
+**GC Root**由从原生代码引用 V8 外部 JavaScript 对象时创建的*句柄*（局部或全局）组成。可以在堆快照的 **GC Root** > **Handle 作用域**和 **GC Root ** > **Global Handler**下找到所有此类句柄。
 
-存在许多内部 GC 根，其中大多数对用户而言并不重要。从浏览器的角度来看，根有以下几种：
+存在许多内部 GC Root，其中大多数对用户而言并不重要。从浏览器的角度来看，根有以下几种：
 
 - 窗口全局对象（在每个 iframe 中）。堆快照中有一个距离字段，该字段是从窗口到最短保留路径上的属性引用数量。
 - 文档 DOM 树，由遍历文档可访问的所有原生 DOM 节点组成。其中有些可能没有 JS 封装容器，但如果有，则封装容器会在文档有效期间保持有效。
-- 有时，调试程序上下文和开发者工具控制台可能会保留对象（例如在控制台评估后）。创建堆快照，并确保控制台清晰且调试器中没有有效断点。
+- 有时，调试器上下文和开发者工具控制台可能会保留对象（例如在控制台求值后）。创建堆快照时，应确保控制台已清空且调试器中没有活动断点。
 
-内存图从根开始，该根可以是浏览器的 `window` 对象，也可以是 Node.js 模块的 `Global` 对象。您无法控制此根对象的 GC 方式。
+内存图从根开始，该根可以是浏览器的 `window` 对象，也可以是 Node.js 模块的 `Global` 对象。无法控制此根对象被 GC 回收的方式。
 
 ![gc-root](./img/root-object-t-controlle.png)
 
-从根无法访问的任何内容都会被 GC。（可达性分析）
+从根无法访问到的任何对象都会被 GC 回收（即可达性分析）。
 
 ### 对象保留树
 
@@ -62,20 +64,34 @@ pubDate: 2026-02-05
 - **节点**（或对象）使用用于构建它们的**构造函数**（Constructor function）的名称进行标记。
 - **边**使用**属性**（Properties）的名称进行标记。
 
-在接下来的 Heap Profiler 记录中，我们可以看到一些值得关注的信息，其中包括**距离**：即对象到 **GC 根**（Garbage Collection root，垃圾回收根节点）的距离。如果几乎所有同类型的对象都位于相同的距离，却有少数几个对象的距离更远，这种情况就值得深入调查了。
+在 Heap Profiler 记录中，我们可以看到一些值得关注的信息，其中包括**距离(Disatance)**：即对象到 **GC Root**（GC root，垃圾回收根节点）的距离。如果几乎所有同类型的对象都位于相同的距离，却有少数几个对象的距离更远，这种情况就值得深入调查了。
 
 ![对象保留树](./img/distance-root.png)
 
-### 支配者
+### 支配者Retainers
 
 **支配者对象**由树状结构组成，因为每个对象有且仅有一个直接支配者。一个对象的支配者可能并不包含对其所支配对象的直接引用；也就是说，支配者树并不是原图的生成树。
+
+> 生成树是一个连通的图的子图。
+>
+> ![spanning_trees](./img/spanning_trees.jpg)
 
 **在下图（逻辑）中：**
 
 - 节点 1 支配节点 2
-- 节点 2 支配节点 3、4 和 6
+
+  > 到达后续所有节点的路径都必须经过 1
+
+- 节点 2 支配节点 3、4、6
+
+  > 节点 6 同时被 3 和 4 引用。如果移除 3，节点 6 仍可以通过 4 存活；如果移除 4，节点 6 仍可以通过 3 存活。因此，3 和 4 都不单独支配 6。节点 2 是到达 6 的最近的共同必经节点。
+
 - 节点 3 支配节点 5
+
+  > 5到达后续所有节点的路径都必须经过3
+
 - 节点 5 支配节点 8
+
 - 节点 6 支配节点 7
 
 ![支配树](./img/dominator-tree-structure.png)
@@ -86,7 +102,7 @@ pubDate: 2026-02-05
 
 ### V8 特性
 
-在进行内存分析时，理解堆快照为何呈现某种形态是非常有帮助的。本节描述了一些专门针对 **V8 JavaScript 虚拟机**的内存相关主题。
+在进行内存分析时，理解堆快照为何呈现某种形态是非常有帮助的。
 
 #### JavaScript 对象表示
 
@@ -96,25 +112,39 @@ JavaScript 有三种原始类型：
 - **布尔值**（true 或 false）
 - **字符串**（例如 'Werner Heisenberg'）
 
-它们不能引用其他值，因此在内存图中始终是**叶子节点**或终止节点。
+它们不能引用其他值，因此在内存图中始终是**叶子节点**。
 
 **数字**可以通过以下两种方式存储：
 
-1. 作为直接的 31 位整数值，称为**小整数**；或者
+1. 作为直接的 31 位整数值，称为**小整数**；
 2. 作为堆对象，称为**堆数字**。堆数字用于存储不符合小整数格式的值（例如**双精度浮点数**），或者当一个值需要被**装箱**时（例如在该数字上设置属性）。
 
 **字符串**可以存储在：
 
-1. **VM 堆**中；或者
+1. **VM 堆**中；
 2. 外部的**渲染器内存**中。在这种情况下，会创建一个**包装对象**用于访问该外部存储。例如，从 Web 接收的脚本源码和其他内容通常存储在外部，而不是直接拷贝到 VM 堆中。
 
 新 JavaScript 对象的内存是从一个专用的 JavaScript 堆（或 **VM 堆**）中分配的。这些对象由 V8 的垃圾回收器管理，因此，只要至少存在一个指向它们的**强引用**，它们就会一直存活。
+
+> 强引用是指一个对象直接引用另一个对象，或者通过一系列对象间接引用另一个对象。只要存在强引用，垃圾回收器就不会回收被引用的对象。
+
+```typescript
+// a 是一个强引用，指向一个对象
+const a = { name: 'Alice' }
+// b 是一个强引用，指向 a 引用的对象
+const b = a
+// c 是一个弱引用，指向 a 引用的对象
+const c = new WeakRef(a)
+// weakmap 是一个弱引用，指向 a 引用的对象
+const weakmap = new WeakMap()
+weakmap.set(a, 'some value')
+```
 
 **原生对象**是指除 JavaScript 堆之外的所有其他对象。与堆对象不同，原生对象在其整个生命周期内不由 V8 垃圾回收器管理，并且只能通过其 JavaScript **包装对象**从 JavaScript 中访问。
 
 > 由 **宿主环境**提供，而不是由 V8 引擎本身直接生成的对象。V8 只是一个 JavaScript 引擎，它被嵌入在不同的宿主环境中。
 >
-> 在浏览器环境可以是DOM，BOM。在Node端可以是一些C++ Addon
+> 在浏览器环境中可以是 DOM、BOM；在 Node.js 端可以是 C++ Addon 等。
 
 **串接字符串**是一种由成对的字符串存储并连接而成的对象，它是字符串拼接的结果。**串接字符串**内容的连接操作仅在需要时才会发生。例如，当需要构建一个已连接字符串的子串时，才会进行实际的连接。
 
@@ -137,15 +167,15 @@ JavaScript 有三种原始类型：
 
 每个包装对象都持有一个指向对应原生对象的引用，用于将命令重定向给它。反过来，对象组也持有这些包装对象。然而，这并不会创建一个无法回收的循环引用，因为 GC 足够智能，可以释放那些包装器不再被引用的对象组。但是，只要**忘记释放其中任何一个包装器**，就会导致整个组及其关联的包装器都被保留。
 
-## Chrome开发者工具
+## Chrome 开发者工具
 
-由于主要关注 Node.js 内存泄漏问题，我们将使用 Chrome DevTools 来分析内存泄漏。虽然 Chrome DevTools 主要用于浏览器环境，但它也可以排查Node.js 应用程序堆快照。
+由于主要关注 Node.js 内存泄漏问题，我们将使用 Chrome DevTools 进行分析。虽然 Chrome DevTools 主要面向浏览器环境，但它同样可以用于分析 Node.js 应用程序的堆快照。
 
-### Summary摘要视图
+### Summary（摘要）视图
 
 初始状态下，堆快照会在 **Summary** 视图中打开，该视图将 **Constructor** 列在一列中。
 
-**Constructor** 是以创建该对象的 JavaScript 函数命名的，普通对象的名称是基于它们所包含的属性，还有一些名称属于**特殊条目**。
+**Constructor** 列以创建该对象的 JavaScript 构造函数命名；普通对象则基于其包含的属性命名，还有一些属于**特殊条目**。
 
 所有对象首先按名称分组，其次按它们在源文件中的行号分组，例如 `source-file.js:line-number`。
 
@@ -172,7 +202,7 @@ JavaScript 有三种原始类型：
 
 ### Summary 中的特殊条目
 
-除了按 **Constructor分组外，**Summary\*\* 视图还通过以下方式对对象进行分组：
+除了按 **Constructor** 分组外，**Summary** 视图还通过以下方式对对象进行分组：
 
 - **内置函数**，例如 `Array` 或 `Object`。
 - **HTML 元素**，按其标签分组，例如 `<div>`、`<a>`、`<img>` 等。
@@ -227,8 +257,6 @@ JavaScript 有三种原始类型：
 
 这个类别包含各种尚未被归类到更有意义类别中的内部对象。
 
-Gemini said
-
 ### Comparison 视图
 
 **Comparison** 视图允许你通过相互比较多个快照来查找泄漏的对象。例如，执行一个操作并将其撤销（如打开文档再将其关闭），不应遗留任何多余的对象。
@@ -251,7 +279,7 @@ Gemini said
 该视图提供了以下几个入口点：
 
 - **DOM Window objects**：JavaScript 代码的全局对象。
-- **GC roots**：VM 的垃圾回收器使用的 **GC 根**。GC 根可以由内置对象映射、符号表、VM 线程栈、编译缓存、句柄作用域和全局句柄组成。
+- **GC roots**：VM 的垃圾回收器使用的 **GC Root**。GC Root可以由内置对象映射、符号表、VM 线程栈、编译缓存、句柄作用域和全局句柄组成。
 - **Native objects**：为了实现自动化而被“推入”JavaScript 虚拟机内部的浏览器对象，例如 DOM 节点和 CSS 规则。
 
 ![容器视图](./img/containment.png)
@@ -268,17 +296,17 @@ Gemini said
 
 ### 忽略 Retainers
 
-你可以隐藏 **Retainers**，以查明是否还有**其他**对象保留了当前选中的对象。通过使用此选项，你就不必为了测试而先从代码中移除该引用，然后再重新拍摄堆快照了。
+可以隐藏 **Retainers**，以查明是否还有**其他**对象保留了当前选中的对象。
 
 ![忽略保留者](./img/ignore-retainer.png)
 
 ## 分析问题
 
-首先通过压测工具和podman拿到压测前后的堆快照
+要复现并捕获泄漏现场，需要在压测期间触发稳定的流量，同时在容器内采集堆快照。这里使用 wrk 对服务持续施压，再通过 pm2 观察各进程的内存占用，确认问题确实存在后，再用 Chrome DevTools 对堆快照进行比对分析。
 
-wrk
+**wrk 压测结果：**
 
-```
+```text
  wrk -t2 -c10 -d20s --latency --timeout 5s -s test_uri.lua http://localhost:4010
 Running 20s test @ http://localhost:4010
   2 threads and 10 connections
@@ -296,20 +324,37 @@ Requests/sec:     24.15
 Transfer/sec:      4.23MB
 ```
 
-pm2
+**压测后 pm2 各进程内存占用：**
 
 | **id** | **name** | **mode** | **pid** | **uptime** | **status** | **cpu** | **mem** | **user** | **watching** |
 | ------ | -------- | -------- | ------- | ---------- | ---------- | ------- | ------- | -------- | ------------ |
-| 0      | vivaia   | cluster  | 233     | 53s        | online     | 0%      | 401.4mb | root     | disabled     |
-| 1      | vivaia   | cluster  | 245     | 53s        | online     | 0%      | 398.1mb | root     | disabled     |
-| 2      | vivaia   | cluster  | 253     | 53s        | online     | 0%      | 627.5mb | root     | disabled     |
-| 3      | vivaia   | cluster  | 268     | 52s        | online     | 0%      | 540.5mb | root     | disabled     |
+| 0      | v        | cluster  | 233     | 53s        | online     | 0%      | 401.4mb | root     | disabled     |
+| 1      | v        | cluster  | 245     | 53s        | online     | 0%      | 398.1mb | root     | disabled     |
+| 2      | v        | cluster  | 253     | 53s        | online     | 0%      | 627.5mb | root     | disabled     |
+| 3      | v        | cluster  | 268     | 52s        | online     | 0%      | 540.5mb | root     | disabled     |
 
-### 单例错误?
+可以看到不同进程的内存差异较大，部分进程已明显偏高。接下来结合堆快照逐步排查泄漏根因。
 
-我猜测是日志服务出了问题,可能logger并没有正确的单例模式,导致每次请求都创建了一个新的logger实例,从而导致内存泄漏
+### Comparison 视图定位泄漏方向
 
-风险代码如下
+使用 Chrome DevTools 的 Comparison 视图对比压测前后的堆快照：
+
+![对照](./img/comparison-1.png)
+
+从对比结果中可以提取几个关键信号：
+
+- **`(string)` / `Array` / `Object`**：新增数量最多，但这三类属于通用容器，仅凭它们无法定位问题，需要结合具体构造函数进一步下钻。
+- **`Dep`**：新增 62765 个，Freed Size 为 **0 B**，完全没有被释放。`Dep` 是 Vue 响应式系统的依赖收集对象，正常情况下组件卸载后应随之回收，持续累积说明存在响应式订阅未被清理的情况。
+- **`system / Context`**：新增 53700 个，几乎未释放。`Context` 对应闭包作用域，大量残留通常意味着有函数或回调被某处持续引用，无法被 GC 回收。
+- **`{default}` / `{value}` / `RegExp` / 路由相关对象**（`{path, redirect, name…}` / `{re, score, keys…}`）：Freed Size 均为 **0 B**，只增不减。路由对象的数量不应随请求增长，这里的异常增量强烈暗示路由表或路由匹配器在每次请求时被重复创建，并挂载到了某个长期存活的引用上。
+
+综合来看，泄漏的核心特征是：**与 Vue 响应式和路由相关的对象在压测期间持续累积，且释放量为零**。
+
+泄漏对象的类型涉及多个模块（响应式、路由、闭包），说明根因很可能不在某个单一模块内部，而是某个上层入口在每次请求时创建了整棵对象树并持有了引用。接下来逐一排查可能的嫌疑点。
+
+### 排除单例问题
+
+怀疑日志服务的单例实现有问题——如果插件入口处每次调用 `getInstance` 时单例未能正确复用，就会重复创建 `ServerLogger` 实例，造成内存持续增长：
 
 ```typescript
 export default defineNitroPlugin((nitroApp) => {
@@ -319,13 +364,15 @@ export default defineNitroPlugin((nitroApp) => {
 })
 ```
 
-经过排查,发现内存中只有一个logger实例,并没有出现多个实例的情况,所以单例模式是正确的,并不是单例错误导致的内存泄漏
+通过堆快照在 Summary 视图中检索 `ServerLogger` 构造函数，可以看到内存中只存在一个实例：
 
 ![单例](./img/singleton.png)
 
-### 多次监听?
+单例实现没有问题，**排除**。
 
-在单例的问题排除后,我又怀疑是多次监听了事件,导致每次请求都创建了一个新的监听器,从而导致内存泄漏,可见如下代码,如果多次调用startTrack方法,就会多次监听nuxtNodeLog事件,从而导致内存泄漏
+### 排除监听器泄漏
+
+另一个怀疑方向是事件监听器的重复注册。审查 `startTrack` 方法可以发现，`setInterval` 的重复创建虽然有 `#loggerTimer` 守卫，但 `on` 的调用却没有类似的防重入保护——如果 `startTrack` 被多次调用，监听器就会不断累积：
 
 ```typescript
 class Logger {
@@ -352,20 +399,91 @@ class Logger {
 }
 ```
 
-1. 首先找到单例的ServerLogger实例(内存区域为@219219)
-   ![单例实例](./img/logger.png)
-2. 顺藤摸瓜找到EventEmitter实例(内存区域为@124443)
-   ![事件监听器](./img/emitter.png)
-   可以清晰的看到 nuxtNodeLog它指向 `() @219019` 这代表当前事件只有一个监听器
+通过堆快照验证监听器数量：
 
-> Tips:
+1. 找到单例的 `ServerLogger` 实例（内存标识 @219219）
+   ![单例实例](./img/logger.png)
+2. 顺藤摸瓜找到其持有的 `EventEmitter` 实例（内存标识 @124443）
+   ![事件监听器](./img/emitter.png)
+   `nuxtNodeLog` 指向 `() @219019`，是一个函数而非数组，说明当前只有一个监听器。
+
+同样没有异常，**排除**。
+
+> Tips：Node.js 的 `EventEmitter` 为了优化性能，对监听器的存储方式做了区分：
 >
-> Node.js 的 `EventEmitter` 为了优化性能，存储方式有两种情况：
+> - **单个监听器**：`_events.eventName` → `Function`
+> - **多个监听器**：`_events.eventName` → `Array`
 >
-> 情况 A：只有一个监听器
->
-> - **结构**：`_events.eventName` -> `Function`
->
-> 情况 B：有多个监听器
->
-> - **结构**：`_events.eventName` -> `Array`
+> 因此在堆快照中，只需观察对应事件名的值类型，即可快速判断监听器是否重复注册。
+
+### 沿 Retainers 追踪引用链
+
+排除了单例和监听器两个方向后，回到堆快照本身。在手动调用 `global.gc()` 后重新观察 Summary 视图，大量业务对象仍未被回收，且数量持续增长：
+
+![after-summer](./img/summary-after.png)
+
+展开 Nuxt 的路由对象，可以看到 Distance 列显示为 `-`：
+
+![memory-leak](./img/memory-leak-route.png)
+
+> Distance 为 `-` 表示这些对象从 GC Root 不可达——按理应该被垃圾回收器回收，但它们仍然驻留在堆中，说明有其他机制在阻止回收。
+
+选中内存标识 @435451 的路由对象，查看下方的 **Retainers** 面板，可以看到它被一个 `system / Context` 对象所保留——这正是前文介绍的闭包作用域对象：
+
+![leak-system-context](./img/leak-system-context.png)
+
+继续追踪 Context @837121 的 Retainers，发现它被 **DevTools console** 所保留：
+
+![vue-reactivity-leak-console](./img/vue-reactivity-leak-console.png)
+
+在其他大量 `system / Context` 对象中也能看到相同的 Retainers 指向——全部被 DevTools console 保留：
+
+![vue-app-hook-error](./img/vue-app-hook-error.png)
+
+至此，引用链已经清晰：**业务对象 → 闭包 Context → DevTools console（全局句柄）**。
+
+### Containment 视图确认全局句柄
+
+为了进一步验证，切换到 Containment 视图，找到 Global Handles @23：
+
+![global-handlers](./img/global-handlers.png)
+
+该全局句柄明确持有字符串 `debugger mode: window.unhandledrejection` 和大量 `Error` 对象的引用。这些 `Error` 对象又通过闭包作用域间接引用了路由对象、Vue 响应式对象等业务数据，形成了一条完整的泄漏链。
+
+### 定位业务代码
+
+结合全局句柄中的 `debugger mode` 字符串，在代码中定位到以下逻辑：
+
+```ts
+nuxtApp.hook('app:error', (error) => {
+	const isDebuggerMode = getIsDebuggerMode()
+	if (isDebuggerMode) {
+		console.error('debugger mode: app:error', error)
+	}
+})
+
+export function getIsDebuggerMode() {
+	if (import.meta.client) {
+		const urlParams = new URLSearchParams(window.location.search)
+		return urlParams.has('debugger')
+	}
+	if (import.meta.dev) {
+		return false
+	}
+	return true
+}
+```
+
+问题的根因现在完全清晰了：
+
+1. `getIsDebuggerMode()` 在服务端（非 `client`、非 `dev`）始终返回 `true`。
+2. 每次请求出错时，`app:error` 钩子都会执行 `console.error`，将 `Error` 对象写入标准错误输出。
+3. Node.js 的 `console` API 会以**全局句柄**的形式保留对输出对象的引用，阻止 GC 回收。
+4. `Error` 对象通过闭包和调用栈间接引用了大量业务对象（路由表、Vue 响应式依赖等），这些对象也随之无法被回收。
+5. 随着请求不断到来，未释放的对象持续累积，内存稳步增长，最终引发 OOM。
+
+## 总结
+
+本次内存泄漏的直接原因是：在高频请求路径上通过 `console.error` 输出了包含复杂引用关系的 `Error` 对象。
+
+在 Node.js 中，`console.error` / `console.log` 向标准输出/标准错误写入数据是异步的，写入的内容会先进入内存缓冲区。更关键的是，`console` 输出的对象会被运行时以Global Handle的形式保留强引用，阻止 GC 回收这些对象及其整条引用链。当高频调用 `console` 输出携带大量引用的对象时，泄漏会随请求量线性增长。
