@@ -1,6 +1,10 @@
 import type { MermaidConfig } from 'mermaid'
 
-import { dispatchPanZoomViewerContentReady } from './constant'
+import {
+	dispatchPanZoomViewerContentReady,
+	PAN_ZOOM_VIEWER_HEIGHT_VAR,
+	PAN_ZOOM_VIEWER_WIDTH_VAR,
+} from './constant'
 
 // 应该懒加载
 class MermaidViewer extends HTMLElement {
@@ -14,8 +18,6 @@ class MermaidViewer extends HTMLElement {
 		if (this._rendered) {
 			return
 		}
-
-		this.style.display = 'block'
 
 		const codeEncoded = this.getAttribute('code')
 		if (!codeEncoded) {
@@ -52,30 +54,47 @@ class MermaidViewer extends HTMLElement {
 
 			this._rendered = true
 			this.removeAttribute('data-hidden')
+			this.prepareHost()
 
 			if (renderedSvg instanceof SVGSVGElement) {
-				dispatchPanZoomViewerContentReady(this, {
-					kind: 'svg',
-					target: renderedSvg,
+				requestAnimationFrame(() => {
+					dispatchPanZoomViewerContentReady(this, {
+						kind: 'svg',
+						target: renderedSvg,
+					})
 				})
 			}
 		} catch (err) {
 			const errorMessage = err instanceof Error ? err.message : String(err)
 			this.innerHTML = `<pre style="color: red; padding: 10px; border: 1px solid red;">Mermaid Error: ${errorMessage}</pre>`
+			this.removeAttribute('data-hidden')
 		}
 	}
 
 	private prepareSVG(svg: SVGSVGElement): void {
 		svg.style.display = 'block'
-		svg.style.maxWidth = 'none'
+		svg.removeAttribute('width')
+		svg.removeAttribute('height')
+		svg.setAttribute('preserveAspectRatio', 'xMidYMid meet')
+		svg.style.width = 'auto'
+		svg.style.height = 'auto'
+		svg.style.maxWidth = '100%'
+		svg.style.maxHeight = '100%'
+		svg.style.margin = '0 auto'
+		svg.style.flex = '0 0 auto'
+	}
 
-		const { width, height } = svg.viewBox.baseVal
-		if (width > 0) {
-			svg.style.width = `${width}px`
-		}
+	private prepareHost(): void {
+		this.style.display = 'block'
+		this.style.width = `var(${PAN_ZOOM_VIEWER_WIDTH_VAR}, 100%)`
+		this.style.height = 'auto'
 
-		if (height > 0) {
-			svg.style.height = `${height}px`
+		if (this.closest('pan-zoom-viewer')) {
+			this.style.height = `var(${PAN_ZOOM_VIEWER_HEIGHT_VAR}, 100%)`
+			this.style.display = 'flex'
+			this.style.alignItems = 'center'
+			this.style.justifyContent = 'center'
+			this.style.overflow = 'visible'
 		}
 	}
 }

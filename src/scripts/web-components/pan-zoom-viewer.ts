@@ -5,13 +5,15 @@ import Panzoom, {
 
 import {
 	PAN_ZOOM_VIEWER_CONTENT_READY_EVENT,
+	PAN_ZOOM_VIEWER_HEIGHT_VAR,
+	PAN_ZOOM_VIEWER_WIDTH_VAR,
 	type PanZoomViewerContentReadyDetail,
 	type PanZoomViewerTransformTarget,
 } from './constant'
 
 const TAG_NAME = 'pan-zoom-viewer'
 const EXCLUDE_CLASS = 'panzoom-exclude'
-const DEFAULT_MIN_SCALE = 0.25
+const DEFAULT_MIN_SCALE = 0.05
 const DEFAULT_MAX_SCALE = 6
 const DEFAULT_STEP = 0.2
 
@@ -153,6 +155,11 @@ class PanZoomViewer extends HTMLElement {
 					transform-origin: 50% 50%;
 				}
 
+				.scene.has-external-target {
+					width: 100%;
+					height: 100%;
+				}
+
 				slot {
 					display: block;
 				}
@@ -164,6 +171,15 @@ class PanZoomViewer extends HTMLElement {
 				::slotted(video) {
 					display: block;
 					max-width: none !important;
+				}
+
+				::slotted(mermaid-viewer) {
+					width: 100%;
+					height: 100%;
+					display: flex;
+					align-items: center;
+					justify-content: center;
+					max-width: 100% !important;
 				}
 
 				.fullscreen-button {
@@ -281,6 +297,7 @@ class PanZoomViewer extends HTMLElement {
 		document.addEventListener(
 			'fullscreenchange',
 			() => {
+				this.syncExternalViewportSize()
 				this.updateFullscreenButtonState()
 				this.scheduleFit()
 			},
@@ -301,6 +318,7 @@ class PanZoomViewer extends HTMLElement {
 			(this.contentSource && !this.isOwnedContent(this.contentSource)) ||
 			(this.contentTarget && !this.contentTarget.isConnected)
 		) {
+			this.clearExternalViewportSize(this.contentSource)
 			this.contentSource = null
 			this.contentTarget = null
 		}
@@ -321,6 +339,10 @@ class PanZoomViewer extends HTMLElement {
 			return
 		}
 
+		if (this.contentSource && this.contentSource !== source) {
+			this.clearExternalViewportSize(this.contentSource)
+		}
+
 		this.contentSource = source
 		this.contentTarget = nextTarget
 		event.stopPropagation()
@@ -332,6 +354,8 @@ class PanZoomViewer extends HTMLElement {
 		if (!nextTarget) {
 			return
 		}
+
+		this.syncSceneMode(nextTarget)
 
 		if (this.panzoom && this.activeTarget === nextTarget) {
 			this.panzoom.setOptions(this.getPanzoomOptions(nextTarget))
@@ -359,6 +383,7 @@ class PanZoomViewer extends HTMLElement {
 			return this.contentTarget
 		}
 
+		this.clearExternalViewportSize(this.contentSource)
 		this.contentSource = null
 		this.contentTarget = null
 
@@ -379,57 +404,37 @@ class PanZoomViewer extends HTMLElement {
 		this.interactionAbortController?.abort()
 		this.interactionAbortController = null
 
-		if (!this.panzoom || !this.canvas) {
+		if (!this.panzoom || !this.activeTarget) {
 			return
 		}
 
 		this.interactionAbortController = new AbortController()
 		const signal = this.interactionAbortController.signal
-		const { down, move, up } = this.panzoom.eventNames
+		const wheelTarget = this.activeTarget.parentElement ?? this.canvas
 
-		for (const eventName of down.split(' ')) {
-			this.canvas.addEventListener(eventName, this.handlePanzoomDown, {
-				passive: false,
-				signal,
-			})
-		}
-
-		for (const eventName of move.split(' ')) {
-			document.addEventListener(eventName, this.handlePanzoomMove, {
-				passive: false,
-				signal,
-			})
-		}
-
-		for (const eventName of up.split(' ')) {
-			document.addEventListener(eventName, this.handlePanzoomUp, {
-				passive: false,
-				signal,
-			})
-		}
-
-		this.canvas.addEventListener('wheel', this.handleWheel, {
+		wheelTarget?.addEventListener('wheel', this.handleWheel, {
 			passive: false,
+			signal,
+		})
+
+		this.activeTarget.addEventListener(
+			'panzoomstart',
+			this.handlePanzoomStart,
+			{
+				signal,
+			}
+		)
+		this.activeTarget.addEventListener('panzoomend', this.handlePanzoomEnd, {
 			signal,
 		})
 	}
 
-	private handlePanzoomDown = (event: Event): void => {
-		if (!this.panzoom) {
-			return
-		}
-
+	private handlePanzoomStart = (): void => {
 		this.canvas?.classList.add('is-panning')
-		this.panzoom.handleDown(event as PointerEvent)
 	}
 
-	private handlePanzoomMove = (event: Event): void => {
-		this.panzoom?.handleMove(event as PointerEvent)
-	}
-
-	private handlePanzoomUp = (event: Event): void => {
+	private handlePanzoomEnd = (): void => {
 		this.canvas?.classList.remove('is-panning')
-		this.panzoom?.handleUp(event as PointerEvent)
 	}
 
 	private handleWheel = (event: WheelEvent): void => {
@@ -448,6 +453,41 @@ class PanZoomViewer extends HTMLElement {
 		this.panzoom?.destroy()
 		this.panzoom = null
 		this.activeTarget = null
+		this.scene?.classList.remove('has-external-target')
+	}
+
+	private syncSceneMode(target: PanZoomViewerTransformTarget): void {
+		this.scene?.classList.toggle('has-external-target', target !== this.scene)
+		if (target === this.scene) {
+			this.clearExternalViewportSize(this.contentSource)
+			return
+		}
+
+		this.syncExternalViewportSize()
+	}
+
+	private syncExternalViewportSize(): void {
+		if (!this.viewport || !(this.contentSource instanceof HTMLElement)) {
+			return
+		}
+
+		this.contentSource.style.setProperty(
+			PAN_ZOOM_VIEWER_WIDTH_VAR,
+			`${this.viewport.clientWidth}px`
+		)
+		this.contentSource.style.setProperty(
+			PAN_ZOOM_VIEWER_HEIGHT_VAR,
+			`${this.viewport.clientHeight}px`
+		)
+	}
+
+	private clearExternalViewportSize(source: Element | null): void {
+		if (!(source instanceof HTMLElement)) {
+			return
+		}
+
+		source.style.removeProperty(PAN_ZOOM_VIEWER_WIDTH_VAR)
+		source.style.removeProperty(PAN_ZOOM_VIEWER_HEIGHT_VAR)
 	}
 
 	private startObservers(): void {
@@ -457,6 +497,7 @@ class PanZoomViewer extends HTMLElement {
 
 		this.resizeObserver?.disconnect()
 		this.resizeObserver = new ResizeObserver(() => {
+			this.syncExternalViewportSize()
 			this.scheduleFit()
 		})
 
@@ -482,11 +523,11 @@ class PanZoomViewer extends HTMLElement {
 	): PanzoomGlobalOptions {
 		return {
 			animate: false,
+			canvas: true,
 			cursor: 'grab',
 			excludeClass: EXCLUDE_CLASS,
 			maxScale: this.maxScale,
 			minScale: this.minScale,
-			noBind: true,
 			overflow: target === this.scene ? 'hidden' : 'visible',
 			step: this.step,
 			touchAction: 'none',
@@ -544,6 +585,10 @@ class PanZoomViewer extends HTMLElement {
 
 		this.panzoom.pan(0, 0, { animate: false, force: true })
 		this.panzoom.zoom(1, { animate: false, force: true })
+
+		if (this.activeTarget !== this.scene) {
+			return
+		}
 
 		requestAnimationFrame(() => {
 			const targetRect = this.getTargetRect()

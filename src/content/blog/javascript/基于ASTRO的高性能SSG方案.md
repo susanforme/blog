@@ -929,3 +929,897 @@ if (import.meta.env.NON_MAIN_SITE) {
 
 你真正要记住的不是某一个 API，而是这个心智模型：Astro 产物一旦离开它原本的部署目录，资源地址的所有权就从构建阶段转移到了宿主消费阶段。谁控制这个阶段，谁就应该负责把路径解释正确。
 
+## 为什么主站已经切到德语，Astro 落地页还是英文？
+
+页面结构接上了，资源路径也改对了，但一旦进入真实业务，马上又会冒出另一个问题：主站当前语言已经切到 `de`，Nuxt 的导航、页头、结算模块都是德语，嵌进去的 Astro 落地页却还是英文。
+
+这件事乍一看像是“有些文案没翻译”。但如果你继续排查，会发现问题并不只是文案缺失：
+
+- 本地开发时，页面可以跟着 `.lang.env` 切语言。
+- 独立构建 `jp` 站点时，页面也能正常输出日文。
+- 偏偏在 Nuxt 主站里，语言控制开始变得不稳定。
+
+这说明真正出问题的不是“查不到文案”，而是**当前语言的控制权没有被收口**。
+
+先看一个最容易写出来，也最容易在后面失控的版本。假设原始文案是这样组织的：
+
+```ts
+export default {
+	hero: {
+		title: {
+			en: 'Summer Sale',
+			de: 'Sommer Sale',
+			jp: 'サマーセール',
+		},
+		tip: {
+			en: 'Save {discount} today',
+			de: 'Spare heute {discount}',
+			jp: '本日 {discount} オフ',
+		},
+	},
+}
+```
+
+很多人第一版会这么写：
+
+```ts
+import messages from './i18n'
+
+const lang = window.parent?.$nuxt?.$store?.state?.lang || 'en'
+const title = messages.hero.title[lang]
+const tip = messages.hero.tip[lang].replace('{discount}', '20%')
+```
+
+这段代码乍一看完全合理：组件自己拿语言，自己取值，自己做插值，功能也确实能跑起来。
+
+问题在于，它把三件本来应该分开的事情揉在了一起：
+
+- 当前语言从哪里来
+- 文案结构长什么样
+- fallback 和参数插值怎么处理
+
+一旦页面要同时支持开发调试、独立国家站构建、以及 Nuxt 主站嵌入，这种写法很快就会在每个组件里长出一堆环境判断。
+
+所以这里真正该解决的，不是先造一个 `$t()` 函数，而是先把职责拆开：运行时只负责取词，构建期负责整理文案，工具层负责决定当前语言。
+
+有了这个前提，再看你这套实现，逻辑就顺了。
+
+### 先把运行时收口：业务组件只管传 key，不管语言来源
+
+先看最核心的运行时实现：
+
+```ts
+export class I18n<
+	const T extends Translations,
+	DefaultLang extends LanguageCodeType = 'en',
+> {
+	#messages: T
+	#defaultLang: LanguageCodeType
+	#lang: LanguageCodeType
+	#options: I18nOption<T>
+
+	constructor(options: I18nOption<T>) {
+		const {
+			messages,
+			defaultLang = LANGUAGE_CODE.EN,
+			initLang = defaultLang,
+		} = options
+		this.#messages = messages
+		this.#defaultLang = defaultLang
+		this.#lang = initLang
+		this.#options = options
+		this.getText = this.getText.bind(this)
+	}
+
+	changeLang(lang: LanguageCodeType) {
+		this.#lang = lang
+	}
+}
+```
+
+`I18n` 做的事情其实很克制：
+
+- 保存当前语言 `#lang`
+- 保存兜底语言 `#defaultLang`
+- 暴露统一的 `getText()` 接口
+
+真正有意思的地方在 `getText()`。它不是简单从当前语言字典里读取值，而是带着 fallback 和插值能力一起做：
+
+```ts
+getText(keyPath: KeyPath, params: Record<string, string> = {}): any {
+  const langTranslations =
+    this.#messages[this.#lang] ?? this.#messages[this.#defaultLang]
+
+  const localPath = keyPath
+  let text = this.#getNested(langTranslations, localPath)
+
+  if (text === undefined) {
+    text = this.#getNested(this.#messages[this.#defaultLang], localPath)
+  }
+
+  if (text === undefined) {
+    if (this.#options.warning) {
+      const pathStr = Array.isArray(localPath)
+        ? localPath.join('.')
+        : localPath
+      console.warn(`[i18n]-[${this.#lang}] keyPath: ${pathStr} not found`)
+    }
+    return Array.isArray(localPath) ? localPath.join('.') : localPath
+  }
+
+  if (typeof text === 'string' && params) {
+    Object.entries(params).forEach(([param, value]) => {
+      const regex = new RegExp(`\\{${param}\\}`, 'g')
+      text = text.replace(regex, value)
+    })
+  }
+
+  return text
+}
+```
+
+这里有三个关键点。
+
+第一，当前语言找不到时，会回退到默认语言。这保证了某个 locale 文案还没补齐时，页面至少是可展示的，而不是直接把 `undefined` 渲到页面上。
+
+第二，取值逻辑支持 `a.b.c` 这种点路径，不要求业务代码自己一层层解对象。
+
+第三，插值在运行时统一处理，例如：
+
+```ts
+$t('hero.coupon.tip', { discount: '20%' })
+```
+
+如果原始文案是：
+
+```ts
+{
+  en: 'Save {discount} today',
+  de: 'Spare heute {discount}',
+}
+```
+
+最终业务代码就不需要再手写字符串拼接。
+
+从工程角度看，这一步解决的是“怎么取值”；但更重要的是，它把国际化的运行时语义统一了。后面不管语言来自 `.env`、来自 Nuxt store，还是来自单语言构建，业务层看到的都只有同一个 `$t()` 接口。
+
+### 第二层：为什么消息结构要先做一次转换，而不是直接把原始文案扔给组件
+
+只看业务代码，很容易以为国际化数据直接这样写就结束了：
+
+```ts
+export default {
+	hero: {
+		title: {
+			en: 'Summer Sale',
+			de: 'Sommer Sale',
+			jp: 'サマーセール',
+		},
+		desc: {
+			en: 'Save {discount} today',
+			de: 'Spare heute {discount}',
+			jp: '本日 {discount} オフ',
+		},
+	},
+}
+```
+
+这种原始结构对“维护文案”很友好，因为同一个 key 的多语言值聚在一起；但它对“运行时取值”并不友好。因为业务组件每次都得先知道当前语言，再去叶子节点上拿值。
+
+所以插件里多做了一步 `transformI18n()`，把它转换成“按语言展开”的结构：
+
+```ts
+function transformI18n(input: any, languages: string[], defaultLang: string) {
+	function extractLang(node: any, lang: string): any {
+		if (Array.isArray(node)) {
+			return node.map((item) => extractLang(item, lang))
+		}
+
+		if (typeof node === 'object' && node !== null) {
+			const keys = Object.keys(node)
+
+			if (keys.length > 0 && keys.every((key) => languages.includes(key))) {
+				const value = node[lang]
+				if (value === null || value === undefined || value === '') {
+					return node[defaultLang]
+				}
+				return value
+			}
+
+			const obj: Record<string, any> = {}
+			for (const key in node) {
+				obj[key] = extractLang(node[key], lang)
+			}
+			return obj
+		}
+
+		return node
+	}
+
+	const result: Record<string, any> = {}
+	for (const lang of languages) {
+		result[lang] = extractLang(input, lang)
+	}
+	return structuredClone(result)
+}
+```
+
+这个函数里真正决定结果的，不是递归本身，而是这条规则：
+
+```ts
+if (keys.length > 0 && keys.every((key) => languages.includes(key)))
+```
+
+它的含义是：**如果当前对象的所有 key 都是语言代码，那它就是一个多语言叶子节点；否则它仍然只是普通业务对象，需要继续往下递归。**
+
+经过转换之后，运行时拿到的结构就会变成这样：
+
+```ts
+{
+  en: {
+    hero: {
+      title: 'Summer Sale',
+      desc: 'Save {discount} today',
+    },
+  },
+  de: {
+    hero: {
+      title: 'Sommer Sale',
+      desc: 'Spare heute {discount}',
+    },
+  },
+}
+```
+
+一旦变成这种结构，`I18n` 在运行时只需要先锁定当前语言，再按路径读取值就行了。业务组件不再需要知道“多语言叶子节点”这个概念。
+
+这里顺手还解决了一个很实际的问题：如果目标语言值是 `null`、`undefined` 或空字符串，就自动回退到默认语言。
+
+```ts
+if (value === null || value === undefined || value === '') {
+	return node[defaultLang]
+}
+```
+
+这不是为了偷懒，而是因为真实项目里文案补齐通常不是原子操作。页面先可用，再逐步补全 locale，往往比严格阻塞更符合业务节奏。
+
+当然，这也有 trade-off：空字符串在这里会被视为“缺失值”。如果你的业务里确实有“我就是要显示空字符串”的场景，那这条规则就需要单独调整。
+
+### 第三层：当前语言到底由谁决定？这才是主站集成时最关键的问题
+
+到了这里，取词和消息结构都统一了，但国际化还有一个最核心的问题没有回答：当前语言到底从哪里来？
+
+这件事在纯 Astro 项目里通常不复杂，但在“Astro 产物嵌入 Nuxt 主站”的架构里，语言来源至少有三种：
+
+1. 开发调试时，希望本地临时指定语言。
+2. 独立站点构建时，语言在 build 阶段就已经确定。
+3. 主站嵌入运行时，语言应该跟随 Nuxt 当前 store 状态。
+
+所以代码里没有把 `getLang()` 写死，而是在虚拟模块里动态生成：
+
+```ts
+const envCode = js`
+  export function getLang() {
+    ${config.command !== 'build' ? "return '" + lang + "';" : ''};
+    ${buildLang ? "return '" + buildLang + "';" : ''};
+    const storeLang = window.parent?.$nuxt?.$store?.state?.lang;
+    if (!storeLang) {
+      return '${LANGUAGE_CODE.EN}';
+    }
+    return storeLang;
+  }
+`
+```
+
+这里其实不是一个“取语言小工具”，而是一条语言优先级链路：
+
+- 开发环境优先读 `.lang.env`
+- 指定 `buildLang` 时，直接输出单语言构建
+- 主站嵌入场景则退回到 `window.parent?.$nuxt?.$store?.state?.lang`
+- 全都拿不到时，最后才 fallback 到 `en`
+
+这样做最重要的好处，是把“语言归属权”明确下来了。
+
+- 开发阶段，语言归属权在本地调试环境。
+- 独立站场景，语言归属权在构建系统。
+- 主站场景，语言归属权在宿主运行时。
+
+这也是为什么同一套国际化代码既能服务 Astro 独立页面，也能服务嵌入式主站场景。
+
+### 第四层：为什么要区分主站语言和非主站语言
+
+如果所有语言都无脑打进每一份产物，当然最省心，但这会直接增加页面体积。对于原本就强调首屏性能的 SSG 页面来说，这个代价并不小。
+
+所以代码里先把语言分成了两类：
+
+```ts
+export const nonMainSiteLang: LanguageCodeType[] = [
+	LANGUAGE_CODE.JP,
+	LANGUAGE_CODE.KR,
+]
+
+export const mainSiteLang: LanguageCodeType[] = Object.values(
+	LANGUAGE_CODE
+).filter((lang) => !nonMainSiteLang.includes(lang)) as LanguageCodeType[]
+```
+
+接着在构建插件里决定最终要带哪些语言：
+
+```ts
+let languages = Object.values(LANGUAGE_CODE)
+const AllLanguage = Object.values(LANGUAGE_CODE)
+
+if (config.command === 'build') {
+	if (buildLang) {
+		languages = buildLang.split(',') as LanguageCodeType[]
+	} else {
+		languages = languages.filter((item) => !nonMainSiteLang.includes(item))
+	}
+}
+```
+
+这背后的思路是：
+
+- 主站场景下，只打主站真正会切换到的语言包。
+- 独立站场景下，直接用 `buildLang` 生成单语言产物。
+- `transformI18n()` 虽然会先面向 `AllLanguage` 做一次完整展开，但最终注入到虚拟模块里的只会是当前产物真正需要的语言。
+
+换句话说，这里不是在追求“绝对最少代码”，而是在做一个更符合业务边界的 trade-off：
+
+- 如果你希望同一份主站产物支持运行时切语，就需要在这份产物里保留对应语言包。
+- 如果某些国家站本来就是独立部署，那完全没必要把别的语言也带进去。
+
+### 第五层：为什么业务代码最终不直接 import 文案，而是 import `~i18n`
+
+前面几层其实已经能说明这套机制为什么成立了，但还有一个实现上的关键点：这些逻辑为什么要收敛成一个 Vite 虚拟模块？
+
+看核心代码：
+
+```ts
+export async function viteI18n(buildLang?: LanguageCodeType): Promise<Plugin> {
+	const virtualModuleId = '~i18n'
+
+	return {
+		name: 'vite-plugin-i18n',
+		enforce: 'pre',
+		resolveId(source) {
+			if (source === virtualModuleId) {
+				return source
+			}
+		},
+		async load(id) {
+			if (id === virtualModuleId) {
+				// 动态生成模块内容
+			}
+		},
+	}
+}
+```
+
+在 `load()` 里，插件会把消息数据、`getLang()`、`I18n` 实例以及 `$t` 全部拼成一个最终模块：
+
+```ts
+const transformCode = `
+  import { I18n, LANGUAGE_CODE } from '@lp/i18n';
+  ${messagesCode}
+  export const i18n = new I18n({
+    messages,
+    defaultLang: LANGUAGE_CODE.EN,
+    initLang: ${config.command !== 'build' ? 'getLang()' : `'${languages[0]}'`},
+  });
+  export const $t = i18n.getText;
+  ${envCode}
+`
+```
+
+这样业务代码最终只需要：
+
+```ts
+import { $t } from '~i18n'
+
+const title = $t('hero.title')
+const coupon = $t('hero.desc', { discount: '20%' })
+```
+
+这个设计的价值不只是“import 更短”，而是把以下几件原本可能散落在业务层的事情，全部折叠到了构建工具层：
+
+- 语言来源判断
+- 消息结构转换
+- 默认语言 fallback
+- `$t` 实例创建
+- 语言包过滤
+
+业务组件越少知道这些细节，它越容易在主站、独立页、预览环境之间复用。
+
+### 第六层：为什么还能做到类型提示，而且支持深层路径
+
+如果 `$t()` 只是 `function $t(key: string): string`，运行时当然也能用，但工程体验会很差。路径拼错、数组下标写错、对象层级改了，都会变成运行时问题。
+
+所以 `core.ts` 里额外做了一层类型系统约束：
+
+```ts
+type ValidKey<T> = T extends readonly any[]
+	? Extract<keyof T, `${number}`>
+	: keyof T & string
+
+type DotKeys<T> = T extends object
+	? {
+			[K in ValidKey<T>]: K | `${K}.${DotKeys<T[K]>}`
+		}[ValidKey<T>]
+	: never
+
+type ValueAtPath<T, P extends string> = P extends `${infer Head}.${infer Rest}`
+	? Head extends keyof T
+		? ValueAtPath<T[Head], Rest>
+		: never
+	: P extends keyof T
+		? T[P]
+		: never
+```
+
+配合 `getText()` 的重载：
+
+```ts
+getText<const P extends DotKeys<T[DefaultLang]>>(
+  keyPath: P,
+  params?: Record<string, string>,
+): ValueAtPath<T[DefaultLang], P>
+```
+
+你就可以拿到这样的体验：
+
+```ts
+const deepVal = $t(
+	'blue.level1.level2.level3.level4.level5.level6.level7.deepValue'
+)
+const arrayItem = $t('blue.arrayObject.0.name')
+```
+
+这里很值得注意的一点是，数组路径也被支持了，因为 `ValidKey<T>` 对数组只保留 `'0'`、`'1'` 这种数字字符串键，剔除了 `length`、`push` 之类的方法名。
+
+这一步并不直接影响运行时逻辑，但它会明显改变国际化在大项目里的可维护性。你越早把路径错误收敛到类型系统，后面就越少在页面里追查“为什么某个 key 渲染成了原字符串”。
+
+当然，递归类型也不是没有代价。文案对象非常大、层级非常深时，TypeScript 推导成本会变高，编辑器提示也可能变慢。所以这类方案更适合结构稳定、命名有规律的文案系统；如果你的文案来源本身极度动态，这种强类型路径未必划算。
+
+### 第七层：为什么开发时改了文案，插件还能立即感知
+
+前面解决的是运行时和构建时的国际化语义，开发体验这边还有一个实际问题：`src/i18n.js` 变更之后，怎么让 `~i18n` 重新生成？
+
+这里的实现并没有直接 `import 'src/i18n.js'`，而是先读源码文本，再用 `esbuild` 转成可执行代码：
+
+```ts
+const rawCode = await readFile(
+	path.resolve(config.root, 'src/i18n.js'),
+	'utf-8'
+)
+
+const { code: i18nRwaCode } = await transformWithEsbuild(rawCode, '', {
+	loader: 'js',
+	format: 'cjs',
+})
+
+const exports: { default?: any } = {}
+const module = { exports }
+const fn = new Function('module', 'exports', i18nRwaCode)
+fn(module, exports)
+
+const i18nMessage = module.exports.default
+```
+
+这么做最核心的原因其实已经写在注释里了：
+
+```ts
+// 只能通过文本读取的方式,因为import是有缓存的
+```
+
+如果这里直接在 Node 侧 `import` 文案模块，开发阶段就会受到模块缓存影响，虚拟模块不一定能拿到最新文案。改成“读文件文本 -> 转译 -> 执行”之后，每次 `load()` 都能拿到当前最新版本。
+
+然后再配合文件监听，让虚拟模块失效并触发刷新：
+
+```ts
+configureServer(server) {
+  const scanPath = [
+    normalizePath(path.resolve(config.root, 'src/i18n.js')),
+  ]
+  if (envPath) {
+    scanPath.push(normalizePath(envPath))
+  }
+  watchAndInvalidateVirtualModule(server, scanPath, virtualModuleId, true)
+}
+```
+
+这里连 `.lang.env` 一起监听，也很有意义。因为开发调试时，语言切换不一定是改文案文件，也可能只是把：
+
+```env
+lang=de
+```
+
+改成：
+
+```env
+lang=fr
+```
+
+从效果看，这种方案不是最“优雅”的，它用了 `new Function()`，而且语言变化时走的是 `full-reload`，不是细粒度 HMR。但在内部构建体系里，这个 trade-off 很实际：实现简单，行为明确，排查路径也短。
+
+需要注意的边界也很清楚：这类动态执行只适合处理受信任的本地文案源文件。如果文案来源是外部上传或不可信输入，就不应该沿用这一套执行方式。
+
+### 第八层：为什么还要生成 `d.ts`
+
+如果业务最终是从 `~i18n` 引入 `$t`，编辑器默认并不知道这个虚拟模块长什么样。所以插件在开发阶段还会补一份声明文件：
+
+```ts
+declare module '~i18n' {
+  import { I18n, LanguageCodeType } from '@lp/i18n'
+  export const message: ${messageCode}
+  export const i18n: I18n<typeof message, 'en'>
+  export const $t: typeof i18n.getText
+  export function getLang(): LanguageCodeType
+}
+```
+
+对应实现就是：
+
+```ts
+await fse.outputFile(
+	path.resolve(rootPath, './src/types/lp-i18n.d.ts'),
+	declaration,
+	'utf-8'
+)
+```
+
+这一步看起来像“开发体验增强”，但它其实是在给前面的类型系统方案补最后一块拼图。没有这层声明，`$t` 的路径提示和返回值推导就很难真正落到业务代码里。
+
+### 小结
+
+处理这类嵌入式 Astro 页面里的国际化，最容易走偏的地方在于：我们总想先写一个 `$t()`，却没有先回答“语言由谁决定”。
+
+这套方案真正稳定的原因，不在某个单独函数，而在于它把国际化拆成了四个职责明确的层次：
+
+- `I18n` 类负责统一运行时取词、fallback 和插值。
+- `transformI18n()` 负责把维护友好的原始文案，转换成运行时友好的消息结构。
+- `~i18n` 虚拟模块负责桥接构建环境、宿主运行时和业务层。
+- 监听与类型声明负责把这套机制真正落到开发体验里。
+
+如果你下次再遇到“主站切语言了，但 Astro 区块没切”这种问题，可以优先检查三件事：
+
+1. 当前语言到底是从 build、env 还是宿主 store 拿的。
+2. 当前产物里到底包含了哪些语言包。
+3. 业务代码拿到的是原始文案对象，还是统一过的 `$t` 接口。
+
+一旦把这三件事分清楚，国际化问题就不再是零散 bug，而是一个有明确控制边界的系统设计问题。
+
+
+## 如何处理在服务端渲染和客户端渲染使用相同Astro产物可能引发的问题？
+
+前面两节已经解决了两件事：
+
+- Astro 默认输出的是整页 HTML，主站真正需要的是可插入的业务片段。
+- `astro-island` 上的相对资源路径，进入 Nuxt / Next 这类宿主之后，需要在运行时重新解释。
+
+走到这里，主站接入已经基本成立：服务端可以把 Astro 片段塞进自己的 SSR 模板里，浏览器也能继续让 Island 激活起来。
+
+但这套方案还会遇到一个更隐蔽的问题：**同一套 Astro 页面，能不能只构建一份产物，同时给主站 SSR 和非主站客户端挂载场景复用？**
+
+这个问题之所以容易踩坑，不是因为代码写得不够小心，而是因为它看起来太合理了。页面源码明明只有一份，组件源码也只有一份，直觉上很容易把“源码可复用”继续外推成“产物也应该可复用”。
+
+真正的问题恰好出在这一步外推上。
+
+### 先把问题收缩成一个最小对照
+
+在本文前面的主站集成方案里，SSR 场景最终交给宿主的核心节点，仍然是 `astro-island`：
+
+```html
+<astro-island
+  component-url="./assets/_app.BXJsAGJH.js"
+  renderer-url="./assets/client.DAeD31y9.js"
+  props="{}"
+  ssr
+  client="visible"
+></astro-island>
+```
+
+这类产物有一个很强的前提：**HTML 已经存在了，浏览器后续做的是接管，而不是创建。**
+
+它的启动链路大致是这样：
+
+```txt
+server HTML
+  -> astro-island
+  -> load component-url / renderer-url
+  -> hydrate existing DOM
+```
+
+而非主站场景的入口完全不是这个模型。它更接近下面这种结构：
+
+```html
+<div id="shopify-lp-app"></div>
+<script type="module" src="entry-non-main"></script>
+```
+
+这类产物的前提刚好相反：**页面先只有一个容器，后续由浏览器入口脚本自己把应用挂起来。**
+
+它的启动链路是另一套东西：
+
+```txt
+empty container
+  -> entry module
+  -> create app
+  -> mount new DOM tree
+```
+
+这就是这类问题的第一层真相：看起来都在渲染同一套 Vue 组件，真正不同的不是组件，而是页面到底是“接管已有 DOM”，还是“从零创建 DOM”。
+
+### 为什么这件事会让人误判
+
+这个误判其实很自然。
+
+因为从业务视角看，页面内容确实是一套：同样的文案、同样的布局、同样的交互组件、同样的多语言内容。于是最容易形成的心智模型是：Astro build 产物本质上就是一份 HTML 快照，宿主不同只是消费方式略有差异。
+
+这正是最容易偏掉的地方。
+
+对于这套架构来说，编译产物从来都不只是“页面长什么样”，它至少还包含了三类和运行时强相关的信息：
+
+- 页面最开始由谁生成 DOM。
+- 浏览器后续通过哪条入口继续执行。
+- 样式、资源路径、卸载协议归谁管理。
+
+一旦换成这个视角，就会发现“同一份源码”和“同一份产物”之间其实隔着一整层运行时契约。源码的职责是描述页面；产物的职责是描述页面如何被宿主启动。
+
+而服务端渲染和客户端挂载，偏偏不是同一种启动方式。
+
+### 真正冲突的不是 HTML，而是 DOM 的所有权
+
+这件事最适合从 DOM ownership 的角度理解。
+
+SSR 产物里，初始 DOM 的第一所有者是服务端：
+
+```txt
+server renders DOM
+browser hydrates DOM
+```
+
+客户端产物里，初始 DOM 的第一所有者是浏览器入口：
+
+```txt
+browser creates DOM
+browser mounts DOM
+```
+
+这两个模型都能得到看起来相同的页面，但浏览器接手页面的方式完全不同。
+
+一旦把两种产物混用，后果会非常具体：
+
+- 把 SSR 产物交给客户端挂载场景，入口脚本可能会再次创建一棵 DOM 树，造成重复挂载、重复初始化，或者直接找不到预期根节点。
+- 把客户端产物交给 SSR 主站，服务端最终只能输出一个空壳容器，首屏 HTML 和 SEO 优势会一起消失。
+
+这也是为什么这类问题不应该被理解成“某个路径没配对”或者“某个 hook 执行顺序错了”。那些只是表象。更靠前的冲突是：**页面到底是拿来 hydration 的，还是拿来 mount 的。**
+
+### 回到本文上下文：前两节解决的是“主站如何消费 Astro 片段”
+
+这里必须把上下文接回来，否则这个问题会看起来像另一个孤立话题。
+
+前面两节做的事情，本质上是在为主站 SSR 定义一套消费协议：
+
+1. 先把 Astro 的整页产物拆成 `lp-app`、样式、Island 运行时代码。
+2. 再把这些材料重组为主站真正能插入的 `lp-container`。
+3. 最后在运行时补上资源路径修正和卸载逻辑。
+
+这套协议默认依赖一个前提：**服务端已经输出了业务 HTML，浏览器要做的是继续激活这段片段。**
+
+也就是说，前两节解决的是“如何把 Astro 带进 SSR 主站”，而不是“如何让所有宿主都消费同一份最终产物”。
+
+一旦出现另一类宿主，也就是根本不依赖 SSR 外壳、而是只认浏览器入口的场景，问题就从“片段重组”变成了“入口重建”。这已经不是同一层问题了。
+
+### 这也是为什么构建工厂分叉的不是语言，而是产物类型
+
+从代码上看，`buildFactory()` 最容易被读成“多语言构建脚本”。但如果只看到语言，会漏掉它真正分流的对象。
+
+核心逻辑其实是这样的：
+
+```ts
+const ssgLangs = buildLang.filter((lang) => !nonMainSiteLang.includes(lang))
+const spaLangs = buildLang.filter((lang) => nonMainSiteLang.includes(lang))
+
+if (ssgLangs.length) {
+  tasks.push(buildAstroParallel({ buildLang: ssgLangs }))
+} else if (spaLangs.length === 1) {
+  tasks.push(buildNonMain({ buildLang: spaLangs[0] }))
+}
+```
+
+表面上它是在按语言集合分流，真正分出去的却是两类完全不同的交付目标：
+
+- `buildAstroParallel()` 对应主站 / SSG / SSR 集成场景。
+- `buildNonMain()` 对应非主站 / 客户端自启动场景。
+
+这意味着当前架构的核心判断其实非常明确：**不是一份产物适配所有宿主，而是一份源码按宿主类型生成不同产物。**
+
+这个判断看起来会增加一点构建复杂度，但它换来的是运行时模型的稳定性。对于这种跨宿主集成问题，这个 trade-off 通常是值得的。
+
+### 为什么非主站场景必须拥有独立入口
+
+如果把问题再往下追一层，会发现 `buildNonMain()` 不是在“轻量改造” SSR 产物，而是在明确地创建另一种产物。
+
+最关键的不是函数名，而是入口模型：
+
+```ts
+const entryHtmlPath = path.resolve(
+  process.cwd(),
+  '.astro',
+  'nonMainSiteEntry.html'
+)
+
+await fse.outputFile(entryHtmlPath, htmlTemplate)
+
+await build({
+  build: {
+    rollupOptions: {
+      input: entryHtmlPath,
+    },
+  },
+})
+```
+
+这里有三个信号非常关键。
+
+#### 1. 构建入口不再是 Astro 页面，而是自定义 HTML
+
+一旦 `rollupOptions.input` 切到了 `nonMainSiteEntry.html`，问题就已经不是“服务端先输出什么 HTML”，而是“浏览器从哪个入口开始跑整个应用”。
+
+#### 2. 构建命令本身切成了 `vite build()`
+
+这说明非主站场景消费的不是 Astro 默认的整页输出协议，而是浏览器入口协议。
+
+#### 3. `isSingleFile` 和 Shadow DOM 暗示的是另一类宿主约束
+
+```ts
+const baseConfig = await createShadowDomBaseConfig({ isSingleFile: true })
+```
+
+这类配置通常出现在嵌入式页面场景里：更强调隔离、更强调独立交付、更强调宿主最小依赖。它天然就不是主站 SSR 片段那套模型。
+
+所以这里真正发生的不是“同一份产物换组参数继续跑”，而是“同一份源码被编译成两类不同的启动产物”。
+
+### `defineAstroConfig()` 改变的不是小开关，而是产物契约
+
+如果只从业务代码角度看，`isMainSite` 这类变量很容易被理解成普通条件分支。但放到构建阶段，它的影响远不止一个布尔值。
+
+配置层里最关键的变化在这里：
+
+```ts
+const filePrefix = import.meta.env.VITE_LOCALE
+const isMainSite = !nonMainSiteLang.includes(lang)
+
+integrations: [
+  isMainSite && injectEntryIntegration({ filePrefix }),
+  vue({
+    appEntrypoint: getTemplateAppEntrypointPath(process.cwd(), filePrefix),
+  }),
+  lpSSGIntegration({ isMainSite, platform }),
+].filter(Boolean)
+```
+
+这里变化的不是某个局部行为，而是产物最后会被装配成什么：
+
+- 是否启用主站专用的 entry integration。
+- Vue 最终从哪个 `appEntrypoint` 启动。
+- `lpSSGIntegration()` 到底输出 SSR 可消费片段，还是别的交付形态。
+
+也就是说，`isMainSite` 一旦变化，变化的不是某个功能细节，而是 **build contract**。宿主最终拿到的东西，从根上就可能不是同一类产物。
+
+这也是为什么不能把服务端场景和客户端场景的差异简单理解成“同一份产物 + 不同运行参数”。对于这套架构来说，运行参数本身就会影响产物装配方式。
+
+### 还有一个更隐蔽的坑：构建上下文会被模块求值时机固定下来
+
+前面的冲突已经足够说明为什么要拆分产物，但这套代码里还有一个很容易放大问题的细节：环境变量的读取时机。
+
+配置模块顶部直接读取了 `VITE_LOCALE`：
+
+```ts
+const lang = (process.env[VITE_LOCALE] ?? LANGUAGE_CODE.EN) as LanguageCodeType
+```
+
+这行代码的关键不在于它读到了什么，而在于它什么时候读。
+
+模块级常量只会在模块第一次加载时求值一次。如果在同一个 Node 进程里循环修改环境变量，再复用已经加载过的配置模块，就会出现一种非常典型的“看起来已经切环境了，实际上构建上下文没切干净”的问题。
+
+例如下面这种写法，理论上就存在污染风险：
+
+```ts
+for (const lang of langs) {
+  process.env[VITE_LOCALE] = lang
+  await someBuild()
+}
+```
+
+环境变量虽然变了，但如果配置模块已经求值完成，`lang`、`isMainSite`、integration 链路和输出路径未必会跟着重新初始化。
+
+这也是为什么主站多语言构建采用的是子进程：
+
+```ts
+const child = spawn('astro', ['build'], {
+  env: { ...process.env, [VITE_LOCALE]: LANG },
+  stdio: index === 0 ? 'inherit' : 'ignore',
+  shell: true,
+})
+```
+
+独立进程的意义不是日志更整洁，而是构建上下文真正被隔离开了：
+
+- 每个子进程都会重新加载配置模块。
+- 每个子进程都会基于自己的 `VITE_LOCALE` 重新求值。
+- 主站 / 非主站判断不会把上一个构建的状态带进下一个构建。
+
+这其实是一个非常前端、也非常 JavaScript 的问题：错误不一定来自配置值本身，而可能来自模块缓存把旧上下文带进了新构建。
+
+### 那么什么时候“共用同一份产物”是可以成立的？
+
+到这里，很容易把结论误读成“永远不能共享产物”。这个结论也过头了。
+
+更准确的说法应该是：**只有当多个宿主消费的是同一套启动协议时，共享产物才有意义。**
+
+例如下面这些场景，共享产物通常是有机会成立的：
+
+- 多个宿主都是 SSR 主站，并且都消费同一种片段协议。
+- 多个宿主都是客户端自启动页面，只是资源前缀不同。
+- 产物差异只剩路径、域名、语言，而不是启动模型本身。
+
+但只要出现下面这些条件，共享同一份产物就会迅速变得危险：
+
+- 一类宿主需要 hydration，另一类宿主需要 mount。
+- 一类宿主需要服务端片段，另一类宿主只认浏览器入口。
+- 一类宿主依赖主站生命周期，另一类宿主要求单文件或 Shadow DOM 隔离。
+
+换句话说，真正需要判断的不是“页面是不是同一套”，而是“宿主是不是在用同一套启动语义消费这份页面”。
+
+### 这类问题怎么排查，效率会更高
+
+同一套页面在不同宿主里表现不一致时，排查顺序最好先看产物模型，再看业务组件。
+
+#### 1. 先看页面入口到底是什么
+
+如果拿到的是：
+
+```html
+<astro-island ...></astro-island>
+```
+
+那它依赖的是 hydration 链路。
+
+如果拿到的是：
+
+```html
+<div id="shopify-lp-app"></div>
+<script type="module" src="..."></script>
+```
+
+那它依赖的是浏览器自启动链路。
+
+入口模型一旦判断错，后面所有症状都会一起变形。
+
+#### 2. 再看最终命中了哪条构建链路
+
+```ts
+buildAstroParallel(...)
+buildNonMain(...)
+```
+
+很多问题不是组件错了，而是宿主拿错了产物。
+
+#### 3. 最后看环境变量有没有污染构建上下文
+
+重点检查两件事：
+
+- `process.env[VITE_LOCALE]` 在什么时候写入。
+- 配置模块是在什么时候第一次被 import。
+
+如果环境变量切换发生在模块求值之后，那么“看起来切对环境了”并不等于“构建真的切对了环境”。
+
+### 小结
+
+结合本文前面的上下文，这个问题其实可以压缩成一句话：**前两节解决的是 Astro 片段如何进入 SSR 主站，而这一节解决的是为什么另一类客户端宿主不能继续消费同一份最终产物。**
+
+主站场景依赖的是“已有 HTML + `astro-island` hydration”；非主站场景依赖的是“空容器 + entry module 自启动”。两者渲染的业务页面可以相同，但它们消费的不是同一种产物。
+
+因此，更稳定的方案不是强行共享同一份 `dist`，而是共享源码、拆分构建入口、隔离构建上下文，让每类宿主只拿自己真正能消费的那份交付物。需要避免的，不是重复构建，而是把不同的 runtime contract 错误地折叠进同一份产物里。
