@@ -321,7 +321,7 @@ if (!customElements.get('astro-island')) {
        </astro-island>
      </div>
    </body>
-   
+
    </html>
    ```
 
@@ -333,6 +333,8 @@ if (!customElements.get('astro-island')) {
 4. 如何处理国际化的问题
 
 5. 如何处理在服务端渲染和客户端渲染使用相同Astro产物可能引发的问题？
+
+6. 怎么在nuxt里渲染Astro产物？
 
 ## 处理ASTRO编译产物与现有主站SSR框架的集成
 
@@ -1489,7 +1491,6 @@ await fse.outputFile(
 
 一旦把这三件事分清楚，国际化问题就不再是零散 bug，而是一个有明确控制边界的系统设计问题。
 
-
 ## 如何处理在服务端渲染和客户端渲染使用相同Astro产物可能引发的问题？
 
 前面两节已经解决了两件事：
@@ -1511,11 +1512,11 @@ await fse.outputFile(
 
 ```html
 <astro-island
-  component-url="./assets/_app.BXJsAGJH.js"
-  renderer-url="./assets/client.DAeD31y9.js"
-  props="{}"
-  ssr
-  client="visible"
+	component-url="./assets/_app.BXJsAGJH.js"
+	renderer-url="./assets/client.DAeD31y9.js"
+	props="{}"
+	ssr
+	client="visible"
 ></astro-island>
 ```
 
@@ -1622,9 +1623,9 @@ const ssgLangs = buildLang.filter((lang) => !nonMainSiteLang.includes(lang))
 const spaLangs = buildLang.filter((lang) => nonMainSiteLang.includes(lang))
 
 if (ssgLangs.length) {
-  tasks.push(buildAstroParallel({ buildLang: ssgLangs }))
+	tasks.push(buildAstroParallel({ buildLang: ssgLangs }))
 } else if (spaLangs.length === 1) {
-  tasks.push(buildNonMain({ buildLang: spaLangs[0] }))
+	tasks.push(buildNonMain({ buildLang: spaLangs[0] }))
 }
 ```
 
@@ -1645,19 +1646,19 @@ if (ssgLangs.length) {
 
 ```ts
 const entryHtmlPath = path.resolve(
-  process.cwd(),
-  '.astro',
-  'nonMainSiteEntry.html'
+	process.cwd(),
+	'.astro',
+	'nonMainSiteEntry.html'
 )
 
 await fse.outputFile(entryHtmlPath, htmlTemplate)
 
 await build({
-  build: {
-    rollupOptions: {
-      input: entryHtmlPath,
-    },
-  },
+	build: {
+		rollupOptions: {
+			input: entryHtmlPath,
+		},
+	},
 })
 ```
 
@@ -1692,11 +1693,11 @@ const filePrefix = import.meta.env.VITE_LOCALE
 const isMainSite = !nonMainSiteLang.includes(lang)
 
 integrations: [
-  isMainSite && injectEntryIntegration({ filePrefix }),
-  vue({
-    appEntrypoint: getTemplateAppEntrypointPath(process.cwd(), filePrefix),
-  }),
-  lpSSGIntegration({ isMainSite, platform }),
+	isMainSite && injectEntryIntegration({ filePrefix }),
+	vue({
+		appEntrypoint: getTemplateAppEntrypointPath(process.cwd(), filePrefix),
+	}),
+	lpSSGIntegration({ isMainSite, platform }),
 ].filter(Boolean)
 ```
 
@@ -1728,8 +1729,8 @@ const lang = (process.env[VITE_LOCALE] ?? LANGUAGE_CODE.EN) as LanguageCodeType
 
 ```ts
 for (const lang of langs) {
-  process.env[VITE_LOCALE] = lang
-  await someBuild()
+	process.env[VITE_LOCALE] = lang
+	await someBuild()
 }
 ```
 
@@ -1739,9 +1740,9 @@ for (const lang of langs) {
 
 ```ts
 const child = spawn('astro', ['build'], {
-  env: { ...process.env, [VITE_LOCALE]: LANG },
-  stdio: index === 0 ? 'inherit' : 'ignore',
-  shell: true,
+	env: { ...process.env, [VITE_LOCALE]: LANG },
+	stdio: index === 0 ? 'inherit' : 'ignore',
+	shell: true,
 })
 ```
 
@@ -1823,3 +1824,5 @@ buildNonMain(...)
 主站场景依赖的是“已有 HTML + `astro-island` hydration”；非主站场景依赖的是“空容器 + entry module 自启动”。两者渲染的业务页面可以相同，但它们消费的不是同一种产物。
 
 因此，更稳定的方案不是强行共享同一份 `dist`，而是共享源码、拆分构建入口、隔离构建上下文，让每类宿主只拿自己真正能消费的那份交付物。需要避免的，不是重复构建，而是把不同的 runtime contract 错误地折叠进同一份产物里。
+
+## 怎么在nuxt里渲染Astro产物
