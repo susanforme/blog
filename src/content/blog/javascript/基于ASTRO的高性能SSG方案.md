@@ -1826,3 +1826,457 @@ buildNonMain(...)
 因此，更稳定的方案不是强行共享同一份 `dist`，而是共享源码、拆分构建入口、隔离构建上下文，让每类宿主只拿自己真正能消费的那份交付物。需要避免的，不是重复构建，而是把不同的 runtime contract 错误地折叠进同一份产物里。
 
 ## 怎么在nuxt里渲染Astro产物
+
+前面几节分别解决了产物结构、静态资源路径、多语言和 SSR / CSR 共用产物的问题。真正落地到 Nuxt 时，大家最常问的其实是另一个更具体的问题：**Astro 已经把页面构建好了，怎么让 Nuxt 既保住主站 SSR，又能把这份产物稳定地渲染出来？**
+
+这个问题最容易误解的地方在于：你以为自己要做的是“在 Nuxt 里运行 Astro”，但真正要做的是**让 Nuxt 消费 Astro 的构建产物**。
+
+也就是说：
+
+- Astro 负责离线生成 HTML、CSS、JS 和多语言配置。
+- Nuxt 负责根据路由和语言把正确的产物取回来，并放进主站页面壳里。
+- 首屏直出和客户端路由切换不是一条执行路径，所以渲染策略也不能完全一样。
+
+只要先把这个前提想清楚，后面的实现就不会绕进“两个框架互相渲染”的误区。
+
+### 整体架构：Astro 负责构建，Nuxt 负责编排
+
+先看整体链路。Astro 并不直接在线上参与渲染，它更像是一个离线构建器，把页面产物和元数据发布到对象存储；Nuxt 则在运行时根据 URL、语言和缓存策略，把这些产物重新组装成主站可消费的页面。
+
+```mermaid
+graph TD
+    A[配置平台] --> B[Astro 构建]
+    B --> C[S3: locale.json + hash 资源目录]
+    U[用户] --> D[CDN]
+    D -->|HTML/API Miss| E[Nuxt Server]
+    D -->|Static Miss| C
+    E -->|读取 locale json| C
+    E -->|SSR 页面壳 + Astro template| D
+```
+
+这套分工的好处很直接：
+
+- 主站的 Header、Footer、路由、SEO 仍然由 Nuxt 控制。
+- 内容型页面继续享受 Astro 的 SSG 优势，静态资源可以直接走 CDN。
+- 多语言配置不需要塞进 Nuxt 项目本身，而是跟着产物一起发布。
+
+但它也带来一个新的工程事实：**Nuxt 拿到的不是 Vue 组件，而是一段已经构建完成的 HTML 片段和一组附属脚本。**
+
+### 先回答最常见的误区：为什么首屏正常，路由切换后脚本就失效
+
+很多人第一次接这类页面时，会先写出这样的模板：
+
+```vue
+<template>
+	<div v-html="page?.template"></div>
+</template>
+```
+
+首屏直接访问时，页面大概率看起来是正常的，于是你会自然地觉得：这件事不就结束了吗？
+
+但只要从 Nuxt 站内路由切过来，轮播、埋点、按钮事件就开始失效。这里真正决定结果的，不是 Astro 产物有没有问题，而是**浏览器拿到这段 HTML 的方式已经变了**：
+
+- 首屏 SSR：浏览器把响应当成完整文档来解析，`<script>` 会参与正常执行。
+- 客户端切页：`v-html` 本质上是设置 `innerHTML`，它只会插入 DOM，不会自动执行里面的脚本。
+
+所以这里不是“Nuxt 渲染失败”，而是规则根本没满足。`v-html` 只负责把字符串变成节点，不负责帮你重放脚本生命周期。
+
+### 第一层：服务端首屏怎么渲染
+
+Nuxt 这一层最重要的任务，其实不是“重新生成页面”，而是根据当前路由和语言，把 Astro 预先生成好的内容拿回来。
+
+可以把这件事拆成四步：
+
+1. 从路由中解析页面 `id`。
+2. 根据当前语言请求 `/server-api/campaign/{id}`。
+3. 服务端把返回的 `template` 直接放进 SSR 输出。
+4. 其余控制信息（title、description、path、showPageHeader 等）再交给 Nuxt 页面壳消费。
+
+一个更稳的写法大致是这样：
+
+```vue
+<script setup>
+import { ref, computed, nextTick, onMounted, onBeforeUnmount } from 'vue'
+
+const route = useRoute()
+const lang = useLang()
+const nuxtApp = useNuxtApp()
+
+const id = computed(() =>
+	String(route.params.id || '').replace(/\.html?$/i, '')
+)
+const containerId = computed(() => `campaign-container-${id.value}`)
+
+const getInitialHtml = () => {
+	if (import.meta.client && nuxtApp.isHydrating) {
+		const el = document.getElementById(containerId.value)
+		return el ? el.innerHTML : ''
+	}
+	return ''
+}
+
+const htmlContent = ref(getInitialHtml())
+
+const { data: page, error: fetchError } = await useAsyncData(
+	`campaign-${id.value}`,
+	async () => {
+		const res = await $fetch(`/server-api/campaign/${id.value}`, {
+			query: { lang: lang.value },
+		})
+
+		const data = res.data || null
+		if (!data) return null
+
+		if (import.meta.server) {
+			htmlContent.value = data.template || ''
+			const { template, ...rest } = data
+			return rest
+		}
+
+		return data
+	}
+)
+</script>
+```
+
+这段代码里最关键的不是 `useAsyncData` 本身，而是两个意图：
+
+#### 1. 首屏 HTML 直接由服务端输出
+
+`import.meta.server` 分支里，`htmlContent.value = data.template` 这一步的意义是：**Nuxt 首屏不自己重新拼页面，而是直接复用 Astro 已经生成好的 HTML。**
+
+这样浏览器拿到的首屏内容就是完整的静态片段，SEO 和首屏可见速度也更稳定。
+
+#### 2. 不要把大模板完整塞进 Nuxt payload
+
+这里顺手把 `template` 从返回对象里剥掉，只把其余元数据留给 payload。这么做的原因很实际：
+
+- 大段 HTML 如果再进入 `__NUXT_DATA__`，会重复序列化一次。
+- 页面正文里已经有一份 HTML，再往 payload 里放一份，传输和 parse 成本都会变大。
+- 落地页这类内容通常很大，payload 膨胀会直接影响首屏性能。
+
+所以这一步追求的不是“代码最短”，而是让 SSR 输出和 payload 各做各的事：**正文负责显示，payload 负责状态恢复。**
+
+### 第二层：为什么 hydration 还会打架
+
+哪怕服务端已经把 HTML 正常输出了，客户端 hydration 仍然可能报 mismatch。这个现象最常见的原因不是 Nuxt 出 bug，而是**客户端初始状态和服务端 DOM 没对齐**。
+
+`getInitialHtml()` 的作用，就是在 hydration 阶段先从现有 DOM 回读一份初始内容：
+
+```ts
+const getInitialHtml = () => {
+	if (import.meta.client && nuxtApp.isHydrating) {
+		const el = document.getElementById(containerId.value)
+		return el ? el.innerHTML : ''
+	}
+	return ''
+}
+```
+
+这件事的心智模型很重要：这里不是客户端要“重新渲染一遍”，而是客户端先承认“服务端已经渲染好了”。
+
+如果你在 hydration 阶段把容器先清空，再重新塞入另一份 HTML，Nuxt 就很容易把它判断成不一致。
+
+### 第三层：客户端路由切换要自己拆脚本、回放脚本
+
+到了 SPA 路由切换阶段，事情就不一样了。这个时候浏览器不会再替你执行 HTML 片段里的 `<script>`，所以需要手动把 HTML 和脚本拆开处理。
+
+先看整个流程图：
+
+```mermaid
+graph TD
+    A[组件进入页面] --> B[useAsyncData 获取 page]
+    B --> C{当前是不是 hydration 首次接管}
+    C -->|是| D[直接复用 SSR 已有 HTML]
+    C -->|否| E[清理旧脚本]
+    E --> F[解析 template: HTML + scripts]
+    F --> G[先更新 htmlContent]
+    G --> H[nextTick 等待 DOM]
+    H --> I[按顺序插入并执行 script]
+```
+
+其中有两个动作不能混：
+
+- `v-html` 负责把纯 HTML 放进容器。
+- `executeScripts()` 负责把 `<script>` 重新创建成真实节点并执行。
+
+代码大概会长这样：
+
+```ts
+function parseHtmlAndScripts(content: string) {
+	const parser = new DOMParser()
+	const doc = parser.parseFromString(content, 'text/html')
+	const scripts: Array<{
+		src: string | null
+		code: string
+		type: string
+		async: boolean
+		defer: boolean
+	}> = []
+
+	doc.querySelectorAll('script').forEach((node) => {
+		scripts.push({
+			src: node.getAttribute('src'),
+			code: node.innerHTML,
+			type: node.getAttribute('type') || 'text/javascript',
+			async: node.hasAttribute('async'),
+			defer: node.hasAttribute('defer'),
+		})
+		node.remove()
+	})
+
+	return {
+		html: doc.body.innerHTML,
+		scripts,
+	}
+}
+
+async function processContent(content: string) {
+	const { html, scripts } = parseHtmlAndScripts(content)
+	htmlContent.value = html
+	await nextTick()
+	await executeScripts(scripts)
+}
+```
+
+这里最值得注意的一点是顺序。
+
+很多落地页脚本默认假设 DOM 已经存在，所以更稳的顺序通常是：**先更新 HTML，再执行脚本。** 如果脚本先跑，而依赖节点还没挂上去，就会出现“代码明明执行了，但页面还是没反应”的假象。
+
+### 第四层：脚本为什么要顺序执行
+
+再往下一层看，你还会遇到另一个高频细节：有些 Astro 产物里的脚本并不是互相独立的。
+
+例如：
+
+- 第一个脚本先往 `window` 上挂运行时。
+- 第二个脚本再读取这个运行时去启动 island。
+
+这时如果你把所有脚本并发 append，执行顺序就不再稳定。更保守的做法，是用 Promise 链保证顺序：
+
+```ts
+async function executeScripts(scripts) {
+	if (!lpContainerRef.value) return
+
+	await scripts.reduce(async (previousPromise, scriptInfo) => {
+		await previousPromise
+
+		return new Promise<void>((resolve) => {
+			const newScript = document.createElement('script')
+			newScript.dataset.lp = 'true'
+			newScript.type = scriptInfo.type
+
+			if (scriptInfo.src) {
+				newScript.src = scriptInfo.src
+				newScript.async = scriptInfo.async ? true : false
+				newScript.onload = () => resolve()
+				newScript.onerror = () => resolve()
+			} else {
+				newScript.innerHTML = scriptInfo.code
+				resolve()
+			}
+
+			lpContainerRef.value.appendChild(newScript)
+		})
+	}, Promise.resolve())
+}
+```
+
+这不是说“顺序执行永远更好”，而是说对于这类静态落地页，**稳定性通常比极限并发更重要**。如果页面脚本很多，而且彼此无依赖，再考虑更激进的并发策略也不迟。
+
+### 第五层：SSR 和 CSR 之间要有一份明确的交接协议
+
+Nuxt 页面在首屏 SSR 和客户端切页之间，还需要有一份很小但明确的桥接信息。否则客户端根本不知道：
+
+- 当前页面是不是 SSR 首次打开。
+- 当前资源前缀应该指向哪个语言、哪个 hash 目录。
+
+一个常见做法是通过 `useHead()` 注入一段轻量配置：
+
+```ts
+const prefix = computed(() => {
+	if (!page.value) return ''
+	const url = useRequestURL()
+	return `${url.origin}/static-assets/${page.value.path}`
+})
+
+useHead({
+	script: [
+		{
+			key: 'lp-config',
+			innerHTML: `
+        window.__lpConfig__ = window.__lpConfig__ || {};
+        window.__lpConfig__.ssrRendered = ${import.meta.server};
+        window.__lpConfig__.prefix = ${JSON.stringify(prefix.value)};
+      `.replace(/\s+/g, ''),
+		},
+	],
+	title: page.value?.title,
+	meta: [
+		{ name: 'description', content: page.value?.description },
+		{ name: 'keywords', content: page.value?.keywords },
+	],
+})
+```
+
+这里的 `window.__lpConfig__` 不算优雅，但足够直接：
+
+- `ssrRendered` 用来告诉客户端：首屏脚本是不是已经随 SSR 跑过了。
+- `prefix` 用来告诉 Astro 产物：当前页面对应的静态资源目录在哪里。
+
+如果前面那一节用运行时补丁接管了 `astro-island` 的 `component-url`、`renderer-url`，这里的 `prefix` 就正好成了那层补丁需要的宿主信息。
+
+### 第六层：Nuxt server api 做的不是转发，而是把产物归一化
+
+页面组件并不应该直接拼 S3 地址去取 JSON。更稳的做法，是在 Nuxt 服务端先做一层归一化：
+
+```ts
+import { joinURL } from 'ufo'
+
+const idRegex = /^[a-zA-Z0-9-_]+$/
+const langRegex = /^[a-zA-Z-]+$/
+const defaultLang = 'en'
+const CACHE_MAX_AGE_SECONDS = 720 * 3600
+
+export default defineEventHandler(async (event) => {
+	const id = getRouterParam(event, 'id')
+	const rawLang = getQuery(event).lang
+	let lang = typeof rawLang === 'string' ? rawLang : defaultLang
+
+	if (!id || !idRegex.test(id)) {
+		throw createError({
+			statusCode: 400,
+			statusMessage: 'Invalid ID parameter',
+		})
+	}
+
+	if (!langRegex.test(lang)) {
+		throw createError({
+			statusCode: 400,
+			statusMessage: 'Invalid lang parameter',
+		})
+	}
+
+	const targetBase = useRuntimeConfig().server.lpOSSBaseURL
+
+	const getRequestPath = () => joinURL(targetBase, id, `${lang}.json`)
+
+	let lpData = null
+
+	try {
+		lpData = await $fetch(getRequestPath())
+	} catch {
+		if (lang !== defaultLang) {
+			lang = defaultLang
+			lpData = await $fetch(getRequestPath())
+		}
+	}
+
+	if (!lpData) {
+		throw createError({ statusCode: 404, statusMessage: 'LP data not found' })
+	}
+
+	setHeaders(event, {
+		'Cache-Control': `max-age=${CACHE_MAX_AGE_SECONDS}`,
+		'Edge-Cache-Tag': 'campaign-server-api',
+		Expires: new Date(Date.now() + CACHE_MAX_AGE_SECONDS * 1000).toUTCString(),
+	})
+
+	return {
+		status: 200,
+		data: {
+			path: joinURL(id, lpData.contentPath, lang),
+			template: lpData.template,
+			title: lpData.title,
+			description: lpData.description,
+			keywords: lpData.keywords,
+			showPageHeader: lpData.showPageHeader,
+			showPageFooter: lpData.showPageFooter,
+			showPagePolicy: lpData.showPagePolicy,
+		},
+	}
+})
+```
+
+这一层至少解决了三件事：
+
+1. **参数校验**：避免 `id` 和 `lang` 直接变成路径注入入口。
+2. **语言回退**：目标语言不存在时，自动回到默认语言。
+3. **缓存统一**：把 HTML、API、静态资源的缓存边界先定义清楚。
+
+所以它不是“顺手转发一下 S3”，而是把 Astro 构建产物收口成 Nuxt 页面真正能消费的 contract。
+
+### 第七层：页面销毁时别忘了 cleanup
+
+这类页面还有一个很容易被忽略的细节：在 Nuxt 里，用户可能只切换了路由参数，但整个页面实例并没有刷新。此时如果不清掉上一次动态插入的脚本，最常见的后果就是：
+
+- 脚本重复执行。
+- 全局变量被重复初始化。
+- 轮播、埋点或监听器出现双份副作用。
+
+所以页面卸载前最好显式清理：
+
+```ts
+function cleanup() {
+	if (lpContainerRef.value) {
+		const dynamicScripts = lpContainerRef.value.querySelectorAll(
+			'script[data-lp="true"]'
+		)
+		dynamicScripts.forEach((el) => el.remove())
+	}
+
+	if (window.__lpConfig__) {
+		window.__lpConfig__.ssrRendered = false
+	}
+}
+
+onMounted(() => {
+	if (!window.__lpConfig__?.ssrRendered && page.value?.template) {
+		processContent(page.value.template)
+	}
+})
+
+onBeforeUnmount(() => {
+	cleanup()
+})
+```
+
+这一步的价值并不体现在 demo 里，但在真实路由切换场景下非常关键。它解决的不是“怎么显示页面”，而是“怎么让页面第二次进入时还稳定”。
+
+### 这套方案适合什么，不适合什么
+
+适合它的场景通常有这些特征：
+
+- 页面高度内容化，比如 campaign page、landing page、marketing page。
+- 主站必须由 Nuxt 统一承载，Header/Footer/SEO 不能拆出去。
+- 多语言和静态资源更适合走对象存储 + CDN，而不是回源实时拼装。
+
+但如果你的页面本身就是一个高交互应用，这套方案就会越来越别扭。尤其是下面这些约束出现时，要格外谨慎：
+
+- 页面内部需要和 Nuxt store、登录态、路由深度双向通信。
+- 你需要完整保留 `type="module"`、`defer`、`nonce`、`crossorigin` 等脚本语义。
+- `template` 不是可信构建产物，而是来自低信任 CMS 或用户输入。
+
+最后这一点尤其重要。因为一旦 `template` 不是你自己构建出的可信内容，`v-html + script replay` 的安全边界就完全变了。这时优先考虑的应该是 sanitization、CSP 和白名单，而不是“怎么让它先跑起来”。
+
+### 调试时先看哪些信号
+
+如果这套链路出了问题，我更建议先看现象背后的信号，而不是一上来就改代码：
+
+- **首屏正常，切页失效**：先查脚本有没有被 replay，或者旧脚本有没有清理干净。
+- **hydration mismatch**：先查客户端初始 `htmlContent` 是否和服务端 DOM 对齐。
+- **`__NUXT_DATA__` 异常膨胀**：大概率是 `template` 还在被完整塞进 payload。
+- **脚本执行两次**：通常说明 SSR 和 CSR 的交接信号没有设计好。
+- **某个语言静态资源 404**：优先检查 `path`、`prefix` 和 `contentPath` 的拼接协议。
+
+### 小结
+
+所以，怎么在 Nuxt 里渲染 Astro 产物，真正的答案并不是一句“用 `v-html` 就行”。
+
+更准确地说，它需要三件事一起成立：
+
+1. **服务端首屏复用 Astro 生成好的 HTML。**
+2. **客户端切页时，把 HTML 和脚本拆开，按正确顺序重新执行。**
+3. **在 Nuxt 和 Astro 产物之间设计一份清晰的运行时协议，包括 prefix、language、cache 和 cleanup。**
+
+一旦你把问题从“框架互相渲染”切换成“宿主如何消费构建产物”，这条链路就会清楚很多：Astro 负责提前把页面算出来，Nuxt 负责在正确的时机把它安全、稳定地送到浏览器里。
