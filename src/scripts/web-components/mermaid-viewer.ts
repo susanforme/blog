@@ -1,5 +1,7 @@
 import type { MermaidConfig } from 'mermaid'
 
+import { dispatchPanZoomViewerContentReady } from './constant'
+
 // 应该懒加载
 class MermaidViewer extends HTMLElement {
 	private _rendered: boolean = false
@@ -12,6 +14,8 @@ class MermaidViewer extends HTMLElement {
 		if (this._rendered) {
 			return
 		}
+
+		this.style.display = 'block'
 
 		const codeEncoded = this.getAttribute('code')
 		if (!codeEncoded) {
@@ -40,11 +44,38 @@ class MermaidViewer extends HTMLElement {
 			const { svg } = await mermaid.render(id, code)
 
 			this.innerHTML = svg
+
+			const renderedSvg = this.querySelector('svg')
+			if (renderedSvg instanceof SVGSVGElement) {
+				this.prepareSVG(renderedSvg)
+			}
+
 			this._rendered = true
 			this.removeAttribute('data-hidden')
+
+			if (renderedSvg instanceof SVGSVGElement) {
+				dispatchPanZoomViewerContentReady(this, {
+					kind: 'svg',
+					target: renderedSvg,
+				})
+			}
 		} catch (err) {
 			const errorMessage = err instanceof Error ? err.message : String(err)
 			this.innerHTML = `<pre style="color: red; padding: 10px; border: 1px solid red;">Mermaid Error: ${errorMessage}</pre>`
+		}
+	}
+
+	private prepareSVG(svg: SVGSVGElement): void {
+		svg.style.display = 'block'
+		svg.style.maxWidth = 'none'
+
+		const { width, height } = svg.viewBox.baseVal
+		if (width > 0) {
+			svg.style.width = `${width}px`
+		}
+
+		if (height > 0) {
+			svg.style.height = `${height}px`
 		}
 	}
 }

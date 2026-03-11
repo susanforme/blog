@@ -10,8 +10,8 @@ export function remarkCustomBlocks(base = '') {
 			// 1. Mermaid: 转换为 <mermaid-viewer> 标签
 			if (lang === 'mermaid') {
 				node.type = 'html'
-				node.value = `<mermaid-viewer data-hidden code="${encodeURIComponent(codeContent)}">
-           </mermaid-viewer>`
+				node.value = `<pan-zoom-viewer><mermaid-viewer data-hidden code="${encodeURIComponent(codeContent)}">
+           </mermaid-viewer></pan-zoom-viewer>`
 				return
 			}
 
