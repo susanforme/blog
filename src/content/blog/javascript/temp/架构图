@@ -1,0 +1,181 @@
+## 整体架构
+
+```mermaid
+graph TD
+    %% =======================
+    %% 样式定义
+    %% =======================
+    classDef s3 fill:#FF9900,stroke:#232F3E,stroke-width:2px,color:white;
+    classDef nuxt fill:#00C58E,stroke:#333,stroke-width:2px,color:white;
+    classDef cdn fill:#4285F4,stroke:#333,stroke-width:2px,color:white;
+    classDef user fill:#f9f9f9,stroke:#333,stroke-width:2px;
+    classDef config fill:#9933cc,stroke:#333,stroke-width:2px,color:white;
+    classDef file fill:#fff,stroke:#999,stroke-dasharray: 5 5;
+
+    %% =======================
+    %% 1. 配置与发布 (Deployment)
+    %% =======================
+    subgraph Deploy ["1. 配置与发布阶段"]
+        direction TB
+        Admin("管理员") -->|配置 SEO/内容/模板| ConfigPlatform["配置平台"]:::config
+        ConfigPlatform -->|按语言生成全量配置| S3bucket[("AWS S3 存储桶")]:::s3
+    end
+
+    %% =======================
+    %% 2. S3 存储结构 (Storage)
+    %% =======================
+    subgraph S3_Structure ["S3 目录结构 (Bucket)"]
+        direction TB
+        BusinessDir["业务目录 (e.g. test)"]
+
+        subgraph LangConfigs ["多语言元数据"]
+            EnJson("en.json"):::file
+            DeJson("de.json"):::file
+            Note1["包含: 路径指针、SEO、<br/>内容配置、HTML模板"]
+        end
+
+        HashDir["时间戳/Hash 资源目录"]
+
+        BusinessDir --- EnJson
+        BusinessDir --- DeJson
+        BusinessDir --- HashDir
+
+        subgraph Langs ["多语言静态产物"]
+            EnAssets["en/ 静态资源"]:::file
+            DeAssets["de/ 静态资源"]:::file
+        end
+
+        HashDir --- EnAssets
+        HashDir --- DeAssets
+    end
+
+    S3bucket -.-> BusinessDir
+
+    %% =======================
+    %% 3. 用户访问与逻辑 (Runtime)
+    %% =======================
+    subgraph Access_Flow ["2. 用户访问与缓存策略"]
+        User(("用户")):::user
+
+        subgraph CDN_Provider ["CDN 服务商 (CloudFront / CloudFlare 等)"]
+            direction TB
+            CDN_Entry["CDN 边缘节点<br/>DNS 解析 → 就近 PoP"]:::cdn
+
+            subgraph Edge_Cache ["边缘缓存层"]
+                direction TB
+                Cache_Page["页面缓存 HTML<br/>(TTL: 720h)"]:::cdn
+                Cache_API["接口缓存 JSON<br/>(TTL: 720h)"]:::cdn
+                Cache_Static["静态资源缓存<br/>(TTL: 永久 / immutable)"]:::cdn
+            end
+
+            CDN_Entry -->|路由请求| Cache_Page
+            CDN_Entry -->|路由请求| Cache_API
+            CDN_Entry -->|路由请求| Cache_Static
+
+            Cache_Page -- Hit --> CDN_Entry
+            Cache_API -- Hit --> CDN_Entry
+            Cache_Static -- Hit --> CDN_Entry
+        end
+
+        User -->|1. 访问 /en/test| CDN_Entry
+        User -->|2. SPA 数据请求| CDN_Entry
+        User -->|3. 加载 JS/CSS/Img| CDN_Entry
+
+        %% 回源策略
+        Cache_Static -->|Miss → 回源 S3| S3bucket
+        Cache_Page -- Miss → 回源 --> NuxtServer
+        Cache_API -- Miss → 回源 --> NuxtServer
+
+        subgraph Nuxt_Logic ["Nuxt 服务端渲染逻辑 (源站)"]
+            NuxtServer["Nuxt Server"]:::nuxt
+
+            subgraph DataFetch ["核心取数逻辑"]
+                direction TB
+                L1["1. 解析 URL 语言 (Locale)"]
+                L2["2. 获取对应 [locale].json"]
+                L3["3. 提取 SEO & 内容 & 指针"]
+
+                L1 --> L2 --> L3
+            end
+
+            NuxtServer --> DataFetch
+            DataFetch -->|聚合数据| NuxtServer
+            NuxtServer -->|渲染成品 HTML<br/>写入缓存| Cache_Page
+        end
+
+        DataFetch -.->|按需读取语言包| S3bucket
+    end
+```
+
+## 页面渲染
+
+```mermaid
+graph TD
+    %% =======================
+    %% 样式定义
+    %% =======================
+    classDef hook fill:#f96,stroke:#333,stroke-width:2px,color:white;
+    classDef logic fill:#4285F4,stroke:#333,stroke-width:2px,color:white;
+    classDef state fill:#34A853,stroke:#333,stroke-width:2px,color:white;
+    classDef dom fill:#FBBC05,stroke:#333,stroke-width:2px,color:white;
+    classDef server fill:#9933cc,stroke:#333,stroke-width:2px,color:white;
+
+    %% =======================
+    %% 1. 初始化与数据获取
+    %% =======================
+    subgraph Init ["1. 初始化 & 数据获取"]
+        Start(("组件加载")) --> ParseID["解析路由 ID<br/>(去除 .html 后缀)"]:::logic
+        ParseID --> FetchData["useAsyncData<br/>Fetch /server-api/lp/{id}"]:::hook
+        FetchData --> CheckEnv{"检查运行环境"}
+    end
+
+    %% =======================
+    %% 2. 服务端渲染流程 (SSR)
+    %% =======================
+    subgraph SSR_Flow ["2. 服务端渲染 (SSR)"]
+        direction TB
+        CheckEnv -- "import.meta.server" --> SSR_Head["useHead 注入配置<br/>window.__lpConfig__"]:::server
+        SSR_Head --> SSR_Render["htmlContent = page.content<br/>(不过滤 Script，直接输出)"]:::server
+        SSR_Render --> SSR_Output[("生成完整 HTML字符串")]:::dom
+    end
+
+    %% =======================
+    %% 3. 客户端/SPA 流程 (CSR)
+    %% =======================
+    subgraph CSR_Flow ["3. 客户端行为 (CSR & SPA)"]
+        direction TB
+        CheckEnv -- "import.meta.client" --> MountHook["onMounted / watch(page)"]:::hook
+
+        MountHook --> CheckHydration{"是 SSR 首次加载?"}
+        CheckHydration -- "Yes (ssrRendered=true)" --> DoNothing["跳过处理<br/>(HTML已由浏览器原生解析)"]:::state
+        CheckHydration -- "No (路由切换/SPA)" --> Cleanup["Cleanup()<br/>移除旧脚本"]:::logic
+
+        Cleanup --> ParseDOM["processContent()<br/>DOMParser 解析 HTML"]:::logic
+
+        subgraph Script_Handling ["脚本处理核心逻辑"]
+            ParseDOM --> Split["分离内容"]
+            Split --> HTML_Part["纯 HTML"]:::dom
+            Split --> JS_Part["Script 标签数组"]:::logic
+
+            HTML_Part --> VHtml["赋值 v-html<br/>(DOM 立即更新)"]:::dom
+
+            JS_Part --> ExecLoop{"executeScripts<br/>(Reduce Promise Chain)"}
+
+            ExecLoop -->|Script 1| LoadS1["创建 Script 标签<br/>append 到容器"]:::logic
+            LoadS1 --> WaitS1["await onload / onerror"]
+            WaitS1 -->|Script 2...| ExecLoop
+        end
+
+        VHtml -.-> ExecLoop
+    end
+
+    %% =======================
+    %% 4. 生命周期管理
+    %% =======================
+    subgraph Lifecycle ["4. 销毁"]
+        Unmount["onBeforeUnmount"]:::hook --> CleanDOM["移除动态创建的<br/>data-lp Scripts"]:::logic
+        CleanDOM --> ResetFlag["重置 ssrRendered = false"]:::state
+    end
+
+    SSR_Output -.-> MountHook
+```
