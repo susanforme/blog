@@ -4,12 +4,12 @@ description: 使用Astro静态站点生成器构建高性能网站,深入理解S
 pubDate: 2025-12-20
 ---
 
+<!-- 搞一个keynote风格的演讲稿 纯前端 Framer
+Motion（React 技术宣讲神器） 适合：对外技术页 / Keynote 风格宣讲 -->
+
 ## 引言
 
-随着业务复杂度的日益提升，我们常常需要在单一页面内集成多个独立开发、独立部署的模块或子应用。这种前端架构在带来灵活性的同时，也引发了一系列棘手的技术挑战。特别是在性能敏感的场景下，如何高效地加载和渲染这些模块成为了一个亟待解决的问题。
 在现代前端开发中，静态站点生成器（SSG）因其高性能和良好的用户体验而受到广泛关注。Astro 作为一种新兴的静态站点生成器，凭借其独特的架构和优化策略，为开发者提供了强大的工具来构建高效的静态网站。本文将探讨基于 Astro 的高性能 SSG 方案，介绍其核心概念、优势以及实际应用案例。
-
-然而,将一个完整的预编译的Astro产物集成到现有的主站SSR框架（如Nuxt,Next等）中，并确保其性能优势得以发挥，是一个复杂的任务。本文将深入分析这一过程中的技术挑战，并提出切实可行的解决方案，以帮助开发者在不影响现有架构的前提下，成功实现基于 Astro 的高性能 SSG 方案。
 
 ## 前置知识
 
@@ -20,7 +20,6 @@ pubDate: 2025-12-20
 - **水合**: 了解VUE/React等前端框架的水合原理
 - **SSG**：了解 SSG 的基本原理和工作流程。
 - **Astro 框架**：了解 Astro 的基本使用方法和特点。
-- **Vite** : 了解 Vite 插件的基本原理和使用方法。
 
 ## 水合
 
@@ -107,6 +106,25 @@ Dan Abramov（Create React App 和 Redux）对 Hydration 的定义是：_“Hydr
 
 静态网站生成器是内容管理系统 (CMS) 的替代品，后者是另一种用于管理 Web 内容、生成网页和实施模板的工具。（模板是 Web 内容的可重用格式；开发人员使用模板来避免一遍又一遍地编写相同的格式。）
 
+### 什么是静态网站？
+
+静态网站由一个或多个 HTML 网页组成，这些网页每次都以相同的方式加载。静态网站与动态网站形成对比，动态网站根据一些不断变化的数据输入（例如用户的位置、一天中的时间或用户操作）进行不同的加载。静态网页是可以快速加载的简单 HTML 文件，而动态网页需要在浏览器中执行 JavaScript 代码才能呈现。
+
+### 静态网站生成器和 CMS 之间有什么区别？
+
+在互联网的早期，网站被存储为静态 HTML 站点，所有网页都预先布局和硬编码。这是低效的，因为它需要开发人员手动编码每个网页。
+
+内容管理系统 (CMS) 的出现让开发人员能够避免所有这些手动设置。内容存储在 CMS 数据库中，而不是提前对页面进行编码，当用户请求页面时，服务器会执行以下操作：
+
+1. 查询数据库，寻找正确的内容
+2. 识别该内容将适合的模板
+3. 生成页面
+4. 向用户提供页面
+
+CMS 中的内容必须适合 CMS 数据库提供的字段之一，但只要符合要求，它就应该每次都出现在网站上的适当位置。
+
+静态站点生成器是这两种方法的折衷方案。与 CMS 一样，它允许开发人员使用模板并自动生成网页——但它会提前完成后者，而不是响应用户的请求。这可以提高[网站性能](https://www.cloudflare.com/learning/performance/why-site-speed-matters/)，因为网页可以立即交付给最终用户。它还为开发人员提供了更大的定制能力，因为他们不受 CMS 提供的数据库字段的限制。
+
 ### 使用静态站点生成器有哪些优缺点？
 
 #### 优点
@@ -114,6 +132,11 @@ Dan Abramov（Create React App 和 Redux）对 Hydration 的定义是：_“Hydr
 - **性能**因为静态站点生成器提前而不是按需（比如使用 CMS）创建网页，所以网页在用户浏览器中的加载速度稍快。
 - **定制**开发人员可以创建他们想要的任何模板。它们不受 CMS 提供的字段限制，也不受 CMS 内置模板的限制。
 - **更轻的后台**静态网站是轻量级的，不需要在服务器端运行那么多代码，而基于 CMS 的网站会不断地向服务器端查询内容。
+
+#### 缺点
+
+- **很少或没有预制模板**无限定制的缺点是可能需要更长的时间才能开始。许多静态网站生成器不附带模板，开发人员一开始要花很多时间从头开始建立模板。
+- **没有用户友好的界面**非开发人员用户更难使用静态站点生成器发布内容。没有 CMS 界面，处理未格式化的原始数据可能会让用户望而生畏。此外，进行网站更新通常需要开发人员支持。
 
 ## Astro
 
@@ -143,6 +166,8 @@ Dan Abramov（Create React App 和 Redux）对 Hydration 的定义是：_“Hydr
 ![](./img//island.png)
 
 ### Astro的群岛架构实现
+
+packages/astro/src/runtime/server/astro-island.ts
 
 ```ts
 class AstroIsland extends HTMLElement {
@@ -311,279 +336,368 @@ if (!customElements.get('astro-island')) {
 
 5. 如何处理在服务端渲染和客户端渲染使用相同Astro产物可能引发的问题？
 
-6. 怎么在nuxt里渲染Astro产物？
-
-7. 在多平台如何做到一套代码多端复用, 既能在nuxt里渲染,又能在Shopify里渲染？
-
-## 方案确定
-
-针对上述问题,我们确定了以下方案:
-基于Vite 插件的方式,在构建阶段对Astro编译产物进行处理,将其转换为一个可被现有主站SSR框架(Nuxt,Next等)直接使用的格式,并且在运行时能够正确执行客户端水合逻辑。
-
-### 编译流程
+## 架构图
 
 ```mermaid
-flowchart TB
-    classDef entry fill:#4285F4,stroke:#333,stroke-width:2px,color:white
-    classDef astro fill:#FF5D01,stroke:#333,stroke-width:2px,color:white
-    classDef plugin fill:#9933cc,stroke:#333,stroke-width:2px,color:white
-    classDef output fill:#34A853,stroke:#333,stroke-width:2px,color:white
-    classDef shadow fill:#FBBC05,stroke:#333,stroke-width:2px,color:black
-    classDef decide fill:#f96,stroke:#333,stroke-width:2px,color:white
-    classDef postcss fill:#DD3A0A,stroke:#333,stroke-width:2px,color:white
-    classDef gen fill:#00BCD4,stroke:#333,stroke-width:2px,color:white
+graph TD
+    %% =======================
+    %% 样式定义
+    %% =======================
+    classDef s3 fill:#FF9900,stroke:#232F3E,stroke-width:2px,color:white;
+    classDef nuxt fill:#00C58E,stroke:#333,stroke-width:2px,color:white;
+    classDef cdn fill:#4285F4,stroke:#333,stroke-width:2px,color:white;
+    classDef user fill:#f9f9f9,stroke:#333,stroke-width:2px;
+    classDef config fill:#9933cc,stroke:#333,stroke-width:2px,color:white;
+    classDef file fill:#fff,stroke:#999,stroke-dasharray: 5 5;
 
-    Start["pnpm build -> build.ts"]:::entry
-    Start --> Factory["buildFactory()"]:::entry
-    Factory --> LangCheck{"语言分类判定<br/>nonMainSiteLang = jp, kr"}:::decide
-
-    %% ===== 主站编译路径 =====
-    LangCheck -- "主站语言 en, de, fr, es, it..." --> SSG_Path
-
-    subgraph SSG_Path ["主站 · Astro SSG 编译"]
+    %% =======================
+    %% 1. 配置与发布 (Deployment)
+    %% =======================
+    subgraph Deploy ["1. 配置与发布阶段"]
         direction TB
-        Parallel["buildAstroParallel()<br/>每种语言 spawn astro build"]:::astro
-        AstroConf["defineAstroConfig() (async)<br/>platform = vivaia, isMainSite = true"]:::astro
-        Parallel --> AstroConf
-
-        subgraph ViteStack ["commonVivaiaViteConfig · Vite 插件栈"]
-            direction TB
-            V1["ViteDefineImportMacro · 编译时宏替换"]:::plugin
-            V2["AutoImport · vue API / $t 自动导入<br/>dts -> src/types/auto-imports.d.ts"]:::plugin
-            V3["Components · lpUiResolver + swiperResolver<br/>dts -> src/types/components.d.ts"]:::plugin
-            V4["viteMatchAndInjectPlugin · Swiper 样式重置注入"]:::plugin
-            V5["injectPackageEntryPlugin · ~entry 虚拟模块"]:::plugin
-            V6["viteI18n · 编译时多语言替换<br/>dts -> src/types/lp-i18n.d.ts"]:::plugin
-            V7["relativeBasePlugin · 强制相对路径"]:::plugin
-        end
-
-        AstroConf --> ViteStack
-
-        subgraph InjectInteg ["injectEntryIntegration · 自动生成入口"]
-            direction TB
-            II1["astro:config:setup (async hook)"]:::gen
-            II2["生成 .astro/custom-injected/<br/>virtual-page.astro<br/>Layout + App.vue client:load"]:::gen
-            II3["生成 .astro/custom-injected/<br/>template-app-entrypoint.js<br/>initVueApp 初始化"]:::gen
-            II4["injectRoute '/' -> virtual-page.astro"]:::gen
-            II1 --> II2 --> II3 --> II4
-        end
-
-        ViteStack --> InjectInteg
-
-        subgraph AstroInteg ["lpSSGIntegration 集成"]
-            direction TB
-            AI1["astro:config:setup<br/>加载 PostCSS 配置"]:::astro
-            AI2["VitePrefixSelectorPlugin<br/>第三方样式加 :where(lp-app)"]:::plugin
-            AI1 --> AI2
-        end
-
-        InjectInteg --> AstroInteg
-
-        subgraph AstroSSG ["Astro SSG 构建"]
-            direction TB
-            AB1["virtual-page.astro -> Layout.astro<br/>(自动生成，无需手写 index.astro)"]:::astro
-            AB2["@astrojs/vue 编译 Vue 岛组件<br/>appEntrypoint = template-app-entrypoint.js"]:::astro
-            AB3["~entry 注入全局 SCSS"]:::plugin
-            AB4["PostCSS: px -> calc(var(--lr))"]:::postcss
-            AB5["代码分割: Vue runtime / 组件 / i18n"]:::astro
-            AB1 --> AB2 --> AB3 --> AB4 --> AB5
-        end
-
-        AstroInteg --> AstroSSG
-
-        subgraph PostProcess ["astro:build:done · 后处理"]
-            direction TB
-            PP1["读取 Astro 产出 index.html"]:::astro
-            PP2["cheerio 解析 HTML<br/>提取 script / style / lp-app"]:::astro
-            PP3["esbuild 编译入口脚本<br/>flexible + initLpConfig + initAstroApp"]:::astro
-            PP4["重组为 lp-container 片段<br/>script + style + lp-app"]:::astro
-            PP5["生成 _preview.html<br/>完整可预览文档"]:::astro
-            PP1 --> PP2 --> PP3 --> PP4 --> PP5
-        end
-
-        AstroSSG --> PostProcess
+        Admin("管理员") -->|配置SEO & 上传| ConfigPlatform["配置平台"]:::config
+        ConfigPlatform -->|生成目录 & 上传| S3bucket[("AWS S3 存储桶")]:::s3
     end
 
-    SSG_Path --> MainOut
-    subgraph MainOut ["主站产物 dist/{lang}/"]
-        direction LR
-        MO1["index.html<br/>lp-container 片段<br/>供 Nuxt 主应用注入"]:::output
-        MO2["_preview.html<br/>完整 HTML 可独立预览"]:::output
-        MO3["assets/<br/>代码分割 JS chunks"]:::output
-    end
-
-    MainOut --> Zip["zipBuild()<br/>打包 release.zip"]:::entry
-
-    %% ===== 非主站编译路径 =====
-    LangCheck -- "非主站语言 jp, kr" --> SPA_Path
-
-    subgraph SPA_Path ["非主站 · Vite Shadow DOM 单文件编译"]
+    %% =======================
+    %% 2. S3 存储结构 (Storage)
+    %% =======================
+    subgraph S3_Structure ["S3 目录结构 (Bucket)"]
         direction TB
-        BN1["buildNonMain()"]:::entry
-        BN2["fse.outputFile 生成临时入口 HTML<br/>.astro/nonMainSiteEntry.html<br/>div#shopify-lp-app + script src=~nonMainSiteEntry"]:::shadow
+        BusinessDir["业务目录 (e.g. test)"]
+        PathJson("path.json (指针)")
+        HashDir["时间戳/Hash 目录"]
 
-        subgraph ShadowBaseConf ["createShadowDomBaseConfig()"]
-            direction TB
-            SC1["vue({ customElement: true })"]:::plugin
-            SC2["vueJsx()"]:::plugin
-            SC3["ViteShadowStyleHoist · @font-face 提升"]:::plugin
-            SC4["viteVueInlineCssImport · CSS 收集"]:::plugin
-            SC5["ViteSingleFilePlugin · 合并单文件"]:::plugin
+        BusinessDir --- PathJson
+        BusinessDir --- HashDir
+
+        subgraph Langs ["多语言隔离"]
+            EnDir["en 目录"] --- EnFiles["编译产物 + setting.json"]:::file
+            DeDir["de 目录"] --- DeFiles["编译产物 + setting.json"]:::file
         end
 
-        BN1 --> BN2 --> ShadowBaseConf
-
-        subgraph MergeConf ["合并 commonVivaiaViteConfig"]
-            direction TB
-            MC1["复用主站 Vite 插件栈"]:::plugin
-            MC2["PostCSS: px -> calc(var(--lr))"]:::postcss
-        end
-
-        ShadowBaseConf --> MergeConf
-
-        subgraph VirtualEntry ["~nonMainSiteEntry 虚拟模块 · 编译时生成"]
-            direction TB
-            VE1["引入 ~entry 全局样式"]:::plugin
-            VE2["defineCustomElement(App) 注册 CE<br/>import App from '@/App.vue'"]:::shadow
-            VE3["创建 lp-app + attachShadow"]:::shadow
-            VE4["导入 ~entry.scss?inline + ~gathered-css"]:::shadow
-            VE5["flexible() + onInitialized 挂载逻辑"]:::shadow
-            VE1 --> VE2 --> VE3 --> VE4 --> VE5
-        end
-
-        MergeConf --> VirtualEntry
+        HashDir --- EnDir
+        HashDir --- DeDir
     end
 
-    SPA_Path --> NonMainOut
-    subgraph NonMainOut ["非主站产物 dist/{lang}/"]
-        direction LR
-        NMO1["default.html<br/>单自包含 HTML<br/>所有 JS/CSS/资源内联"]:::output
+    S3bucket -.-> BusinessDir
+
+    %% =======================
+    %% 3. 用户访问与缓存策略 (Runtime)
+    %% =======================
+    subgraph Access_Flow ["2. 用户访问与双端缓存策略"]
+        User(("用户")):::user
+
+        %% CDN 层
+        subgraph CDN_Layer ["CDN 边缘节点"]
+            direction TB
+            Cache_Page["页面缓存 HTML<br/>/lp/test<br/>(TTL: 10分钟)"]:::cdn
+            Cache_API["接口缓存 JSON<br/>/server-api/lp/*<br/>(TTL: 10分钟)"]:::cdn
+            Cache_Static["静态资源缓存<br/>/static-lp/*<br/>(TTL: 永久)"]:::cdn
+        end
+
+        User -->|1. 首屏访问| Cache_Page
+        User -->|2. SPA/API调用| Cache_API
+        User -->|3. 资源加载| Cache_Static
+
+        %% 路径 3: 静态资源回源
+        Cache_Static -->|回源映射 S3| S3bucket
+
+        %% 路径 1 & 2: 动态回源到 Nuxt
+        Cache_Page -- 未命中 --> NuxtServer
+        Cache_API -- 未命中 --> NuxtServer
+
+        %% Nuxt 服务端逻辑
+        subgraph Nuxt_Logic ["Nuxt 服务端"]
+            NuxtServer["Nuxt Server"]:::nuxt
+
+            subgraph API_Impl ["API: /server-api/lp/:id"]
+                direction TB
+                Logic1["解析参数"] --> Logic2["Fetch path.json"]
+                Logic2 --> Logic3["Fetch Content"]
+                Logic3 --> Logic4["返回 JSON (无内部缓存)"]
+            end
+
+            NuxtServer --> API_Impl
+
+            API_Impl -->|JSON Data| NuxtServer
+            NuxtServer -->|SSR渲染 HTML| Cache_Page
+            NuxtServer -.->|返回 JSON| Cache_API
+        end
+
+        %% Nuxt 取数连接 S3
+        Logic2 -->|直连 S3| S3bucket
+        Logic3 -->|直连 S3| S3bucket
     end
 ```
 
-### 渲染流程
+### test
 
-```mermaid
-flowchart TB
-    classDef entry fill:#4285F4,stroke:#333,stroke-width:2px,color:white
-    classDef astro fill:#FF5D01,stroke:#333,stroke-width:2px,color:white
-    classDef vue fill:#42b883,stroke:#333,stroke-width:2px,color:white
-    classDef cssVar fill:#E91E63,stroke:#333,stroke-width:2px,color:white
-    classDef shadow fill:#FBBC05,stroke:#333,stroke-width:2px,color:black
-    classDef dom fill:#34A853,stroke:#333,stroke-width:2px,color:white
-    classDef gen fill:#00BCD4,stroke:#333,stroke-width:2px,color:white
+为什么?
+有如下代码
+// 第一部分
+  let AstroIsland = customElements.get('astro-island');
+  if (!AstroIsland) {
+    await customElements.whenDefined('astro-island');
+    AstroIsland = customElements.get('astro-island');
+  }
 
-    Browser["浏览器加载"]:::entry
-    Browser --> TypeCheck{"产物类型"}
+// 第二部分
+则是注册 自定义元素astro-island
 
-    %% ===== 主站渲染 =====
-    TypeCheck -- "主站 index.html 片段" --> MainRender
+上方都是js代码
 
-    subgraph MainRender ["主站渲染 · Nuxt 应用内嵌"]
-        direction TB
-        NuxtInject["Nuxt 主应用注入 lp-container 片段"]:::entry
+然后是html代码
+第三部分 是使用自定义元素(html标签)
 
-        subgraph EntryExec ["入口脚本执行（esbuild 编译产物）"]
-            direction TB
-            E1["flexible()<br/>layouts: 375/1920, breakpoints: 768<br/>scope: document.documentElement<br/>CSS 变量: --lr"]:::cssVar
-            E2["initLpConfig()<br/>初始化 LP 全局配置<br/>监听 LP_APP_EVENT"]:::entry
-            E3["initAstroApp()<br/>启动 Astro 生命周期<br/>触发 astro:page-load"]:::astro
-            E1 --> E2 --> E3
-        end
+在我script标签不添加任何属性的时候,在第二部分注册完毕dom后会马上回头执行await 再渲染DOM,但是添加了type="module"后,则不会,而是直接往下继续渲染dom,dom渲染完成后再回头await 后面的逻辑
 
-        NuxtInject --> EntryExec
+### 动态缓存机制
 
-        subgraph IslandHydrate ["Astro Island 水合"]
-            direction TB
-            H1["astro-island 自定义元素解析"]:::astro
-            H2["client:load 指令触发<br/>(由 virtual-page.astro 自动注入)"]:::astro
-            H3["Vue runtime 加载<br/>从 assets/ 按需分片加载"]:::vue
-            H4["App.vue 根组件挂载<br/>(原 pages/_app.vue 已移至 src/App.vue)"]:::vue
-            H5["appEntrypoint = template-app-entrypoint.js<br/>自动生成的 initVueApp 初始化"]:::gen
-            H6["App.vue defineDynamicComponent<br/>动态导入子组件"]:::vue
-            H7["hydrateOnVisible / Idle<br/>按需水合其他组件"]:::vue
-            H1 --> H2 --> H3 --> H4 --> H5 --> H6 --> H7
-        end
+**vite**mapDeps中绝对路径导致的资源加载失败问题, 加上base和非base两套路径映射机制不同
 
-        EntryExec --> IslandHydrate
+const **vite**mapDeps = (i, m=**vite**mapDeps, d=(m.f || (m.f = ["assets/HeroBanner.1qYfm9Mx.js", "assets/~i18n.Cfdp4Ow3.js", "assets/BottomFaq.DsCAHkAt.js", "assets/PcOrMobile.CeGrldWA.js", "assets/common.BsnAAwiL.js", "assets/SwiperEle.DIoNcAlD.js"]))) => i.map(i => d[i]);
+import {defineComponent as P, createElementBlock as O, openBlock as b, createVNode as u, defineAsyncComponent as m, hydrateOnVisible as p} from "https://cdnjs.cloudflare.com/ajax/libs/vue/3.5.22/vue.esm-browser.prod.min.js";
+const A = "modulepreload"
+, S = function(c) {
+return "/" + c
+}
+, E = {}
+, f = function(i, o, t) {
+let a = Promise.resolve();
+if (o && o.length > 0) {
+let h = function(r) {
+return Promise.all(r.map(l => Promise.resolve(l).then(d => ({
+status: "fulfilled",
+value: d
+}), d => ({
+status: "rejected",
+reason: d
+}))))
+};
+document.getElementsByTagName("link");
+const n = document.querySelector("meta[property=csp-nonce]")
+, e = n?.nonce || n?.getAttribute("nonce");
+a = h(o.map(r => {
+if (r = S(r),
+r in E)
+return;
+E[r] = !0;
+const l = r.endsWith(".css")
+, d = l ? '[rel="stylesheet"]' : "";
+if (document.querySelector(`link[href="${r}"]${d}`))
+return;
+const s = document.createElement("link");
+if (s.rel = l ? "stylesheet" : A,
+l || (s.as = "script"),
+s.crossOrigin = "",
+s.href = r,
+e && s.setAttribute("nonce", e),
+document.head.appendChild(s),
+l)
+return new Promise( (v, y) => {
+s.addEventListener("load", v),
+s.addEventListener("error", () => y(new Error(`Unable to preload CSS for ${r}`)))
+}
+)
+}
+))
+}
+function _(n) {
+const e = new Event("vite:preloadError",{
+cancelable: !0
+});
+if (e.payload = n,
+window.dispatchEvent(e),
+!e.defaultPrevented)
+throw n
+}
+return a.then(n => {
+for (const e of n || [])
+e.status === "rejected" && _(e.reason);
+return i().catch(_)
+}
+)
+}
+, g = (c, i) => {
+const o = c.**vccOpts || c;
+for (const [t,a] of i)
+o[t] = a;
+return o
+}
+, w = P({
+**name: "\_app",
+setup(c, {expose: i}) {
+i();
+const o = m({
+loader: () => f( () => import("./HeroBanner.1qYfm9Mx.js"), **vite**mapDeps([0, 1])),
+hydrate: p()
+})
+, t = m({
+loader: () => f( () => import("./BottomFaq.DsCAHkAt.js"), **vite**mapDeps([2, 1])),
+hydrate: p({
+rootMargin: "100px"
+})
+})
+, a = m({
+loader: () => f( () => import("./AnimationEle.B8SftWiE.js"), []),
+hydrate: p()
+})
+, _ = m({
+loader: () => f( () => import("./PcOrMobile.CeGrldWA.js"), **vite**mapDeps([3, 4])),
+hydrate: p()
+})
+, n = m({
+loader: () => f( () => import("./SwiperEle.DIoNcAlD.js"), **vite**mapDeps([5, 4])),
+hydrate: p()
+});
+console.log(!1, "是否开发环境"),
+console.log("这是默认站");
+const e = {
+HeroBanner: o,
+BottomFaq: t,
+AnimationEle: a,
+PcOrMobile: _,
+SwiperEle: n
+};
+return Object.defineProperty(e, "\_\_isScriptSetup", {
+enumerable: !1,
+value: !0
+}),
+e
+}
+})
+, L = {
+class: "lp-container"
+};
+function k(c, i, o, t, a, _) {
+return b(),
+O("div", L, [u(t.HeroBanner), u(t.AnimationEle), u(t.SwiperEle), u(t.PcOrMobile), u(t.BottomFaq)])
+}
+const R = g(w, [["render", k]]);
+export {g as \_, f as a, R as b};
 
-        subgraph MainCSS ["样式生效"]
-            direction TB
-            CS1["内联 style 标签注入页面"]:::cssVar
-            CS2[":where(lp-app) 前缀<br/>防止第三方样式泄漏"]:::cssVar
-            CS3["PostCSS 已转换<br/>px -> calc(var(--lr) * N)"]:::cssVar
-        end
+### 子页面和容器的样式问题
 
-        IslandHydrate --> MainCSS
-    end
+postcss 循环流程进入的问题
+import { globalExtractor } from '@lp/postcss';
+import {
+mergeConfig,
+type Plugin,
+type ResolvedConfig,
+type ViteDevServer,
+} from 'vite';
 
-    MainRender --> MainDOM
-    subgraph MainDOM ["主站 DOM 结构"]
-        direction TB
-        MD1["lp-container"]:::dom
-        MD2["script · flexible + initLpConfig + initAstroApp"]:::entry
-        MD3["style · 所有组件样式"]:::cssVar
-        MD4["lp-app"]:::dom
-        MD5["  astro-island · Vue 水合组件树 (App.vue)"]:::vue
-        MD1 --- MD2
-        MD1 --- MD3
-        MD1 --- MD4
-        MD4 --- MD5
-    end
+const virtualModuleId = '~shadow-styles-hoist.css';
+const resolvedVirtualModuleId = '\0' + virtualModuleId;
 
-    %% ===== 非主站渲染 =====
-    TypeCheck -- "非主站 default.html 单文件" --> NonMainRender
+export function ViteShadowStyleHoist(): Plugin {
+let server: ViteDevServer;
+let config: ResolvedConfig;
+const store = new Set<string>();
 
-    subgraph NonMainRender ["非主站渲染 · Shadow DOM 隔离"]
-        direction TB
-        Load["浏览器打开 default.html<br/>(.astro/nonMainSiteEntry.html 编译产物)"]:::entry
+let lastContent = '';
+let timer: NodeJS.Timeout;
 
-        subgraph NMEntry ["~nonMainSiteEntry 运行时执行"]
-            direction TB
-            NR1["获取 #shopify-lp-app 容器"]:::shadow
-            NR2["创建 lp-app 元素并追加"]:::shadow
-            NR3["lp-app.attachShadow()<br/>第一层 Shadow DOM"]:::shadow
-            NR4["defineCustomElement(App)<br/>注册 non-main-lp-app-{ts}<br/>(import App from '@/App.vue')"]:::vue
-            NR1 --> NR2 --> NR3 --> NR4
-        end
+function reloadVirtualModule() {
+if (!server) return;
 
-        Load --> NMEntry
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      const newContent = [...store].join('\n');
+      if (newContent === lastContent) return;
+      lastContent = newContent;
 
-        subgraph NMFlex ["Flexible 初始化"]
-            direction TB
-            NF1["flexible() scope: lp-app<br/>CSS 变量 --lr -> lp-app"]:::cssVar
-        end
+      const module = server.moduleGraph.getModuleById(resolvedVirtualModuleId);
+      if (module) {
+        // 让模块失效
+        const module = server.moduleGraph.getModuleById(
+          resolvedVirtualModuleId,
+        );
+        if (module) {
+          server.moduleGraph.invalidateModule(module);
+          server.reloadModule(module);
+        }
+      }
+    }, 100);
 
-        NMEntry --> NMFlex
+}
 
-        subgraph NMMount ["onInitialized 挂载"]
-            direction TB
-            NM1["创建 CE 实例"]:::vue
-            NM2["获取 CE shadowRoot<br/>第二层 Shadow DOM（Vue 自动创建）"]:::shadow
-            NM3["创建 style 标签<br/>写入 gatherCss + entryCss"]:::cssVar
-            NM4["注入 style 到第二层 shadowRoot"]:::shadow
-            NM5["挂载 CE 到第一层 shadowRoot"]:::shadow
-            NM1 --> NM2 --> NM3 --> NM4 --> NM5
-        end
+return {
+name: 'vite-plugin-shadow-style-hoist',
 
-        NMFlex --> NMMount
-    end
+    configResolved(resolvedConfig) {
+      config = resolvedConfig;
+    },
+    configureServer(_server) {
+      server = _server;
+    },
 
-    NonMainRender --> NonMainDOM
-    subgraph NonMainDOM ["非主站 DOM 结构 · 双层 Shadow DOM"]
-        direction TB
-        ND1["div#shopify-lp-app"]:::dom
-        ND2["  lp-app"]:::dom
-        ND3["    shadowRoot（第一层·手动）"]:::shadow
-        ND4["      non-main-lp-app-{ts}"]:::vue
-        ND5["        shadowRoot（第二层·Vue CE）"]:::shadow
-        ND6["          style · 全部 CSS"]:::cssVar
-        ND7["          Vue 组件树 (App.vue)"]:::vue
-        ND1 --- ND2
-        ND2 --- ND3
-        ND3 --- ND4
-        ND4 --- ND5
-        ND5 --- ND6
-        ND5 --- ND7
-    end
-```
+    config(config) {
+      config.css = mergeConfig(config.css ?? {}, {
+        postcss: {
+          plugins: [
+            globalExtractor({
+              registry: store,
+              onRegistryChange() {
+                if (server) reloadVirtualModule();
+              },
+            }),
+          ],
+        },
+      });
+    },
+
+    resolveId(id: string) {
+      if (id === virtualModuleId) {
+        return resolvedVirtualModuleId;
+      }
+    },
+    transform(code, id) {
+      if (id === resolvedVirtualModuleId) {
+        console.log('Transform output length:', code); // 这里绝对会是 0 或者非常短
+        return null;
+      }
+    },
+    load(id: string) {
+      if (id === resolvedVirtualModuleId) {
+        if (config.command === 'serve') {
+          const content = [...store].join('\n');
+          console.log('Virtual module content updated:\n', content.length);
+          lastContent = content;
+          return content;
+        }
+        return '';
+      }
+    },
+
+    generateBundle(_, bundle) {
+      if (config.command !== 'build') return;
+      const fontCss = [...store].join('\n');
+      if (!fontCss) return;
+      let cssAppended = false;
+      for (const fileName in bundle) {
+        const asset = bundle[fileName];
+        if (asset.type === 'asset' && fileName.endsWith('.css')) {
+          // 增加一层类型保险
+          if (typeof asset.source === 'string') {
+            asset.source += '\n' + fontCss;
+          } else {
+            asset.source =
+              new TextDecoder().decode(asset.source) + '\n' + fontCss;
+          }
+          cssAppended = true;
+          break;
+        }
+      }
+      if (!cssAppended) {
+        this.emitFile({
+          type: 'asset',
+          fileName: 'assets/app.css',
+          source: fontCss,
+        });
+      }
+    },
+
+};
+}
