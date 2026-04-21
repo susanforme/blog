@@ -1,0 +1,3586 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>基于 Astro 的高性能 SSG 方案</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap"
+    rel="stylesheet" />
+  <style>
+    /* === DESIGN TOKENS === */
+    :root {
+      --white: #f8fbff;
+      --ink: #08111f;
+      --blue: #3354e8;
+      --blue-mid: #4361ee;
+      --blue-light: #dce4ff;
+      --blue-xlight: #eef1ff;
+      --cyan: #4ad4fa;
+      --line: rgba(8, 17, 31, .1);
+      --line-mid: rgba(8, 17, 31, .18);
+      --muted: rgba(8, 17, 31, .52);
+      --muted-light: rgba(8, 17, 31, .36);
+      --shadow-card: 0 2px 12px rgba(8, 17, 31, .07), 0 8px 32px rgba(8, 17, 31, .05);
+      --shadow-lift: 0 8px 32px rgba(51, 84, 232, .14), 0 2px 8px rgba(8, 17, 31, .06);
+      --ff-display: "Manrope", sans-serif;
+      --ff-mono: "JetBrains Mono", monospace;
+      --ease: cubic-bezier(.16, 1, .3, 1);
+      /* split position used everywhere */
+      --split: 58%;
+    }
+
+    /* === RESET === */
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    li {
+      list-style: none;
+    }
+
+    /* === VIEWPORT + SCROLL SNAP === */
+    html,
+    body {
+      height: 100%;
+      overflow-x: hidden;
+    }
+
+    html {
+      scroll-snap-type: y mandatory;
+      scroll-behavior: smooth;
+      background: var(--ink);
+    }
+
+    body {
+      font-family: var(--ff-display);
+      color: var(--ink);
+      background: var(--ink);
+    }
+
+    /* === SLIDE BASE === */
+    .slide {
+      width: 100vw;
+      height: 100vh;
+      height: 100dvh;
+      overflow: hidden;
+      scroll-snap-align: start;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      /* Universal background: white top, blue bottom */
+      background: linear-gradient(180deg, var(--white) 0%, var(--white) var(--split), var(--blue) var(--split), var(--blue) 100%);
+    }
+
+    /* Horizontal accent bar at the split */
+    .slide::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: calc(var(--split) - 3px);
+      height: 6px;
+      background: var(--ink);
+      z-index: 2;
+    }
+
+    /* === SLIDE CONTENT WRAPPER === */
+    .sc {
+      position: relative;
+      z-index: 3;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: clamp(1.2rem, 3.5vw, 3.2rem) clamp(1.4rem, 5vw, 5rem);
+      max-height: 100vh;
+      overflow: hidden;
+    }
+
+    /* === CHROME: PROGRESS + DOTS === */
+    .progress-bar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 3px;
+      z-index: 9000;
+      background: rgba(255, 255, 255, .12);
+    }
+
+    .progress-bar::after {
+      content: "";
+      display: block;
+      height: 100%;
+      width: var(--progress, 0%);
+      background: linear-gradient(90deg, var(--cyan), var(--blue-mid));
+      transition: width .22s ease;
+    }
+
+    .nav-dots {
+      position: fixed;
+      right: clamp(.7rem, 1.2vw, 1.1rem);
+      top: 50%;
+      transform: translateY(-50%);
+      display: flex;
+      flex-direction: column;
+      gap: clamp(.38rem, .7vw, .56rem);
+      z-index: 8000;
+    }
+
+    .nav-dot {
+      width: clamp(.52rem, .72vw, .68rem);
+      height: clamp(.52rem, .72vw, .68rem);
+      border-radius: 50%;
+      border: 1.5px solid rgba(255, 255, 255, .4);
+      background: rgba(255, 255, 255, .18);
+      cursor: pointer;
+      transition: background .25s ease, transform .25s ease, border-color .25s ease;
+    }
+
+    .nav-dot.active {
+      background: var(--white);
+      border-color: var(--white);
+      transform: scale(1.25);
+    }
+
+    .kbd-hint {
+      position: fixed;
+      bottom: clamp(.7rem, 1.4vw, 1.2rem);
+      left: clamp(.7rem, 1.4vw, 1.2rem);
+      font-size: clamp(.6rem, .78vw, .74rem);
+      color: rgba(255, 255, 255, .54);
+      background: rgba(8, 17, 31, .48);
+      border: 1px solid rgba(255, 255, 255, .12);
+      border-radius: 999px;
+      padding: .34rem .72rem;
+      z-index: 7000;
+      letter-spacing: .06em;
+      backdrop-filter: blur(8px);
+    }
+
+    /* === REVEAL ANIMATION === */
+    .r {
+      opacity: 0;
+      transform: translateY(18px);
+      transition: opacity .65s var(--ease), transform .65s var(--ease);
+    }
+
+    .slide.visible .r {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .slide.visible .r:nth-child(1) {
+      transition-delay: .05s;
+    }
+
+    .slide.visible .r:nth-child(2) {
+      transition-delay: .12s;
+    }
+
+    .slide.visible .r:nth-child(3) {
+      transition-delay: .19s;
+    }
+
+    .slide.visible .r:nth-child(4) {
+      transition-delay: .26s;
+    }
+
+    .slide.visible .r:nth-child(5) {
+      transition-delay: .33s;
+    }
+
+    .slide.visible .r:nth-child(6) {
+      transition-delay: .4s;
+    }
+
+    /* === TYPOGRAPHY SCALE === */
+    .t-kicker {
+      font-size: clamp(.68rem, .86vw, .82rem);
+      font-weight: 800;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+      color: var(--blue-mid);
+    }
+
+    .t-page {
+      font-size: clamp(.68rem, .86vw, .82rem);
+      font-weight: 600;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .t-h1 {
+      font-size: clamp(2rem, 5.2vw, 5rem);
+      font-weight: 800;
+      line-height: .92;
+      letter-spacing: -.05em;
+      color: var(--ink);
+    }
+
+    .t-h2 {
+      font-size: clamp(1.35rem, 3.2vw, 3rem);
+      font-weight: 800;
+      line-height: .94;
+      letter-spacing: -.045em;
+      color: var(--ink);
+    }
+
+    .t-h3 {
+      font-size: clamp(.9rem, 1.4vw, 1.2rem);
+      font-weight: 700;
+      line-height: 1.18;
+      letter-spacing: -.02em;
+      color: var(--ink);
+    }
+
+    .t-body {
+      font-size: clamp(.78rem, 1.2vw, .98rem);
+      line-height: 1.56;
+      color: var(--muted);
+    }
+
+    .t-small {
+      font-size: clamp(.68rem, .9vw, .82rem);
+      line-height: 1.5;
+      color: var(--muted-light);
+    }
+
+    .t-mono {
+      font-family: var(--ff-mono);
+      font-size: clamp(.7rem, .95vw, .88rem);
+    }
+
+    /* === SLIDE HEADER ROW === */
+    .slide-hdr {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: clamp(.6rem, 1.2vw, .9rem);
+    }
+
+    /* === SHELL (max-width container) === */
+    .shell {
+      width: 100%;
+      max-width: min(88vw, 1240px);
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: clamp(.7rem, 1.4vw, 1.1rem);
+      max-height: min(80vh, 760px);
+      min-height: 0;
+    }
+
+    .shell-wide {
+      max-width: min(92vw, 1360px);
+    }
+
+    /* === HERO LAYOUT (slide 1) === */
+    .hero-grid {
+      display: grid;
+      grid-template-columns: 1.15fr .85fr;
+      gap: clamp(1rem, 2vw, 2.2rem);
+      max-height: min(82vh, 780px);
+      min-height: 0;
+      width: min(88vw, 1240px);
+      margin: 0 auto;
+    }
+
+    .hero-copy {
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      gap: clamp(.7rem, 1.2vw, .95rem);
+      min-height: 0;
+    }
+
+    .hero-side {
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      gap: clamp(.7rem, 1.3vw, 1rem);
+      border-left: 5px solid var(--ink);
+      padding-left: clamp(1rem, 1.8vw, 1.6rem);
+      min-height: 0;
+    }
+
+    /* === CARDS === */
+    .card-grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: clamp(.6rem, 1.1vw, .85rem);
+    }
+
+    .card-grid-3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: clamp(.6rem, 1.1vw, .85rem);
+    }
+
+    .card-grid-6 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: clamp(.55rem, 1vw, .78rem);
+    }
+
+    .card {
+      background: var(--white);
+      border: 1.5px solid var(--line-mid);
+      border-radius: clamp(.75rem, 1.2vw, 1.1rem);
+      padding: clamp(.8rem, 1.4vw, 1.15rem);
+      box-shadow: var(--shadow-card);
+      min-height: 0;
+    }
+
+    .card:hover {
+      box-shadow: var(--shadow-lift);
+      border-color: var(--blue-mid);
+    }
+
+    .card h3 {
+      margin-bottom: clamp(.3rem, .5vw, .42rem);
+    }
+
+    /* tag/label pills */
+    .tag {
+      display: inline-block;
+      border-radius: 999px;
+      padding: clamp(.28rem, .5vw, .38rem) clamp(.55rem, .9vw, .75rem);
+      font-size: clamp(.64rem, .82vw, .76rem);
+      font-weight: 700;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+
+    .tag-blue {
+      background: rgba(51, 84, 232, .1);
+      color: #2840c0;
+    }
+
+    .tag-red {
+      background: rgba(214, 65, 55, .1);
+      color: #ad2a1c;
+    }
+
+    .tag-teal {
+      background: rgba(4, 130, 140, .1);
+      color: #04828c;
+    }
+
+    .tag-slate {
+      background: rgba(8, 17, 31, .08);
+      color: rgba(8, 17, 31, .7);
+    }
+
+    /* pill row (hero) */
+    .pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: clamp(.4rem, .7vw, .56rem);
+    }
+
+    .pill {
+      border: 1.5px solid var(--line-mid);
+      border-radius: 999px;
+      padding: clamp(.32rem, .6vw, .46rem) clamp(.65rem, 1.1vw, .9rem);
+      font-size: clamp(.68rem, .86vw, .8rem);
+      font-weight: 700;
+      color: var(--muted);
+      background: rgba(8, 17, 31, .03);
+    }
+
+    /* === QUOTE === */
+    .quote-box {
+      background: var(--white);
+      border: 1.5px solid var(--line-mid);
+      border-radius: clamp(1rem, 1.6vw, 1.4rem);
+      padding: clamp(1.1rem, 2vw, 1.8rem);
+      box-shadow: var(--shadow-card);
+      border-left: 5px solid var(--blue-mid);
+      display: flex;
+      flex-direction: column;
+      gap: clamp(.55rem, 1vw, .8rem);
+      max-height: min(70vh, 580px);
+      min-height: 0;
+    }
+
+    blockquote {
+      font-size: clamp(1.15rem, 2.2vw, 2rem);
+      font-weight: 700;
+      line-height: 1.22;
+      letter-spacing: -.04em;
+      color: var(--ink);
+    }
+
+    cite {
+      font-style: normal;
+      text-transform: uppercase;
+      letter-spacing: .18em;
+      font-size: clamp(.64rem, .82vw, .76rem);
+      font-weight: 700;
+      color: var(--blue-mid);
+    }
+
+    /* === COMPARE CARDS === */
+    .compare-card {
+      display: flex;
+      flex-direction: column;
+      gap: clamp(.44rem, .8vw, .62rem);
+    }
+
+    /* === METRIC STRIP === */
+    .metric-strip {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: clamp(.6rem, 1vw, .82rem);
+    }
+
+    .metric-card {
+      display: flex;
+      flex-direction: column;
+      gap: clamp(.28rem, .5vw, .4rem);
+    }
+
+    .metric-val {
+      font-size: clamp(1.1rem, 1.8vw, 1.55rem);
+      font-weight: 800;
+      letter-spacing: -.04em;
+    }
+
+    .metric-val.blue {
+      color: var(--blue-mid);
+    }
+
+    .metric-val.ink {
+      color: var(--ink);
+    }
+
+    /* === CODE PANEL === */
+    .code-panel {
+      background: rgba(8, 17, 31, .04);
+      border: 1.5px solid var(--line-mid);
+      border-radius: clamp(.75rem, 1.2vw, 1.1rem);
+      padding: clamp(.85rem, 1.6vw, 1.3rem);
+      overflow: hidden;
+    }
+
+    .code-panel pre {
+      font-family: var(--ff-mono);
+      font-size: clamp(.68rem, .9vw, .85rem);
+      line-height: 1.52;
+      color: #18274d;
+      white-space: pre-wrap;
+    }
+
+    /* syntax highlighting */
+    .code-panel .kw {
+      color: #2840c0;
+      font-weight: 700;
+    }
+
+    .code-panel .fn {
+      color: #04828c;
+    }
+
+    .code-panel .str {
+      color: #b83020;
+    }
+
+    .code-panel .cm {
+      color: var(--muted-light);
+      font-style: italic;
+    }
+
+    /* === TWO-COLUMN SPLIT === */
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: clamp(.7rem, 1.3vw, 1rem);
+      min-height: 0;
+    }
+
+    .col-card {
+      background: var(--white);
+      border: 1.5px solid var(--line-mid);
+      border-radius: clamp(.9rem, 1.4vw, 1.25rem);
+      padding: clamp(.9rem, 1.6vw, 1.3rem);
+      box-shadow: var(--shadow-card);
+      display: flex;
+      flex-direction: column;
+      gap: clamp(.45rem, .8vw, .65rem);
+      min-height: 0;
+    }
+
+    .col-card-title {
+      display: flex;
+      align-items: center;
+      gap: clamp(.4rem, .7vw, .56rem);
+      padding-bottom: clamp(.45rem, .8vw, .6rem);
+      border-bottom: 1.5px solid var(--line);
+    }
+
+    .col-card-title .icon-circle {
+      width: clamp(1.6rem, 2.4vw, 2rem);
+      height: clamp(1.6rem, 2.4vw, 2rem);
+      border-radius: 50%;
+      background: var(--blue-xlight);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: clamp(.72rem, .95vw, .88rem);
+      font-weight: 800;
+      color: var(--blue-mid);
+      flex-shrink: 0;
+    }
+
+    .col-list {
+      display: flex;
+      flex-direction: column;
+      gap: clamp(.36rem, .6vw, .5rem);
+    }
+
+    .col-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: clamp(.36rem, .55vw, .48rem);
+      font-size: clamp(.74rem, 1.05vw, .88rem);
+      line-height: 1.45;
+      color: var(--muted);
+    }
+
+    .col-list li::before {
+      content: "";
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--blue-mid);
+      flex-shrink: 0;
+      margin-top: .45em;
+    }
+
+    /* === FLOW DIAGRAM (horizontal arrow chain) === */
+    .flow-diagram {
+      display: flex;
+      align-items: stretch;
+      gap: 0;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .flow-node {
+      flex: 1;
+      background: var(--white);
+      border: 1.5px solid var(--line-mid);
+      border-radius: clamp(.75rem, 1.1vw, 1rem);
+      padding: clamp(.75rem, 1.3vw, 1.05rem);
+      box-shadow: var(--shadow-card);
+      display: flex;
+      flex-direction: column;
+      gap: clamp(.32rem, .55vw, .46rem);
+      position: relative;
+      min-width: 0;
+      transition: box-shadow .2s ease, border-color .2s ease;
+    }
+
+    .flow-node:hover {
+      box-shadow: var(--shadow-lift);
+      border-color: var(--blue-mid);
+    }
+
+    .flow-num {
+      font-size: clamp(.62rem, .8vw, .74rem);
+      font-weight: 800;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: var(--blue-mid);
+    }
+
+    .flow-title {
+      font-size: clamp(.84rem, 1.25vw, 1.05rem);
+      font-weight: 800;
+      line-height: 1.18;
+      letter-spacing: -.025em;
+      color: var(--ink);
+    }
+
+    .flow-body {
+      font-size: clamp(.68rem, .92vw, .82rem);
+      line-height: 1.48;
+      color: var(--muted);
+    }
+
+    /* arrow connector between nodes */
+    .flow-arrow {
+      display: flex;
+      align-items: center;
+      padding: 0 clamp(.3rem, .5vw, .42rem);
+      flex-shrink: 0;
+    }
+
+    .flow-arrow svg {
+      width: clamp(1rem, 1.6vw, 1.4rem);
+      height: auto;
+    }
+
+    /* === PROBLEM GRID (6-card) === */
+    .prob-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: clamp(.55rem, .95vw, .78rem);
+    }
+
+    .prob-card {
+      background: var(--white);
+      border: 1.5px solid var(--line-mid);
+      border-radius: clamp(.75rem, 1.1vw, .95rem);
+      padding: clamp(.75rem, 1.3vw, 1.05rem);
+      box-shadow: var(--shadow-card);
+      display: flex;
+      flex-direction: column;
+      gap: clamp(.28rem, .48vw, .38rem);
+    }
+
+    .prob-num {
+      font-size: clamp(.58rem, .74vw, .68rem);
+      font-weight: 800;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+      color: var(--muted-light);
+    }
+
+    /* === TEMPLATE COMPARISON (3-col) === */
+    .tpl-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: clamp(.6rem, 1.1vw, .85rem);
+    }
+
+    .tpl-card {
+      background: var(--white);
+      border: 1.5px solid var(--line-mid);
+      border-radius: clamp(.9rem, 1.4vw, 1.2rem);
+      padding: clamp(.9rem, 1.5vw, 1.2rem);
+      box-shadow: var(--shadow-card);
+      display: flex;
+      flex-direction: column;
+      gap: clamp(.45rem, .8vw, .62rem);
+    }
+
+    .tpl-card-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-bottom: clamp(.45rem, .75vw, .58rem);
+      border-bottom: 1.5px solid var(--line);
+    }
+
+    .tpl-name {
+      font-family: var(--ff-mono);
+      font-size: clamp(.78rem, 1vw, .9rem);
+      font-weight: 700;
+      color: var(--ink);
+    }
+
+    .tpl-list {
+      display: flex;
+      flex-direction: column;
+      gap: clamp(.32rem, .55vw, .44rem);
+    }
+
+    .tpl-list li {
+      font-size: clamp(.7rem, .98vw, .84rem);
+      line-height: 1.42;
+      color: var(--muted);
+      padding-left: clamp(.75rem, 1vw, .9rem);
+      position: relative;
+    }
+
+    .tpl-list li::before {
+      content: "→";
+      position: absolute;
+      left: 0;
+      color: var(--blue-mid);
+      font-size: clamp(.62rem, .78vw, .72rem);
+    }
+
+    /* === SERVER API FLOW === */
+    .api-flow {
+      display: flex;
+      align-items: stretch;
+      gap: 0;
+      min-height: 0;
+    }
+
+    .api-node {
+      flex: 1;
+      background: var(--white);
+      border: 1.5px solid var(--line-mid);
+      border-radius: clamp(.75rem, 1.1vw, 1rem);
+      padding: clamp(.75rem, 1.25vw, 1rem);
+      box-shadow: var(--shadow-card);
+      display: flex;
+      flex-direction: column;
+      gap: clamp(.28rem, .5vw, .4rem);
+      min-width: 0;
+    }
+
+    .api-step {
+      font-size: clamp(.58rem, .74vw, .68rem);
+      font-weight: 800;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+      color: var(--muted-light);
+    }
+
+    .api-title {
+      font-size: clamp(.82rem, 1.2vw, 1rem);
+      font-weight: 800;
+      line-height: 1.18;
+      color: var(--ink);
+    }
+
+    .api-detail {
+      font-size: clamp(.64rem, .88vw, .78rem);
+      line-height: 1.48;
+      color: var(--muted);
+    }
+
+    .api-code {
+      font-family: var(--ff-mono);
+      font-size: clamp(.6rem, .78vw, .72rem);
+      background: rgba(8, 17, 31, .05);
+      border-radius: .3rem;
+      padding: .18rem .36rem;
+      color: #18274d;
+      display: inline-block;
+    }
+
+    /* === SUMMARY GRID (last slide) === */
+    .summary-row {
+      display: grid;
+      grid-template-columns: 1.1fr .9fr;
+      gap: clamp(.7rem, 1.2vw, .95rem);
+      min-height: 0;
+    }
+
+    /* === INLINE EDIT === */
+    .edit-hotzone {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 80px;
+      height: 80px;
+      z-index: 10000;
+      cursor: pointer;
+    }
+
+    .edit-btn {
+      position: fixed;
+      top: clamp(.7rem, 1.2vw, 1rem);
+      left: clamp(.7rem, 1.2vw, 1rem);
+      z-index: 10001;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .28s ease, transform .28s ease;
+      transform: translateY(-5px);
+      border: none;
+      border-radius: 999px;
+      cursor: pointer;
+      padding: clamp(.44rem, .8vw, .62rem) clamp(.7rem, 1.2vw, .95rem);
+      background: var(--ink);
+      color: var(--white);
+      font: 700 clamp(.66rem, .84vw, .78rem)/1 var(--ff-display);
+      letter-spacing: .06em;
+      box-shadow: 0 4px 16px rgba(8, 17, 31, .22);
+    }
+
+    .edit-btn.show,
+    .edit-btn.active {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0);
+    }
+
+    .edit-banner {
+      position: fixed;
+      top: clamp(.7rem, 1.2vw, 1rem);
+      left: 50%;
+      transform: translateX(-50%) translateY(-10px);
+      z-index: 10001;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .28s ease, transform .28s ease;
+      border-radius: 999px;
+      padding: clamp(.44rem, .8vw, .62rem) clamp(.9rem, 1.5vw, 1.2rem);
+      background: var(--ink);
+      color: var(--white);
+      font-size: clamp(.66rem, .84vw, .78rem);
+      letter-spacing: .04em;
+      border: 1px solid rgba(255, 255, 255, .14);
+      backdrop-filter: blur(10px);
+    }
+
+    .edit-banner.active {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    body.editing [data-e] {
+      outline: 2px dashed rgba(51, 84, 232, .45);
+      outline-offset: 2px;
+      border-radius: .2rem;
+      cursor: text;
+    }
+
+    /* === RESPONSIVE === */
+    @media (max-height: 700px) {
+      .sc {
+        padding: clamp(.8rem, 2.5vw, 2rem) clamp(1rem, 4vw, 3.5rem);
+      }
+    }
+
+    @media (max-height: 600px) {
+
+      .nav-dots,
+      .kbd-hint {
+        display: none;
+      }
+    }
+
+    @media (max-width: 980px) {
+
+      .hero-grid,
+      .two-col,
+      .summary-row {
+        grid-template-columns: 1fr;
+      }
+
+      .card-grid-3,
+      .tpl-grid,
+      .prob-grid,
+      .card-grid-6 {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .metric-strip {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .hero-side {
+        border-left: none;
+        border-top: 4px solid var(--ink);
+        padding-left: 0;
+        padding-top: clamp(.7rem, 1.2vw, 1rem);
+      }
+
+      .flow-diagram,
+      .api-flow {
+        flex-direction: column;
+      }
+
+      .flow-arrow {
+        transform: rotate(90deg);
+        align-self: center;
+      }
+    }
+
+    @media (max-width: 720px) {
+
+      .card-grid-2,
+      .card-grid-3,
+      .tpl-grid,
+      .prob-grid,
+      .card-grid-6 {
+        grid-template-columns: 1fr;
+      }
+
+      .t-h1 {
+        max-width: none;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+
+      *,
+      *::before,
+      *::after {
+        animation-duration: .01ms !important;
+        transition-duration: .15s !important;
+      }
+
+      html {
+        scroll-behavior: auto;
+      }
+    }
+  </style>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --panel: #111723;
+      --panel-2: #0f151f;
+      --green: #39d353;
+      --green-dim: #238636;
+      --green-faint: rgba(57, 211, 83, 0.08);
+      --text: #e6edf3;
+      --text-dim: #9aa4b2;
+      --border: rgba(57, 211, 83, 0.24);
+      --border-strong: rgba(57, 211, 83, 0.46);
+      --glow-soft: 0 0 18px rgba(57, 211, 83, 0.2);
+      --glow-strong: 0 0 34px rgba(57, 211, 83, 0.32);
+
+      --white: var(--panel);
+      --ink: var(--text);
+      --blue: #0f1622;
+      --blue-mid: var(--green);
+      --blue-light: rgba(57, 211, 83, 0.14);
+      --blue-xlight: rgba(57, 211, 83, 0.11);
+      --cyan: #79c0ff;
+      --line: rgba(57, 211, 83, 0.16);
+      --line-mid: rgba(57, 211, 83, 0.28);
+      --muted: var(--text-dim);
+      --muted-light: rgba(154, 164, 178, 0.72);
+      --shadow-card: 0 0 0 1px rgba(57, 211, 83, 0.08), 0 10px 36px rgba(0, 0, 0, 0.45);
+      --shadow-lift: 0 0 0 1px rgba(57, 211, 83, 0.28), 0 14px 42px rgba(0, 0, 0, 0.55), var(--glow-soft);
+      --ff-display: "JetBrains Mono", monospace;
+      --ff-mono: "JetBrains Mono", monospace;
+    }
+
+    html {
+      background: var(--bg);
+      color-scheme: dark;
+    }
+
+    body {
+      font-family: var(--ff-display);
+      color: var(--text);
+      background:
+        radial-gradient(circle at 16% 10%, rgba(57, 211, 83, 0.16), transparent 30%),
+        radial-gradient(circle at 88% 0%, rgba(121, 192, 255, 0.12), transparent 35%),
+        var(--bg);
+      letter-spacing: 0.01em;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      background:
+        linear-gradient(90deg, rgba(57, 211, 83, 0.03) 1px, transparent 1px) 0 0 / 28px 28px,
+        linear-gradient(0deg, rgba(57, 211, 83, 0.02) 1px, transparent 1px) 0 0 / 28px 28px;
+      opacity: 0.55;
+    }
+
+    .slide {
+      isolation: isolate;
+      background: linear-gradient(165deg, rgba(17, 23, 35, 0.95) 0%, rgba(13, 17, 23, 0.98) 100%);
+      border-top: 1px solid rgba(57, 211, 83, 0.08);
+    }
+
+    .slide::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      pointer-events: none;
+      background: repeating-linear-gradient(0deg,
+          transparent,
+          transparent 3px,
+          rgba(57, 211, 83, 0.02) 3px,
+          rgba(57, 211, 83, 0.02) 4px);
+    }
+
+    .slide::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 0;
+      height: 2px;
+      z-index: 2;
+      pointer-events: none;
+      background: linear-gradient(90deg, transparent, rgba(57, 211, 83, 0.38), transparent);
+      animation: scanBeam 6s linear infinite;
+    }
+
+    @keyframes scanBeam {
+      0% {
+        transform: translateY(-120%);
+      }
+
+      100% {
+        transform: translateY(115dvh);
+      }
+    }
+
+    .progress-bar {
+      background: rgba(13, 17, 23, 0.9);
+      height: 2px;
+      border-bottom: 1px solid rgba(57, 211, 83, 0.18);
+    }
+
+    .progress-bar::after {
+      background: linear-gradient(90deg, var(--green-dim), var(--green), #79c0ff);
+      box-shadow: var(--glow-soft);
+    }
+
+    .nav-dot {
+      border-color: var(--border);
+      background: rgba(57, 211, 83, 0.12);
+    }
+
+    .nav-dot.active {
+      background: var(--green);
+      border-color: var(--green);
+      box-shadow: var(--glow-soft);
+    }
+
+    .kbd-hint {
+      color: var(--text-dim);
+      background: rgba(13, 17, 23, 0.85);
+      border-color: var(--border);
+    }
+
+    .sc {
+      z-index: 3;
+      padding: clamp(1.1rem, 3.5vw, 3rem) clamp(1.1rem, 4.3vw, 4.4rem);
+    }
+
+    .shell,
+    .hero-grid {
+      max-height: min(84vh, 820px);
+    }
+
+    .hero-side {
+      border-left-color: var(--green-dim);
+      background: linear-gradient(160deg, rgba(57, 211, 83, 0.09), rgba(57, 211, 83, 0.03));
+      border-radius: 8px;
+      padding: clamp(0.9rem, 1.5vw, 1.2rem);
+    }
+
+    .slide-hdr {
+      border-bottom: 1px solid var(--line);
+      padding-bottom: clamp(0.35rem, 0.6vw, 0.5rem);
+      margin-bottom: clamp(0.65rem, 1vw, 0.9rem);
+    }
+
+    .t-kicker,
+    .flow-num,
+    .prob-num,
+    .api-step {
+      color: var(--green);
+      text-shadow: var(--glow-soft);
+    }
+
+    .t-page,
+    .t-body,
+    .t-small,
+    .flow-body,
+    .api-detail,
+    .col-list li,
+    .tpl-list li {
+      color: var(--text-dim);
+    }
+
+    .t-h1,
+    .t-h2,
+    .t-h3,
+    .flow-title,
+    .api-title,
+    .metric-val,
+    blockquote {
+      color: var(--text);
+    }
+
+    .t-h1 {
+      text-shadow: var(--glow-strong);
+      letter-spacing: -0.04em;
+      line-height: 0.95;
+    }
+
+    .t-h2,
+    .t-h3 {
+      letter-spacing: -0.02em;
+    }
+
+    .pill,
+    .tag,
+    .api-code {
+      border: 1px solid var(--border);
+      background: var(--green-faint);
+      color: var(--green);
+      box-shadow: inset 0 0 0 1px rgba(57, 211, 83, 0.08);
+    }
+
+    .card,
+    .col-card,
+    .tpl-card,
+    .flow-node,
+    .api-node,
+    .prob-card,
+    .quote-box,
+    .code-panel {
+      background: linear-gradient(165deg, rgba(17, 23, 35, 0.92), rgba(15, 21, 31, 0.94));
+      border: 1px solid var(--line-mid);
+      box-shadow: var(--shadow-card);
+      backdrop-filter: blur(4px);
+    }
+
+    .card:hover,
+    .flow-node:hover,
+    .tpl-card:hover {
+      border-color: var(--border-strong);
+      box-shadow: var(--shadow-lift);
+      transform: translateY(-1px);
+    }
+
+    .quote-box {
+      border-left: 3px solid var(--green);
+    }
+
+    cite,
+    .tpl-name,
+    .t-mono,
+    .code-panel pre,
+    .api-code {
+      font-family: var(--ff-mono);
+    }
+
+    .code-panel {
+      border-color: rgba(57, 211, 83, 0.35);
+      box-shadow: 0 0 0 1px rgba(57, 211, 83, 0.18), 0 14px 48px rgba(0, 0, 0, 0.55);
+    }
+
+    .code-panel pre {
+      color: #c9d1d9;
+    }
+
+    .code-panel .kw {
+      color: #ff7b72;
+    }
+
+    .code-panel .fn {
+      color: #d2a8ff;
+    }
+
+    .code-panel .str {
+      color: #a5d6ff;
+    }
+
+    .code-panel .cm {
+      color: #7d8590;
+    }
+
+    .icon-circle {
+      background: rgba(57, 211, 83, 0.12) !important;
+      color: var(--green) !important;
+      border: 1px solid var(--border);
+      text-shadow: var(--glow-soft);
+    }
+
+    .flow-arrow svg path {
+      stroke: var(--green) !important;
+    }
+
+    .col-list li::before {
+      background: var(--green);
+      box-shadow: 0 0 8px rgba(57, 211, 83, 0.45);
+    }
+
+    .tpl-list li::before {
+      content: ">";
+      color: var(--green);
+    }
+
+    .metric-val.blue,
+    .metric-val.ink {
+      color: var(--green);
+      text-shadow: var(--glow-soft);
+    }
+
+    .edit-btn,
+    .edit-banner {
+      background: rgba(13, 17, 23, 0.95);
+      color: var(--green);
+      border: 1px solid var(--border-strong);
+      box-shadow: var(--shadow-lift);
+    }
+
+    body.editing [data-e] {
+      outline-color: rgba(57, 211, 83, 0.48);
+      background: rgba(57, 211, 83, 0.08);
+    }
+
+    .r {
+      opacity: 0;
+      transform: translateY(14px);
+      transition: opacity 0.62s var(--ease), transform 0.62s var(--ease);
+    }
+
+    @media (max-width: 980px) {
+      .hero-side {
+        border-left: none;
+        border-top: 2px solid var(--green-dim);
+      }
+
+      .flow-arrow {
+        padding: 0.2rem 0;
+      }
+    }
+
+    @media (max-width: 720px) {
+      .nav-dots {
+        right: 0.45rem;
+      }
+
+      .t-h1 {
+        line-height: 1;
+      }
+
+      .slide-hdr {
+        margin-bottom: 0.7rem;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+
+      .slide::after,
+      .card,
+      .flow-node,
+      .tpl-card {
+        animation: none !important;
+        transform: none !important;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="progress-bar" aria-hidden="true"></div>
+  <nav class="nav-dots" aria-label="幻灯片导航"></nav>
+  <div class="kbd-hint">↑ ↓ Space / Swipe</div>
+  <button class="kbd-hint" id="fsBtn"
+    style="left:calc(clamp(.7rem,1.4vw,1.2rem) + 11rem);border:none;cursor:pointer;background:rgba(13,17,23,.75);"
+    onclick="toggleFullscreen()">⛶ 全屏</button>
+  <div class="edit-hotzone" aria-hidden="true"></div>
+  <button class="edit-btn" id="editBtn">Edit</button>
+  <div class="edit-banner" id="editBanner">编辑模式 — Ctrl+S 导出</div>
+
+  <!-- ============================================================ -->
+  <!-- SLIDE 01 · TITLE                                             -->
+  <!-- ============================================================ -->
+  <section class="slide" data-slide-title="Title">
+    <div class="sc">
+      <div class="hero-grid">
+        <div class="hero-copy">
+          <div class="slide-hdr r">
+            <span class="t-kicker" data-e="s1-kicker">基于 Astro 的高性能落地页 SSG
+              方案</span>
+            <span class="t-page">01 / 23</span>
+          </div>
+          <h1 class="t-h1 r" data-e="s1-title">Astro + Vue<br>落地页系统<br>接入主站 SSR
+          </h1>
+          <p class="t-body r" data-e="s1-body">`new-lp` 负责多语言 SSG 产物构建，`new-h5`
+            主站父容器负责承接、注入与运行时激活。</p>
+        </div>
+        <aside class="hero-side r">
+          <div class="pill-row">
+            <span class="pill" data-e="s1-p1">Astro 6</span>
+            <span class="pill" data-e="s1-p2">Vue 3.5</span>
+            <span class="pill" data-e="s1-p3">Nuxt</span>
+            <span class="pill" data-e="s1-p4">Vite 8</span>
+          </div>
+          <p class="t-body" data-e="s1-side">企业级多语言落地页构建系统，支持 SSG 静态生成、Island
+            按需水合、移动端适配与 Shadow DOM 样式隔离。</p>
+        </aside>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide" data-slide-title="Overview">
+    <div class="sc">
+      <div class="shell">
+        <div class="slide-hdr r">
+          <span class="t-kicker" data-e="s2-kicker">Overview</span>
+          <span class="t-page">02 / 23</span>
+        </div>
+        <h2 class="t-h2 r" data-e="s2-title">需要解决的核心问题</h2>
+        <div class="card-grid-2 r">
+          <article class="card">
+            <div class="tag tag-blue" style="margin-bottom:.4rem">Monorepo</div>
+            <h3 class="t-h3" data-e="s2-c1h">企业级统一管理</h3>
+            <p class="t-body" data-e="s2-c1b">统一管理多品牌落地页的模板、语言包、构建流程与发布资产。</p>
+          </article>
+          <article class="card">
+            <div class="tag tag-teal" style="margin-bottom:.4rem">Performance
+            </div>
+            <h3 class="t-h3" data-e="s2-c2h">性能优先</h3>
+            <p class="t-body" data-e="s2-c2b">营销落地页对首屏速度、SEO、多语言发布和移动端体验要求高。</p>
+          </article>
+          <article class="card">
+            <div class="tag tag-slate" style="margin-bottom:.4rem">Templates
+            </div>
+            <h3 class="t-h3" data-e="s2-c3h">多种交付形态</h3>
+            <p class="t-body" data-e="s2-c3b">`default`、`astro`、`fanka`
+              三类模板覆盖不同交付目标。</p>
+          </article>
+          <article class="card">
+            <div class="tag tag-red" style="margin-bottom:.4rem">Integration
+            </div>
+            <h3 class="t-h3" data-e="s2-c4h">主站集成</h3>
+            <p class="t-body" data-e="s2-c4b">SSG 产物需被 Nuxt 主站稳定消费，集成链路是主要工程难点。
+            </p>
+          </article>
+        </div>
+      </div>
+    </div>
+  </section>
+  <!-- ============================================================ -->
+  <!-- SECTION DIVIDER · 渲染模式                                    -->
+  <!-- ============================================================ -->
+  <section class="slide" data-slide-title="Phase: Rendering Models">
+    <div class="sc" style="justify-content:center;align-items:center;">
+      <div
+        style="position:relative;z-index:4;display:flex;flex-direction:column;align-items:center;gap:clamp(1rem,2.5vw,2rem);text-align:center;">
+        <div class="r"
+          style="display:flex;align-items:center;gap:clamp(.5rem,1vw,.8rem);">
+          <span
+            style="display:inline-block;width:clamp(2.4rem,3.5vw,3rem);height:2px;background:rgba(210,168,255,0.4);"></span>
+          <span
+            style="font-family:'JetBrains Mono',monospace;font-size:clamp(.7rem,.95vw,.88rem);font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:rgba(210,168,255,.55);">Rendering
+            Models</span>
+          <span
+            style="display:inline-block;width:clamp(2.4rem,3.5vw,3rem);height:2px;background:rgba(210,168,255,0.4);"></span>
+        </div>
+        <h1 class="r"
+          style="font-family:'JetBrains Mono',monospace;font-size:clamp(2rem,6vw,5.5rem);font-weight:800;letter-spacing:-.04em;line-height:.92;color:#e6edf3;text-shadow:0 0 60px rgba(210,168,255,0.3),0 0 120px rgba(210,168,255,0.12);">
+          三种渲染模式</h1>
+        <p class="r"
+          style="font-family:'JetBrains Mono',monospace;font-size:clamp(.75rem,1.15vw,1rem);color:rgba(154,164,178,.75);letter-spacing:.06em;max-width:38rem;line-height:1.6;">
+          CSR · SSR · SSG </p>
+        <div class="r"
+          style="display:flex;align-items:center;gap:.6em;padding:clamp(.5rem,.9vw,.75rem) clamp(1.1rem,2vw,1.6rem);background:rgba(210,168,255,.06);border:1px solid rgba(210,168,255,.28);border-radius:999px;">
+          <span
+            style="display:inline-block;width:7px;height:7px;border-radius:50%;background:rgba(210,168,255,0.85);box-shadow:0 0 10px rgba(210,168,255,0.85);"></span>
+          <span
+            style="font-family:'JetBrains Mono',monospace;font-size:clamp(.66rem,.88vw,.8rem);font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:rgba(210,168,255,.85);">Background</span>
+        </div>
+      </div>
+      <div aria-hidden="true"
+        style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:1;pointer-events:none;overflow:hidden;">
+        <span
+          style="font-family:'JetBrains Mono',monospace;font-size:clamp(8rem,30vw,28rem);font-weight:800;letter-spacing:-.05em;color:rgba(210,168,255,.025);white-space:nowrap;user-select:none;">RENDER</span>
+      </div>
+    </div>
+  </section>
+  <section class="slide" data-slide-title="Rendering Overview">
+    <div class="sc">
+      <div class="shell shell-wide">
+        <div class="slide-hdr r">
+          <span class="t-kicker">Rendering Models</span>
+          <span class="t-page">04 / 24</span>
+        </div>
+        <h2 class="t-h2 r">CSR · SSR · SSG 对比</h2>
+        <div class="r"
+          style="flex:1;min-height:0;display:flex;flex-direction:column;gap:clamp(.5rem,.9vw,.8rem);justify-content:center;overflow:hidden;">
+
+          <!-- 三卡片 + Hydration 汇聚图 -->
+          <svg viewBox="0 0 860 210" xmlns="http://www.w3.org/2000/svg"
+            style="width:100%;max-height:min(42vh,340px);"
+            font-family="JetBrains Mono,monospace">
+            <defs>
+              <marker id="ro-p" markerWidth="7" markerHeight="7" refX="5"
+                refY="3" orient="auto">
+                <path d="M0,0 L0,6 L7,3 z" fill="rgba(210,168,255,.8)" />
+              </marker>
+              <filter id="ro-glow">
+                <feGaussianBlur stdDeviation="3" result="b" />
+                <feMerge>
+                  <feMergeNode in="b" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+            </defs>
+
+            <!-- CSR -->
+            <rect x="14" y="12" width="246" height="126" rx="9"
+              fill="rgba(17,23,35,.95)" stroke="rgba(255,123,114,.4)"
+              stroke-width="1.4" />
+            <text x="137" y="36" text-anchor="middle" fill="#ff7b72"
+              font-size="10" font-weight="700" letter-spacing="1.5">CSR</text>
+            <text x="137" y="58" text-anchor="middle" fill="#e6edf3"
+              font-size="12" font-weight="700">客户端渲染</text>
+            <text x="137" y="77" text-anchor="middle" fill="#9aa4b2"
+              font-size="8.5">服务器只返回空壳 HTML</text>
+            <text x="137" y="92" text-anchor="middle" fill="#9aa4b2"
+              font-size="8.5">JS 下载执行后才可见</text>
+            <rect x="34" y="104" width="206" height="22" rx="5"
+              fill="rgba(255,123,114,.1)" stroke="rgba(255,123,114,.3)"
+              stroke-width="1" />
+            <text x="137" y="119" text-anchor="middle"
+              fill="rgba(255,123,114,.9)" font-size="8.5"
+              font-weight="700">数据在浏览器运行时获取</text>
+            <!-- 无需注水 -->
+            <line x1="137" y1="138" x2="137" y2="165"
+              stroke="rgba(255,123,114,.2)" stroke-width="1"
+              stroke-dasharray="3 3" />
+            <text x="137" y="178" text-anchor="middle"
+              fill="rgba(255,123,114,.4)" font-size="7.5">无需 Hydration</text>
+
+            <!-- SSR -->
+            <rect x="307" y="12" width="246" height="126" rx="9"
+              fill="rgba(17,23,35,.95)" stroke="rgba(121,192,255,.45)"
+              stroke-width="1.4" />
+            <text x="430" y="36" text-anchor="middle" fill="#79c0ff"
+              font-size="10" font-weight="700" letter-spacing="1.5">SSR</text>
+            <text x="430" y="58" text-anchor="middle" fill="#e6edf3"
+              font-size="12" font-weight="700">服务端渲染</text>
+            <text x="430" y="77" text-anchor="middle" fill="#9aa4b2"
+              font-size="8.5">每次请求，服务端生成完整 HTML</text>
+            <text x="430" y="92" text-anchor="middle" fill="#9aa4b2"
+              font-size="8.5">首屏快 · SEO 好 · 有服务成本</text>
+            <rect x="327" y="104" width="206" height="22" rx="5"
+              fill="rgba(121,192,255,.1)" stroke="rgba(121,192,255,.3)"
+              stroke-width="1" />
+            <text x="430" y="119" text-anchor="middle"
+              fill="rgba(121,192,255,.9)" font-size="8.5"
+              font-weight="700">数据在请求时由服务端获取</text>
+            <!-- Hydration 引线 -->
+            <line x1="430" y1="138" x2="430" y2="165"
+              stroke="rgba(210,168,255,.5)" stroke-width="1.2"
+              stroke-dasharray="4 3" marker-end="url(#ro-p)" />
+
+            <!-- SSG -->
+            <rect x="600" y="12" width="246" height="126" rx="9"
+              fill="rgba(17,23,35,.95)" stroke="rgba(57,211,83,.6)"
+              stroke-width="1.8" filter="url(#ro-glow)" />
+            <text x="723" y="36" text-anchor="middle" fill="#39d353"
+              font-size="10" font-weight="700" letter-spacing="1.5">SSG ★</text>
+            <text x="723" y="58" text-anchor="middle" fill="#e6edf3"
+              font-size="12" font-weight="700">静态生成</text>
+            <text x="723" y="77" text-anchor="middle" fill="#9aa4b2"
+              font-size="8.5">构建期预生成所有 HTML</text>
+            <text x="723" y="92" text-anchor="middle" fill="#9aa4b2"
+              font-size="8.5">CDN 直出 · 最快首屏 · 零服务成本</text>
+            <rect x="620" y="104" width="206" height="22" rx="5"
+              fill="rgba(57,211,83,.12)" stroke="rgba(57,211,83,.45)"
+              stroke-width="1" />
+            <text x="723" y="119" text-anchor="middle"
+              fill="rgba(57,211,83,.95)" font-size="8.5"
+              font-weight="700">数据在编译期预先注入</text>
+            <!-- Hydration 引线 -->
+            <line x1="723" y1="138" x2="723" y2="165"
+              stroke="rgba(210,168,255,.5)" stroke-width="1.2"
+              stroke-dasharray="4 3" marker-end="url(#ro-p)" />
+
+            <!-- Hydration 汇聚横线 -->
+            <line x1="430" y1="165" x2="576" y2="165"
+              stroke="rgba(210,168,255,.35)" stroke-width="1.2" />
+            <line x1="723" y1="165" x2="576" y2="165"
+              stroke="rgba(210,168,255,.35)" stroke-width="1.2" />
+            <line x1="576" y1="165" x2="576" y2="179"
+              stroke="rgba(210,168,255,.55)" stroke-width="1.2"
+              marker-end="url(#ro-p)" />
+
+            <!-- Hydration 框 -->
+            <rect x="360" y="181" width="432" height="24" rx="6"
+              fill="rgba(210,168,255,.09)" stroke="rgba(210,168,255,.45)"
+              stroke-width="1.3" />
+            <text x="576" y="191" text-anchor="middle" fill="#d2a8ff"
+              font-size="8" font-weight="700"
+              letter-spacing="1">HYDRATION</text>
+            <text x="576" y="202" text-anchor="middle" fill="#9aa4b2"
+              font-size="7.5">静态 HTML 送达后，浏览器绑定事件、恢复交互 — "浇灌干燥的 HTML"</text>
+          </svg>
+
+          <!-- Dan Abramov 引用小条 -->
+          <div class="r" style="display:flex;align-items:center;gap:clamp(.6rem,1vw,.9rem);
+                padding:clamp(.5rem,.8vw,.7rem) clamp(.9rem,1.6vw,1.4rem);
+                background:rgba(210,168,255,.06);border:1px solid rgba(210,168,255,.25);
+                border-radius:8px;">
+            <span
+              style="color:rgba(210,168,255,.5);font-size:2em;line-height:1;">&ldquo;</span>
+            <p style="margin:0;font-size:clamp(.72rem,1vw,.88rem);color:rgba(230,237,243,.75);
+                      font-family:'JetBrains Mono',monospace;line-height:1.5;">
+              Hydration 就像用用户交互和事件处理程序的"水"，来浇灌干燥的 HTML。
+              <cite style="display:block;font-style:normal;font-size:.85em;
+                           color:rgba(210,168,255,.65);margin-top:.3em;">— Dan
+                Abramov</cite>
+            </p>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </section>
+  <section class="slide" data-slide-title="CSR">
+    <div class="sc">
+      <div class="shell shell-wide">
+        <div class="slide-hdr r">
+          <span class="t-kicker">Client-Side Rendering</span>
+          <span class="t-page">04 / 23</span>
+        </div>
+        <h2 class="t-h2 r">CSR — 浏览器全权负责渲染</h2>
+        <div class="r"
+          style="flex:1;min-height:0;display:flex;align-items:center;justify-content:center;overflow:hidden;">
+          <svg viewBox="0 0 860 200" xmlns="http://www.w3.org/2000/svg"
+            style="width:100%;max-height:min(58vh,440px);"
+            font-family="JetBrains Mono,monospace">
+            <defs>
+              <marker id="csr-arr" markerWidth="7" markerHeight="7" refX="5"
+                refY="3" orient="auto">
+                <path d="M0,0 L0,6 L7,3 z" fill="#39d353" />
+              </marker>
+              <filter id="csr-glow">
+                <feGaussianBlur stdDeviation="3" result="b" />
+                <feMerge>
+                  <feMergeNode in="b" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+            </defs>
+
+            <!-- Step 1: 用户请求 -->
+            <rect x="14" y="76" width="118" height="52" rx="8"
+              fill="rgba(17,23,35,.95)" stroke="rgba(57,211,83,.55)"
+              stroke-width="1.5" />
+            <text x="73" y="98" text-anchor="middle" fill="#39d353"
+              font-size="8" font-weight="700" letter-spacing="1">STEP 1</text>
+            <text x="73" y="114" text-anchor="middle" fill="#e6edf3"
+              font-size="10" font-weight="700">用户请求</text>
+            <text x="73" y="126" text-anchor="middle" fill="#9aa4b2"
+              font-size="8">Browser → Server</text>
+
+            <!-- → -->
+            <line x1="132" y1="102" x2="158" y2="102" stroke="#39d353"
+              stroke-width="1.5" marker-end="url(#csr-arr)" />
+
+            <!-- Step 2: 服务器返回空壳 HTML -->
+            <rect x="160" y="76" width="118" height="52" rx="8"
+              fill="rgba(17,23,35,.95)" stroke="rgba(57,211,83,.4)"
+              stroke-width="1.3" />
+            <text x="219" y="98" text-anchor="middle" fill="#39d353"
+              font-size="8" font-weight="700" letter-spacing="1">STEP 2</text>
+            <text x="219" y="114" text-anchor="middle" fill="#e6edf3"
+              font-size="10" font-weight="700">返回空壳 HTML</text>
+            <text x="219" y="126" text-anchor="middle" fill="#9aa4b2"
+              font-size="8">仅含 JS 链接</text>
+
+            <!-- → -->
+            <line x1="278" y1="102" x2="304" y2="102" stroke="#39d353"
+              stroke-width="1.5" marker-end="url(#csr-arr)" />
+
+            <!-- Step 3: 解析 HTML / 下载 JS -->
+            <rect x="306" y="76" width="118" height="52" rx="8"
+              fill="rgba(17,23,35,.95)" stroke="rgba(57,211,83,.4)"
+              stroke-width="1.3" />
+            <text x="365" y="98" text-anchor="middle" fill="#39d353"
+              font-size="8" font-weight="700" letter-spacing="1">STEP 3</text>
+            <text x="365" y="114" text-anchor="middle" fill="#e6edf3"
+              font-size="10" font-weight="700">下载 CSS + JS</text>
+            <text x="365" y="126" text-anchor="middle" fill="#9aa4b2"
+              font-size="8">空白屏等待中…</text>
+
+            <!-- → -->
+            <line x1="424" y1="102" x2="450" y2="102" stroke="#39d353"
+              stroke-width="1.5" marker-end="url(#csr-arr)" />
+
+            <!-- Step 4: 执行 JS -->
+            <rect x="452" y="76" width="118" height="52" rx="8"
+              fill="rgba(17,23,35,.95)" stroke="rgba(57,211,83,.4)"
+              stroke-width="1.3" />
+            <text x="511" y="98" text-anchor="middle" fill="#39d353"
+              font-size="8" font-weight="700" letter-spacing="1">STEP 4</text>
+            <text x="511" y="114" text-anchor="middle" fill="#e6edf3"
+              font-size="10" font-weight="700">执行 JS 框架</text>
+            <text x="511" y="126" text-anchor="middle" fill="#9aa4b2"
+              font-size="8">Vue / React 渲染</text>
+
+            <!-- → -->
+            <line x1="570" y1="102" x2="596" y2="102" stroke="#39d353"
+              stroke-width="1.5" marker-end="url(#csr-arr)" />
+
+            <!-- Step 5: 可见 + 可交互 -->
+            <rect x="598" y="66" width="248" height="72" rx="8"
+              fill="rgba(35,134,54,.18)" stroke="rgba(57,211,83,.65)"
+              stroke-width="1.8" filter="url(#csr-glow)" />
+            <text x="722" y="90" text-anchor="middle" fill="#39d353"
+              font-size="8" font-weight="700" letter-spacing="1">DONE</text>
+            <text x="722" y="107" text-anchor="middle" fill="#e6edf3"
+              font-size="11" font-weight="700">页面渲染完成</text>
+            <text x="722" y="123" text-anchor="middle" fill="#9aa4b2"
+              font-size="8.5">首屏慢 · SEO 弱 · 交互流畅</text>
+
+            <!-- 时间轴底部标注 -->
+            <line x1="14" y1="158" x2="846" y2="158"
+              stroke="rgba(57,211,83,.18)" stroke-width="1"
+              stroke-dasharray="3 3" />
+            <text x="14" y="174" fill="rgba(57,211,83,.5)" font-size="8">← 首字节时间
+              (TTFB)</text>
+            <text x="310" y="174" fill="rgba(255,123,114,.6)" font-size="8">←
+              白屏等待 JS 执行 →</text>
+            <text x="660" y="174" fill="rgba(57,211,83,.6)" font-size="8">FCP =
+              TTI →</text>
+          </svg>
+        </div>
+      </div>
+    </div>
+  </section>
+  <section class="slide" data-slide-title="SSR">
+    <div class="sc">
+      <div class="shell shell-wide">
+        <div class="slide-hdr r">
+          <span class="t-kicker">Server-Side Rendering</span>
+          <span class="t-page">05 / 23</span>
+        </div>
+        <h2 class="t-h2 r">SSR — 服务端先出 HTML，再注水激活</h2>
+        <div class="r"
+          style="flex:1;min-height:0;display:flex;align-items:center;justify-content:center;overflow:hidden;">
+          <svg viewBox="0 0 860 224" xmlns="http://www.w3.org/2000/svg"
+            style="width:100%;max-height:min(58vh,440px);"
+            font-family="JetBrains Mono,monospace">
+            <defs>
+              <marker id="ssr-arr" markerWidth="7" markerHeight="7" refX="5"
+                refY="3" orient="auto">
+                <path d="M0,0 L0,6 L7,3 z" fill="#39d353" />
+              </marker>
+              <marker id="ssr-arr2" markerWidth="7" markerHeight="7" refX="5"
+                refY="3" orient="auto">
+                <path d="M0,0 L0,6 L7,3 z" fill="#79c0ff" />
+              </marker>
+              <filter id="ssr-glow">
+                <feGaussianBlur stdDeviation="3" result="b" />
+                <feMerge>
+                  <feMergeNode in="b" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+            </defs>
+
+            <!-- Step 1 -->
+            <rect x="14" y="60" width="118" height="52" rx="8"
+              fill="rgba(17,23,35,.95)" stroke="rgba(57,211,83,.55)"
+              stroke-width="1.5" />
+            <text x="73" y="82" text-anchor="middle" fill="#39d353"
+              font-size="8" font-weight="700" letter-spacing="1">STEP 1</text>
+            <text x="73" y="98" text-anchor="middle" fill="#e6edf3"
+              font-size="10" font-weight="700">用户请求</text>
+            <text x="73" y="110" text-anchor="middle" fill="#9aa4b2"
+              font-size="8">Browser → Server</text>
+
+            <line x1="132" y1="86" x2="158" y2="86" stroke="#39d353"
+              stroke-width="1.5" marker-end="url(#ssr-arr)" />
+
+            <!-- Step 2: 服务端生成完整 HTML -->
+            <rect x="160" y="60" width="118" height="52" rx="8"
+              fill="rgba(17,23,35,.95)" stroke="rgba(121,192,255,.5)"
+              stroke-width="1.3" />
+            <text x="219" y="82" text-anchor="middle" fill="#79c0ff"
+              font-size="8" font-weight="700" letter-spacing="1">STEP 2</text>
+            <text x="219" y="98" text-anchor="middle" fill="#e6edf3"
+              font-size="10" font-weight="700">服务端生成 HTML</text>
+            <text x="219" y="110" text-anchor="middle" fill="#9aa4b2"
+              font-size="8">完整内容已就绪</text>
+
+            <line x1="278" y1="86" x2="304" y2="86" stroke="#79c0ff"
+              stroke-width="1.5" marker-end="url(#ssr-arr2)" />
+
+            <!-- Step 3: 浏览器渲染 HTML (可见但不可交互) -->
+            <rect x="306" y="60" width="118" height="52" rx="8"
+              fill="rgba(17,23,35,.95)" stroke="rgba(121,192,255,.4)"
+              stroke-width="1.3" />
+            <text x="365" y="82" text-anchor="middle" fill="#79c0ff"
+              font-size="8" font-weight="700" letter-spacing="1">STEP 3</text>
+            <text x="365" y="98" text-anchor="middle" fill="#e6edf3"
+              font-size="10" font-weight="700">渲染 HTML</text>
+            <text x="365" y="110" text-anchor="middle" fill="#9aa4b2"
+              font-size="8">可见 · 暂不可交互</text>
+
+            <line x1="424" y1="86" x2="450" y2="86" stroke="#79c0ff"
+              stroke-width="1.5" marker-end="url(#ssr-arr2)" />
+
+            <!-- Step 4: 下载并执行 JS -->
+            <rect x="452" y="60" width="118" height="52" rx="8"
+              fill="rgba(17,23,35,.95)" stroke="rgba(121,192,255,.4)"
+              stroke-width="1.3" />
+            <text x="511" y="82" text-anchor="middle" fill="#79c0ff"
+              font-size="8" font-weight="700" letter-spacing="1">STEP 4</text>
+            <text x="511" y="98" text-anchor="middle" fill="#e6edf3"
+              font-size="10" font-weight="700">下载 + 执行 JS</text>
+            <text x="511" y="110" text-anchor="middle" fill="#9aa4b2"
+              font-size="8">Hydration 注水</text>
+
+            <line x1="570" y1="86" x2="596" y2="86" stroke="#79c0ff"
+              stroke-width="1.5" marker-end="url(#ssr-arr2)" />
+
+            <!-- Step 5: 完全可交互 -->
+            <rect x="598" y="50" width="248" height="72" rx="8"
+              fill="rgba(35,134,54,.18)" stroke="rgba(57,211,83,.65)"
+              stroke-width="1.8" filter="url(#ssr-glow)" />
+            <text x="722" y="74" text-anchor="middle" fill="#39d353"
+              font-size="8" font-weight="700" letter-spacing="1">DONE</text>
+            <text x="722" y="91" text-anchor="middle" fill="#e6edf3"
+              font-size="11" font-weight="700">完全可交互</text>
+            <text x="722" y="107" text-anchor="middle" fill="#9aa4b2"
+              font-size="8.5">首屏快 · SEO 友好 · 服务端有成本</text>
+
+            <!-- CSR vs SSR 对比标注 -->
+            <line x1="14" y1="144" x2="846" y2="144"
+              stroke="rgba(57,211,83,.15)" stroke-width="1"
+              stroke-dasharray="3 3" />
+
+            <!-- FCP marker -->
+            <line x1="306" y1="136" x2="306" y2="155"
+              stroke="rgba(57,211,83,.5)" stroke-width="1" />
+            <text x="216" y="168" text-anchor="middle"
+              fill="rgba(57,211,83,.65)" font-size="8">FCP 早 ↑ 用户先看到内容</text>
+
+            <!-- TTI marker -->
+            <line x1="598" y1="136" x2="598" y2="155"
+              stroke="rgba(121,192,255,.5)" stroke-width="1" />
+            <text x="710" y="168" text-anchor="middle"
+              fill="rgba(121,192,255,.65)" font-size="8">TTI — Hydration
+              完成后可交互</text>
+
+            <!-- 与 CSR 差异提示 -->
+            <rect x="14" y="180" width="570" height="26" rx="5"
+              fill="rgba(57,211,83,.06)" stroke="rgba(57,211,83,.2)"
+              stroke-width="1" />
+            <text x="299" y="197" text-anchor="middle" fill="rgba(57,211,83,.7)"
+              font-size="8.5">vs CSR：服务端多做一次渲染，换来更快首屏与更好的 SEO</text>
+
+            <!-- SSG 差异标注 -->
+            <rect x="598" y="180" width="248" height="34" rx="5"
+              fill="rgba(210,168,255,.07)" stroke="rgba(210,168,255,.35)"
+              stroke-width="1" />
+            <text x="722" y="194" text-anchor="middle"
+              fill="rgba(210,168,255,.9)" font-size="8" font-weight="700">SSG vs
+              SSR</text>
+            <text x="722" y="207" text-anchor="middle"
+              fill="rgba(210,168,255,.65)" font-size="7.5">SSG
+              在编译期就完成数据注入，无需运行时请求</text>
+          </svg>
+        </div>
+      </div>
+    </div>
+  </section>
+  <section class="slide" data-slide-title="SSG Value">
+    <div class="sc">
+      <div class="shell">
+        <div class="slide-hdr r">
+          <span class="t-kicker" data-e="s5-kicker">SSG</span>
+          <span class="t-page">06 / 23</span>
+        </div>
+        <h2 class="t-h2 r" data-e="s5-title">把昂贵工作前移到构建期</h2>
+        <div class="metric-strip r">
+          <article class="card metric-card">
+            <div class="metric-val blue" data-e="s5-m1">更快首屏</div>
+            <p class="t-small" data-e="s5-m1b">页面提前生成，浏览器直接拿到可展示 HTML。</p>
+          </article>
+          <article class="card metric-card">
+            <div class="metric-val ink" data-e="s5-m2">更轻后端</div>
+            <p class="t-small" data-e="s5-m2b">服务端少做按需渲染，压力转移到构建阶段。</p>
+          </article>
+          <article class="card metric-card">
+            <div class="metric-val blue" data-e="s5-m3">模板自由</div>
+            <p class="t-small" data-e="s5-m3b">不受 CMS 字段和模板体系约束，完全自主。</p>
+          </article>
+          <article class="card metric-card">
+            <div class="metric-val ink" data-e="s5-m4">SEO 友好</div>
+            <p class="t-small" data-e="s5-m4b">HTML 天生可抓取，不依赖完整 JS 执行。</p>
+          </article>
+        </div>
+        <p class="t-body r" data-e="s5-note">大部分内容静态化，少量交互区域按需水合，是营销落地页的性能最优解。
+        </p>
+      </div>
+    </div>
+  </section>
+  <section class="slide" data-slide-title="Solution">
+    <div class="sc">
+      <div class="shell shell-wide">
+        <div class="slide-hdr r">
+          <span class="t-kicker" data-e="s12-kicker">Solution</span>
+          <span class="t-page">07 / 23</span>
+        </div>
+        <h2 class="t-h2 r" data-e="s12-title">三端分工：new-lp 构建期 / 配置平台 / new-h5
+          运行时</h2>
+        <div class="card-grid-3 r">
+
+          <!-- 1. 构建期 -->
+          <div class="col-card" style="border-color:rgba(121,192,255,.45);">
+            <div class="col-card-title">
+              <div class="icon-circle"
+                style="background:rgba(121,192,255,.15);color:#79c0ff;border-color:rgba(121,192,255,.4);">
+                B</div>
+              <h3 class="t-h3" data-e="s12-lh" style="color:#79c0ff;">new-lp ·
+                构建期</h3>
+              <span class="tag"
+                style="margin-left:auto;background:rgba(121,192,255,.12);color:#79c0ff;border-color:rgba(121,192,255,.35);">Build
+                Time</span>
+            </div>
+            <ul class="col-list">
+              <li data-e="s12-l1">根据模板生成静态 HTML、脚本和资源</li>
+              <li data-e="s12-l2">多语言页面组织成可发布资产</li>
+              <li data-e="s12-l3">约定主站可消费的描述格式</li>
+            </ul>
+          </div>
+
+          <!-- 2. 配置平台 -->
+          <div class="col-card" style="border-color:rgba(210,168,255,.45);">
+            <div class="col-card-title">
+              <div class="icon-circle"
+                style="background:rgba(210,168,255,.15);color:#d2a8ff;border-color:rgba(210,168,255,.4);">
+                P</div>
+              <h3 class="t-h3" style="color:#d2a8ff;">配置平台</h3>
+              <span class="tag"
+                style="margin-left:auto;background:rgba(210,168,255,.12);color:#d2a8ff;border-color:rgba(210,168,255,.35);">Admin</span>
+            </div>
+            <ul class="col-list">
+              <li>管理员维护 SEO、内容与发布配置</li>
+              <li>LP 后端（NestJS）提供 REST API</li>
+              <li>操作历史快照 + 一键回滚</li>
+              <li>按语言生成配置写入 S3</li>
+            </ul>
+          </div>
+
+          <!-- 3. 运行时 -->
+          <div class="col-card" style="border-color:rgba(57,211,83,.45);">
+            <div class="col-card-title">
+              <div class="icon-circle"
+                style="background:rgba(57,211,83,.15);color:#39d353;border-color:rgba(57,211,83,.4);">
+                R</div>
+              <h3 class="t-h3" data-e="s12-rh" style="color:#39d353;">new-h5 ·
+                运行时</h3>
+              <span class="tag"
+                style="margin-left:auto;background:rgba(57,211,83,.12);color:#39d353;border-color:rgba(57,211,83,.35);">Runtime</span>
+            </div>
+            <ul class="col-list">
+              <li data-e="s12-r1">取回描述符并装配 HTML</li>
+              <li data-e="s12-r2">客户端重放脚本与 hydration</li>
+              <li data-e="s12-r3">与主站 SSR 生命周期兼容</li>
+            </ul>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </section>
+  <!-- ============================================================ -->
+  <!-- SECTION DIVIDER · 构建期                                      -->
+  <!-- ============================================================ -->
+  <section class="slide" data-slide-title="Phase: Build Time">
+    <div class="sc" style="justify-content:center;align-items:center;">
+      <div
+        style="position:relative;z-index:4;display:flex;flex-direction:column;align-items:center;gap:clamp(1rem,2.5vw,2rem);text-align:center;">
+        <div class="r"
+          style="display:flex;align-items:center;gap:clamp(.5rem,1vw,.8rem);">
+          <span
+            style="display:inline-block;width:clamp(2.4rem,3.5vw,3rem);height:2px;background:rgba(121,192,255,0.5);"></span>
+          <span
+            style="font-family:'JetBrains Mono',monospace;font-size:clamp(.7rem,.95vw,.88rem);font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:rgba(121,192,255,.65);">Phase
+            01</span>
+          <span
+            style="display:inline-block;width:clamp(2.4rem,3.5vw,3rem);height:2px;background:rgba(121,192,255,0.5);"></span>
+        </div>
+        <h1 class="r"
+          style="font-family:'JetBrains Mono',monospace;font-size:clamp(3.5rem,11vw,9.5rem);font-weight:800;letter-spacing:-.04em;line-height:.88;color:#e6edf3;text-shadow:0 0 60px rgba(121,192,255,0.35),0 0 120px rgba(121,192,255,0.15);">
+          构建期</h1>
+        <p class="r"
+          style="font-family:'JetBrains Mono',monospace;font-size:clamp(.75rem,1.15vw,1rem);color:rgba(154,164,178,.75);letter-spacing:.06em;max-width:38rem;line-height:1.6;">
+          new-lp · Astro SSG · Island Architecture · 模板编译策略</p>
+        <div class="r"
+          style="display:flex;align-items:center;gap:clamp(.6rem,1vw,.85rem);padding:clamp(.5rem,.9vw,.75rem) clamp(1.1rem,2vw,1.6rem);background:rgba(121,192,255,.06);border:1px solid rgba(121,192,255,.28);border-radius:999px;">
+          <span
+            style="display:inline-block;width:7px;height:7px;border-radius:50%;background:rgba(121,192,255,0.85);box-shadow:0 0 10px rgba(121,192,255,0.85);"></span>
+          <span
+            style="font-family:'JetBrains Mono',monospace;font-size:clamp(.66rem,.88vw,.8rem);font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:rgba(121,192,255,.85);">Build
+            Time</span>
+        </div>
+      </div>
+      <!-- background decorative large text -->
+      <div aria-hidden="true"
+        style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:1;pointer-events:none;overflow:hidden;">
+        <span
+          style="font-family:'JetBrains Mono',monospace;font-size:clamp(10rem,36vw,32rem);font-weight:800;letter-spacing:-.05em;color:rgba(121,192,255,.03);white-space:nowrap;user-select:none;">BUILD</span>
+      </div>
+    </div>
+  </section>
+  <section class="slide" data-slide-title="System Capabilities">
+    <div class="sc">
+      <div class="shell shell-wide">
+        <div class="slide-hdr r">
+          <span class="t-kicker" data-e="s6-kicker">Capabilities &amp;
+            Tradeoffs</span>
+          <span class="t-page">09 / 23</span>
+        </div>
+        <h2 class="t-h2 r" data-e="s6-title">new-lp 系统能力 &amp; 技术取舍</h2>
+        <div class="two-col r">
+
+          <!-- 左: 6 能力 -->
+          <div class="col-card">
+            <div class="col-card-title">
+              <div class="icon-circle">能</div>
+              <h3 class="t-h3">系统能力全景</h3>
+            </div>
+            <div
+              style="display:grid;grid-template-columns:1fr 1fr;gap:clamp(.35rem,.6vw,.5rem);margin-top:.3rem;">
+              <div
+                style="padding:clamp(.4rem,.7vw,.6rem);background:rgba(57,211,83,.06);border:1px solid rgba(57,211,83,.18);border-radius:6px;">
+                <div
+                  style="font-size:clamp(.7rem,.9vw,.82rem);font-weight:700;color:#e6edf3;margin-bottom:.2em;"
+                  data-e="s6-c1">多语言</div>
+                <div style="font-size:clamp(.62rem,.8vw,.74rem);color:#9aa4b2;"
+                  data-e="s6-c1b">多语言落地页一等公民支持</div>
+              </div>
+              <div
+                style="padding:clamp(.4rem,.7vw,.6rem);background:rgba(57,211,83,.06);border:1px solid rgba(57,211,83,.18);border-radius:6px;">
+                <div
+                  style="font-size:clamp(.7rem,.9vw,.82rem);font-weight:700;color:#e6edf3;margin-bottom:.2em;"
+                  data-e="s6-c2">SSG 输出</div>
+                <div style="font-size:clamp(.62rem,.8vw,.74rem);color:#9aa4b2;"
+                  data-e="s6-c2b">静态化保证首屏与 SEO</div>
+              </div>
+              <div
+                style="padding:clamp(.4rem,.7vw,.6rem);background:rgba(57,211,83,.06);border:1px solid rgba(57,211,83,.18);border-radius:6px;">
+                <div
+                  style="font-size:clamp(.7rem,.9vw,.82rem);font-weight:700;color:#e6edf3;margin-bottom:.2em;"
+                  data-e="s6-c3">Island 水合</div>
+                <div style="font-size:clamp(.62rem,.8vw,.74rem);color:#9aa4b2;"
+                  data-e="s6-c3b">交互按需加载，非交互零 JS</div>
+              </div>
+              <div
+                style="padding:clamp(.4rem,.7vw,.6rem);background:rgba(57,211,83,.06);border:1px solid rgba(57,211,83,.18);border-radius:6px;">
+                <div
+                  style="font-size:clamp(.7rem,.9vw,.82rem);font-weight:700;color:#e6edf3;margin-bottom:.2em;"
+                  data-e="s6-c4">移动端适配</div>
+                <div style="font-size:clamp(.62rem,.8vw,.74rem);color:#9aa4b2;"
+                  data-e="s6-c4b">以移动端为主，系统内置方案</div>
+              </div>
+              <div
+                style="padding:clamp(.4rem,.7vw,.6rem);background:rgba(57,211,83,.06);border:1px solid rgba(57,211,83,.18);border-radius:6px;">
+                <div
+                  style="font-size:clamp(.7rem,.9vw,.82rem);font-weight:700;color:#e6edf3;margin-bottom:.2em;"
+                  data-e="s6-c5">Shadow DOM</div>
+                <div style="font-size:clamp(.62rem,.8vw,.74rem);color:#9aa4b2;"
+                  data-e="s6-c5b">fanka 模板样式完全隔离</div>
+              </div>
+              <div
+                style="padding:clamp(.4rem,.7vw,.6rem);background:rgba(57,211,83,.06);border:1px solid rgba(57,211,83,.18);border-radius:6px;">
+                <div
+                  style="font-size:clamp(.7rem,.9vw,.82rem);font-weight:700;color:#e6edf3;margin-bottom:.2em;"
+                  data-e="s6-c6">统一 CLI</div>
+                <div style="font-size:clamp(.62rem,.8vw,.74rem);color:#9aa4b2;"
+                  data-e="s6-c6b">同一仓库，跨品牌复用</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 右: 技术取舍 -->
+          <div class="col-card">
+            <div class="col-card-title">
+              <div class="icon-circle">舍</div>
+              <h3 class="t-h3" data-e="s9-title">技术取舍</h3>
+            </div>
+            <div
+              style="display:flex;flex-direction:column;gap:clamp(.4rem,.7vw,.6rem);margin-top:.3rem;">
+              <div
+                style="padding:clamp(.45rem,.8vw,.7rem);background:rgba(57,211,83,.06);border:1px solid rgba(57,211,83,.18);border-radius:6px;">
+                <div
+                  style="display:flex;align-items:center;gap:.5em;margin-bottom:.3em;">
+                  <span class="tag tag-blue"
+                    style="font-size:.7rem;">Performance</span>
+                  <span
+                    style="font-size:clamp(.7rem,.9vw,.82rem);font-weight:700;color:#e6edf3;"
+                    data-e="s9-c1">性能</span>
+                </div>
+                <p style="margin:0;font-size:clamp(.62rem,.8vw,.74rem);color:#9aa4b2;"
+                  data-e="s9-c1b">Astro 默认克制，天然减少初始 JS 成本。</p>
+              </div>
+              <div
+                style="padding:clamp(.45rem,.8vw,.7rem);background:rgba(57,211,83,.06);border:1px solid rgba(57,211,83,.18);border-radius:6px;">
+                <div
+                  style="display:flex;align-items:center;gap:.5em;margin-bottom:.3em;">
+                  <span class="tag tag-slate"
+                    style="font-size:.7rem;">Flexibility</span>
+                  <span
+                    style="font-size:clamp(.7rem,.9vw,.82rem);font-weight:700;color:#e6edf3;"
+                    data-e="s9-c2">灵活性</span>
+                </div>
+                <p style="margin:0;font-size:clamp(.62rem,.8vw,.74rem);color:#9aa4b2;"
+                  data-e="s9-c2b">并非所有页面适合完全静态化，需识别有价值的交互岛屿。</p>
+              </div>
+              <div
+                style="padding:clamp(.45rem,.8vw,.7rem);background:rgba(57,211,83,.06);border:1px solid rgba(57,211,83,.18);border-radius:6px;">
+                <div
+                  style="display:flex;align-items:center;gap:.5em;margin-bottom:.3em;">
+                  <span class="tag tag-red"
+                    style="font-size:.7rem;">Integration</span>
+                  <span
+                    style="font-size:clamp(.7rem,.9vw,.82rem);font-weight:700;color:#e6edf3;"
+                    data-e="s9-c3">集成复杂度</span>
+                </div>
+                <p style="margin:0;font-size:clamp(.62rem,.8vw,.74rem);color:#9aa4b2;"
+                  data-e="s9-c3b">Astro 独立运行容易，接进已有 SSR 主站是真正的工程题。</p>
+              </div>
+              <p class="t-small" data-e="s9-note"
+                style="color:rgba(57,211,83,.6);border-top:1px solid rgba(57,211,83,.15);padding-top:.4em;">
+                选 Astro + Vue 3 可复用已有运行时，不引入额外框架开销。</p>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+    <!-- phase badge -->
+    <div style="position:absolute;bottom:clamp(2rem,3.5vh,3rem);right:clamp(1.2rem,3vw,3.5rem);z-index:20;
+                display:flex;align-items:center;gap:.45em;
+                font-family:'JetBrains Mono',monospace;font-size:clamp(.6rem,.85vw,.78rem);
+                font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+                color:rgba(121,192,255,0.85);opacity:.9;">
+      <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:rgba(121,192,255,0.85);
+                   box-shadow:0 0 8px rgba(121,192,255,0.85);"></span>
+      构建期
+    </div>
+  </section>
+  <section class="slide" data-slide-title="Islands">
+    <div class="sc">
+      <div class="shell shell-wide">
+        <div class="slide-hdr r">
+          <span class="t-kicker" data-e="s7-kicker">Islands Architecture</span>
+          <span class="t-page">10 / 23</span>
+        </div>
+        <h2 class="t-h2 r" data-e="s7-title">页面是静态大陆，交互只是局部岛屿</h2>
+        <div class="two-col r">
+
+          <!-- 左: Island 概念 + 调度策略 -->
+          <div class="col-card">
+            <div class="col-card-title">
+              <div class="icon-circle">≠</div>
+              <h3 class="t-h3" data-e="s7-lh">与整页水合的区别</h3>
+            </div>
+            <ul class="col-list">
+              <li data-e="s7-l1">不需要统一根节点先初始化</li>
+              <li data-e="s7-l2">各岛屿独立激活，互不阻塞</li>
+              <li data-e="s7-l3">单组件问题不影响整页性能</li>
+              <li data-e="s7-l4">适合"内容为主，交互点缀"的落地页</li>
+            </ul>
+            <div
+              style="margin-top:clamp(.5rem,.8vw,.7rem);padding-top:clamp(.4rem,.6vw,.5rem);border-top:1px solid var(--line);">
+              <div
+                style="font-size:clamp(.66rem,.85vw,.78rem);font-weight:700;color:var(--green);margin-bottom:.4em;">
+                ⚡ 水合调度策略</div>
+              <ul class="col-list">
+                <li data-e="s7-r1"><span class="t-mono">client:load</span> —
+                  立即加载</li>
+                <li data-e="s7-r2"><span class="t-mono">client:visible</span> —
+                  进入视口时</li>
+                <li data-e="s7-r3"><span class="t-mono">client:idle</span> —
+                  浏览器空闲时</li>
+                <li data-e="s7-r4"><span
+                    class="t-mono">client:interaction</span> — 用户交互时</li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- 右: 运行时代码片段 -->
+          <div class="col-card">
+            <div class="col-card-title">
+              <div class="icon-circle">&lt;/&gt;</div>
+              <h3 class="t-h3" data-e="s8-title">Island 按指令加载，再触发 hydration</h3>
+            </div>
+            <div class="code-panel" style="margin-top:.4rem;flex:1;">
+              <pre data-e="s8-code"><span class="kw">const</span> directive = <span class="kw">this</span>.getAttribute(<span class="str">'client'</span>)
+<span class="kw">await</span> <span class="fn">Astro[directive]</span>(<span class="kw">async</span> () =&gt; {
+  <span class="kw">const</span> [mod, { <span class="kw">default</span>: hydrator }] =
+    <span class="kw">await</span> Promise.<span class="fn">all</span>([
+      <span class="fn">import</span>(<span class="kw">this</span>.getAttribute(<span class="str">'component-url'</span>)),
+      <span class="fn">import</span>(<span class="kw">this</span>.getAttribute(<span class="str">'renderer-url'</span>)),
+    ])
+  <span class="kw">this</span>.Component = mod.<span class="kw">default</span>
+  <span class="kw">this</span>.hydrator  = hydrator
+  <span class="kw">return</span> <span class="kw">this</span>.hydrate <span class="cm">// 注水函数</span>
+}, opts, <span class="kw">this</span>)</pre>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+    <!-- phase badge -->
+    <div style="position:absolute;bottom:clamp(2rem,3.5vh,3rem);right:clamp(1.2rem,3vw,3.5rem);z-index:20;
+                display:flex;align-items:center;gap:.45em;
+                font-family:'JetBrains Mono',monospace;font-size:clamp(.6rem,.85vw,.78rem);
+                font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+                color:rgba(121,192,255,0.85);opacity:.9;">
+      <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:rgba(121,192,255,0.85);
+                   box-shadow:0 0 8px rgba(121,192,255,0.85);"></span>
+      构建期
+    </div>
+  </section>
+  <section class="slide" data-slide-title="Build Pipeline">
+    <div class="sc">
+      <div class="shell shell-wide">
+        <div class="slide-hdr r">
+          <span class="t-kicker">Default 模板编译流程</span>
+          <span class="t-page">11 / 23</span>
+        </div>
+        <h2 class="t-h2 r">Default 模板编译策略：按语言分流的双路构建方案</h2>
+        <div class="r"
+          style="flex:1;min-height:0;display:flex;align-items:center;justify-content:center;overflow:hidden;">
+          <svg viewBox="0 0 820 300" xmlns="http://www.w3.org/2000/svg"
+            style="width:100%;max-height:min(58vh,480px);"
+            font-family="JetBrains Mono,monospace">
+            <defs>
+              <marker id="ahb" markerWidth="7" markerHeight="7" refX="5"
+                refY="3" orient="auto">
+                <path d="M0,0 L0,6 L7,3 z" fill="#39d353" />
+              </marker>
+              <marker id="ahbl" markerWidth="7" markerHeight="7" refX="5"
+                refY="3" orient="auto">
+                <path d="M0,0 L0,6 L7,3 z" fill="#79c0ff" />
+              </marker>
+              <marker id="ahbp" markerWidth="7" markerHeight="7" refX="5"
+                refY="3" orient="auto">
+                <path d="M0,0 L0,6 L7,3 z" fill="#d2a8ff" />
+              </marker>
+              <filter id="glowb">
+                <feGaussianBlur stdDeviation="3" result="b" />
+                <feMerge>
+                  <feMergeNode in="b" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+            </defs>
+
+            <!-- Entry -->
+            <rect x="310" y="18" width="200" height="44" rx="8"
+              fill="rgba(17,23,35,.95)" stroke="rgba(57,211,83,.6)"
+              stroke-width="1.6" />
+            <text x="410" y="36" text-anchor="middle" fill="#39d353"
+              font-size="9" font-weight="700" letter-spacing="1.5">ENTRY</text>
+            <text x="410" y="52" text-anchor="middle" fill="#e6edf3"
+              font-size="11" font-weight="700">pnpm build</text>
+
+            <!-- Entry → Diamond -->
+            <line x1="410" y1="62" x2="410" y2="88" stroke="#39d353"
+              stroke-width="1.5" marker-end="url(#ahb)" />
+
+            <!-- Diamond 语言分类 -->
+            <polygon points="410,90 500,124 410,158 320,124"
+              fill="rgba(57,211,83,.08)" stroke="#39d353" stroke-width="2"
+              filter="url(#glowb)" />
+            <text x="410" y="119" text-anchor="middle" fill="#39d353"
+              font-size="10" font-weight="700">语言?</text>
+            <text x="410" y="134" text-anchor="middle"
+              fill="rgba(57,211,83,.65)" font-size="8.5">buildFactory()</text>
+
+            <!-- 左分支标签 -->
+            <text x="228" y="116" text-anchor="middle" fill="#79c0ff"
+              font-size="9" font-weight="700">en / de / fr…</text>
+            <!-- Left arrow -->
+            <line x1="320" y1="124" x2="210" y2="124" stroke="#79c0ff"
+              stroke-width="1.5" marker-end="url(#ahbl)" />
+
+            <!-- 左节点: Astro SSG -->
+            <rect x="76" y="106" width="132" height="38" rx="7"
+              fill="rgba(17,23,35,.9)" stroke="rgba(121,192,255,.55)"
+              stroke-width="1.4" />
+            <text x="142" y="122" text-anchor="middle" fill="#79c0ff"
+              font-size="10" font-weight="700">Astro SSG</text>
+            <text x="142" y="137" text-anchor="middle" fill="#9aa4b2"
+              font-size="8.5">Vite 插件 + Island</text>
+
+            <!-- 左↓ -->
+            <line x1="142" y1="144" x2="142" y2="178" stroke="#79c0ff"
+              stroke-width="1.4" marker-end="url(#ahbl)" />
+
+            <!-- 左产物 -->
+            <rect x="50" y="180" width="184" height="72" rx="8"
+              fill="rgba(35,134,54,.15)" stroke="rgba(57,211,83,.5)"
+              stroke-width="1.5" />
+            <text x="142" y="200" text-anchor="middle" fill="#39d353"
+              font-size="9" font-weight="700">dist/{lang}/</text>
+            <text x="142" y="218" text-anchor="middle" fill="#e6edf3"
+              font-size="9.5">index.html</text>
+            <text x="142" y="233" text-anchor="middle" fill="#9aa4b2"
+              font-size="8">主站容器片段 + assets/</text>
+            <text x="142" y="246" text-anchor="middle" fill="#9aa4b2"
+              font-size="8">_preview.html</text>
+
+            <!-- 右分支标签 -->
+            <text x="590" y="116" text-anchor="middle" fill="#d2a8ff"
+              font-size="9" font-weight="700">jp / kr</text>
+            <!-- Right arrow -->
+            <line x1="500" y1="124" x2="610" y2="124" stroke="#d2a8ff"
+              stroke-width="1.5" marker-end="url(#ahbp)" />
+
+            <!-- 右节点: Shadow DOM -->
+            <rect x="612" y="106" width="132" height="38" rx="7"
+              fill="rgba(17,23,35,.9)" stroke="rgba(210,168,255,.55)"
+              stroke-width="1.4" />
+            <text x="678" y="122" text-anchor="middle" fill="#d2a8ff"
+              font-size="10" font-weight="700">Shadow DOM</text>
+            <text x="678" y="137" text-anchor="middle" fill="#9aa4b2"
+              font-size="8.5">Vite 单文件构建</text>
+
+            <!-- 右↓ -->
+            <line x1="678" y1="144" x2="678" y2="178" stroke="#d2a8ff"
+              stroke-width="1.4" marker-end="url(#ahbp)" />
+
+            <!-- 右产物 -->
+            <rect x="586" y="180" width="184" height="72" rx="8"
+              fill="rgba(57,211,83,.08)" stroke="rgba(57,211,83,.4)"
+              stroke-width="1.5" />
+            <text x="678" y="200" text-anchor="middle" fill="#39d353"
+              font-size="9" font-weight="700">dist/{lang}/</text>
+            <text x="678" y="218" text-anchor="middle" fill="#e6edf3"
+              font-size="9.5">default.html</text>
+            <text x="678" y="233" text-anchor="middle" fill="#9aa4b2"
+              font-size="8">JS / CSS / 字体全部内联</text>
+            <text x="678" y="246" text-anchor="middle" fill="#9aa4b2"
+              font-size="8">Shadow DOM 样式隔离</text>
+
+            <!-- 两者汇入 zipBuild -->
+            <line x1="142" y1="252" x2="142" y2="278"
+              stroke="rgba(57,211,83,.35)" stroke-width="1.2"
+              stroke-dasharray="4 3" />
+            <line x1="142" y1="278" x2="360" y2="278"
+              stroke="rgba(57,211,83,.35)" stroke-width="1.2"
+              stroke-dasharray="4 3" />
+            <line x1="678" y1="252" x2="678" y2="278"
+              stroke="rgba(57,211,83,.35)" stroke-width="1.2"
+              stroke-dasharray="4 3" />
+            <line x1="678" y1="278" x2="460" y2="278"
+              stroke="rgba(57,211,83,.35)" stroke-width="1.2"
+              stroke-dasharray="4 3" marker-end="url(#ahb)" />
+
+            <!-- zipBuild 节点 -->
+            <rect x="310" y="264" width="200" height="34" rx="7"
+              fill="rgba(17,23,35,.95)" stroke="rgba(57,211,83,.5)"
+              stroke-width="1.5" />
+            <text x="410" y="285" text-anchor="middle" fill="#39d353"
+              font-size="10" font-weight="700">release.zip</text>
+          </svg>
+        </div>
+      </div>
+    </div>
+    <!-- phase badge -->
+    <div style="position:absolute;bottom:clamp(2rem,3.5vh,3rem);right:clamp(1.2rem,3vw,3.5rem);z-index:20;
+                display:flex;align-items:center;gap:.45em;
+                font-family:'JetBrains Mono',monospace;font-size:clamp(.6rem,.85vw,.78rem);
+                font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+                color:rgba(121,192,255,0.85);opacity:.9;">
+      <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:rgba(121,192,255,0.85);
+                   box-shadow:0 0 8px rgba(121,192,255,0.85);"></span>
+      构建期
+    </div>
+  </section>
+  <!-- ============================================================ -->
+  <!-- SECTION DIVIDER · 配置平台                                    -->
+  <!-- ============================================================ -->
+  <section class="slide" data-slide-title="Phase: Admin Platform">
+    <div class="sc" style="justify-content:center;align-items:center;">
+      <div
+        style="position:relative;z-index:4;display:flex;flex-direction:column;align-items:center;gap:clamp(1rem,2.5vw,2rem);text-align:center;">
+        <div class="r"
+          style="display:flex;align-items:center;gap:clamp(.5rem,1vw,.8rem);">
+          <span
+            style="display:inline-block;width:clamp(2.4rem,3.5vw,3rem);height:2px;background:rgba(210,168,255,0.5);"></span>
+          <span
+            style="font-family:'JetBrains Mono',monospace;font-size:clamp(.7rem,.95vw,.88rem);font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:rgba(210,168,255,.65);">Phase
+            02</span>
+          <span
+            style="display:inline-block;width:clamp(2.4rem,3.5vw,3rem);height:2px;background:rgba(210,168,255,0.5);"></span>
+        </div>
+        <h1 class="r"
+          style="font-family:'JetBrains Mono',monospace;font-size:clamp(2.8rem,9vw,8rem);font-weight:800;letter-spacing:-.04em;line-height:.88;color:#e6edf3;text-shadow:0 0 60px rgba(210,168,255,0.35),0 0 120px rgba(210,168,255,0.15);">
+          配置平台</h1>
+        <p class="r"
+          style="font-family:'JetBrains Mono',monospace;font-size:clamp(.75rem,1.15vw,1rem);color:rgba(154,164,178,.75);letter-spacing:.06em;max-width:38rem;line-height:1.6;">
+          NestJS · REST API · 版本快照 · S3 存储 · CDN 刷新</p>
+        <div class="r"
+          style="display:flex;align-items:center;gap:clamp(.6rem,1vw,.85rem);padding:clamp(.5rem,.9vw,.75rem) clamp(1.1rem,2vw,1.6rem);background:rgba(210,168,255,.06);border:1px solid rgba(210,168,255,.28);border-radius:999px;">
+          <span
+            style="display:inline-block;width:7px;height:7px;border-radius:50%;background:rgba(210,168,255,0.85);box-shadow:0 0 10px rgba(210,168,255,0.85);"></span>
+          <span
+            style="font-family:'JetBrains Mono',monospace;font-size:clamp(.66rem,.88vw,.8rem);font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:rgba(210,168,255,.85);">Admin
+            Platform</span>
+        </div>
+      </div>
+      <!-- background decorative large text -->
+      <div aria-hidden="true"
+        style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:1;pointer-events:none;overflow:hidden;">
+        <span
+          style="font-family:'JetBrains Mono',monospace;font-size:clamp(8rem,30vw,28rem);font-weight:800;letter-spacing:-.05em;color:rgba(210,168,255,.03);white-space:nowrap;user-select:none;">ADMIN</span>
+      </div>
+    </div>
+  </section>
+  <section class="slide" data-slide-title="LP Backend Overview">
+    <div class="sc">
+      <div class="shell shell-wide">
+        <div class="slide-hdr r">
+          <span class="t-kicker">配置平台 · LP 后端系统</span>
+          <span class="t-page">13 / 23</span>
+        </div>
+        <h2 class="t-h2 r">配置平台的核心职责：创建、保存、发布与回滚多语言 LP 页面</h2>
+        <div class="card-grid-2 r">
+          <article class="card">
+            <div class="tag tag-blue" style="margin-bottom:.5rem">Create &amp;
+              Save</div>
+            <h3 class="t-h3">创建与保存</h3>
+            <p class="t-body">管理员通过配置平台新建 LP 页面，上传 zip 包，系统解析多语言目录并写入
+              S3，同步更新数据库配置。</p>
+          </article>
+          <article class="card">
+            <div class="tag tag-teal" style="margin-bottom:.5rem">Publish</div>
+            <h3 class="t-h3">发布</h3>
+            <p class="t-body">发布时构建多语言 JSON 描述符上传至 S3，更新数据库发布状态，并自动触发 CDN
+              缓存刷新，保证用户即时访问新页面。</p>
+          </article>
+          <article class="card">
+            <div class="tag tag-slate" style="margin-bottom:.5rem">History</div>
+            <h3 class="t-h3">版本管理与回滚</h3>
+            <p class="t-body">每次保存与发布均生成配置快照，记录操作者与类型，支持一键回滚至任意历史版本。</p>
+          </article>
+          <article class="card">
+            <div class="tag tag-red" style="margin-bottom:.5rem">i18n</div>
+            <h3 class="t-h3">多语言独立管理</h3>
+            <p class="t-body">每种语言拥有独立 contentPath，互不干扰，支持单语言复制 SEO 配置并拷贝对应 S3
+              资源。</p>
+          </article>
+        </div>
+      </div>
+    </div>
+    <!-- phase badge -->
+    <div style="position:absolute;bottom:clamp(2rem,3.5vh,3rem);right:clamp(1.2rem,3vw,3.5rem);z-index:20;
+                display:flex;align-items:center;gap:.45em;
+                font-family:'JetBrains Mono',monospace;font-size:clamp(.6rem,.85vw,.78rem);
+                font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+                color:rgba(210,168,255,0.85);opacity:.9;">
+      <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:rgba(210,168,255,0.85);
+                   box-shadow:0 0 8px rgba(210,168,255,0.85);"></span>
+      配置平台
+    </div>
+  </section>
+  <section class="slide" data-slide-title="Save Flow">
+    <div class="sc">
+      <div class="shell shell-wide">
+        <div class="slide-hdr r">
+          <span class="t-kicker">Save Pipeline</span>
+          <span class="t-page">14 / 23</span>
+        </div>
+        <h2 class="t-h2 r">保存流程：同步写库返回 taskId，异步上传 S3</h2>
+        <div class="r"
+          style="flex:1;min-height:0;display:flex;align-items:center;justify-content:center;overflow:hidden;">
+          <svg viewBox="0 0 920 280" xmlns="http://www.w3.org/2000/svg"
+            style="width:100%;max-height:min(56vh,430px);"
+            font-family="JetBrains Mono,monospace">
+            <defs>
+              <marker id="sv-g" markerWidth="7" markerHeight="7" refX="5"
+                refY="3" orient="auto">
+                <path d="M0,0 L0,6 L7,3 z" fill="#39d353" />
+              </marker>
+              <marker id="sv-b" markerWidth="7" markerHeight="7" refX="5"
+                refY="3" orient="auto">
+                <path d="M0,0 L0,6 L7,3 z" fill="#79c0ff" />
+              </marker>
+              <marker id="sv-p" markerWidth="7" markerHeight="7" refX="5"
+                refY="3" orient="auto">
+                <path d="M0,0 L0,6 L7,3 z" fill="#d2a8ff" />
+              </marker>
+              <filter id="sv-glow">
+                <feGaussianBlur stdDeviation="3" result="b" />
+                <feMerge>
+                  <feMergeNode in="b" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+            </defs>
+
+            <!-- SYNC 层分隔 -->
+            <line x1="14" y1="154" x2="900" y2="154"
+              stroke="rgba(121,192,255,.15)" stroke-width="1"
+              stroke-dasharray="3 3" />
+            <text x="870" y="149" text-anchor="middle"
+              fill="rgba(121,192,255,.5)" font-size="7.5">SYNC 层</text>
+            <!-- ASYNC 层分隔 -->
+            <line x1="14" y1="220" x2="900" y2="220"
+              stroke="rgba(210,168,255,.12)" stroke-width="1"
+              stroke-dasharray="3 3" />
+            <text x="870" y="215" text-anchor="middle"
+              fill="rgba(210,168,255,.45)" font-size="7.5">ASYNC 层</text>
+
+            <!-- Step 1: 前置校验 -->
+            <rect x="14" y="100" width="122" height="52" rx="7"
+              fill="rgba(17,23,35,.95)" stroke="rgba(57,211,83,.6)"
+              stroke-width="1.6" />
+            <text x="75" y="119" text-anchor="middle" fill="#39d353"
+              font-size="7.5" font-weight="700"
+              letter-spacing="1">VALIDATE</text>
+            <text x="75" y="134" text-anchor="middle" fill="#e6edf3"
+              font-size="9.5" font-weight="700">前置校验</text>
+            <text x="75" y="147" text-anchor="middle" fill="#9aa4b2"
+              font-size="7.5">zip + localizations</text>
+
+            <line x1="136" y1="126" x2="156" y2="126" stroke="#39d353"
+              stroke-width="1.4" marker-end="url(#sv-g)" />
+
+            <!-- Step 2: KV 互斥 -->
+            <rect x="158" y="100" width="122" height="52" rx="7"
+              fill="rgba(17,23,35,.95)" stroke="rgba(57,211,83,.42)"
+              stroke-width="1.3" />
+            <text x="219" y="119" text-anchor="middle" fill="#39d353"
+              font-size="7.5" font-weight="700" letter-spacing="1">MUTEX</text>
+            <text x="219" y="134" text-anchor="middle" fill="#e6edf3"
+              font-size="9.5" font-weight="700">KV 互斥检查</text>
+            <text x="219" y="147" text-anchor="middle" fill="#9aa4b2"
+              font-size="7.5">防并发重复操作</text>
+
+            <line x1="280" y1="126" x2="300" y2="126" stroke="#39d353"
+              stroke-width="1.4" marker-end="url(#sv-g)" />
+
+            <!-- Step 3: zip 解析 -->
+            <rect x="302" y="100" width="122" height="52" rx="7"
+              fill="rgba(17,23,35,.95)" stroke="rgba(57,211,83,.42)"
+              stroke-width="1.3" />
+            <text x="363" y="119" text-anchor="middle" fill="#39d353"
+              font-size="7.5" font-weight="700" letter-spacing="1">PARSE</text>
+            <text x="363" y="134" text-anchor="middle" fill="#e6edf3"
+              font-size="9.5" font-weight="700">zip 解析</text>
+            <text x="363" y="147" text-anchor="middle" fill="#9aa4b2"
+              font-size="7.5">提取语言目录 + contentPath</text>
+
+            <line x1="424" y1="126" x2="444" y2="126" stroke="#39d353"
+              stroke-width="1.4" marker-end="url(#sv-g)" />
+
+            <!-- Step 4: 事务写库 -->
+            <rect x="446" y="100" width="122" height="52" rx="7"
+              fill="rgba(17,23,35,.95)" stroke="rgba(57,211,83,.42)"
+              stroke-width="1.3" />
+            <text x="507" y="119" text-anchor="middle" fill="#39d353"
+              font-size="7.5" font-weight="700" letter-spacing="1">TX</text>
+            <text x="507" y="134" text-anchor="middle" fill="#e6edf3"
+              font-size="9.5" font-weight="700">事务写库</text>
+            <text x="507" y="147" text-anchor="middle" fill="#9aa4b2"
+              font-size="7.5">Promotion + Config 入库</text>
+
+            <!-- TX 向上分叉: 同步返回 taskId -->
+            <line x1="507" y1="100" x2="507" y2="68" stroke="#79c0ff"
+              stroke-width="1.4" marker-end="url(#sv-b)" />
+            <rect x="446" y="18" width="122" height="48" rx="7"
+              fill="rgba(17,23,35,.9)" stroke="rgba(121,192,255,.55)"
+              stroke-width="1.3" />
+            <text x="507" y="36" text-anchor="middle" fill="#79c0ff"
+              font-size="7.5" font-weight="700" letter-spacing="1">SYNC</text>
+            <text x="507" y="50" text-anchor="middle" fill="#e6edf3"
+              font-size="9.5" font-weight="700">返回 taskId</text>
+            <text x="507" y="62" text-anchor="middle" fill="#9aa4b2"
+              font-size="7.5">前端轮询进度</text>
+
+            <!-- TX 向右异步 -->
+            <line x1="568" y1="126" x2="588" y2="126" stroke="#d2a8ff"
+              stroke-width="1.4" stroke-dasharray="5 3"
+              marker-end="url(#sv-p)" />
+            <text x="578" y="119" text-anchor="middle"
+              fill="rgba(210,168,255,.7)" font-size="7.5">异步</text>
+
+            <!-- Step 5: 异步上传 S3 -->
+            <rect x="590" y="88" width="148" height="78" rx="8"
+              fill="rgba(210,168,255,.12)" stroke="rgba(210,168,255,.65)"
+              stroke-width="1.8" filter="url(#sv-glow)" />
+            <text x="664" y="111" text-anchor="middle" fill="#d2a8ff"
+              font-size="7.5" font-weight="700" letter-spacing="1">ASYNC
+              UPLOAD</text>
+            <text x="664" y="128" text-anchor="middle" fill="#e6edf3"
+              font-size="10" font-weight="700">上传 S3</text>
+            <text x="664" y="143" text-anchor="middle" fill="#9aa4b2"
+              font-size="7.5">HTML + JSON 按语言分目录</text>
+            <text x="664" y="156" text-anchor="middle" fill="#9aa4b2"
+              font-size="7.5">KV 更新任务进度</text>
+
+            <!-- KV 进度条标注 -->
+            <rect x="158" y="232" width="376" height="24" rx="5"
+              fill="rgba(210,168,255,.06)" stroke="rgba(210,168,255,.2)"
+              stroke-width="1" />
+            <text x="346" y="248" text-anchor="middle"
+              fill="rgba(210,168,255,.65)" font-size="7.5">KV 写入任务状态，前端通过 taskId
+              轮询当前进度</text>
+
+            <!-- 虚线从 MUTEX/PARSE/TX 指向 KV 标注 -->
+            <line x1="219" y1="152" x2="219" y2="232"
+              stroke="rgba(210,168,255,.25)" stroke-width="1"
+              stroke-dasharray="3 3" />
+            <line x1="363" y1="152" x2="363" y2="232"
+              stroke="rgba(210,168,255,.25)" stroke-width="1"
+              stroke-dasharray="3 3" />
+            <line x1="507" y1="152" x2="507" y2="232"
+              stroke="rgba(210,168,255,.25)" stroke-width="1"
+              stroke-dasharray="3 3" />
+          </svg>
+        </div>
+      </div>
+    </div>
+    <!-- phase badge -->
+    <div style="position:absolute;bottom:clamp(2rem,3.5vh,3rem);right:clamp(1.2rem,3vw,3.5rem);z-index:20;
+                display:flex;align-items:center;gap:.45em;
+                font-family:'JetBrains Mono',monospace;font-size:clamp(.6rem,.85vw,.78rem);
+                font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+                color:rgba(210,168,255,0.85);opacity:.9;">
+      <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:rgba(210,168,255,0.85);
+                   box-shadow:0 0 8px rgba(210,168,255,0.85);"></span>
+      配置平台
+    </div>
+  </section>
+  <section class="slide" data-slide-title="Publish Flow">
+    <div class="sc">
+      <div class="shell shell-wide">
+        <div class="slide-hdr r">
+          <span class="t-kicker">Publish Pipeline</span>
+          <span class="t-page">15 / 23</span>
+        </div>
+        <h2 class="t-h2 r">发布流程：校验同步返回 taskId，后续全部异步执行</h2>
+        <div class="r"
+          style="flex:1;min-height:0;display:flex;align-items:center;justify-content:center;overflow:hidden;">
+          <svg viewBox="0 0 920 280" xmlns="http://www.w3.org/2000/svg"
+            style="width:100%;max-height:min(56vh,430px);"
+            font-family="JetBrains Mono,monospace">
+            <defs>
+              <marker id="pb-g" markerWidth="7" markerHeight="7" refX="5"
+                refY="3" orient="auto">
+                <path d="M0,0 L0,6 L7,3 z" fill="#39d353" />
+              </marker>
+              <marker id="pb-b" markerWidth="7" markerHeight="7" refX="5"
+                refY="3" orient="auto">
+                <path d="M0,0 L0,6 L7,3 z" fill="#79c0ff" />
+              </marker>
+              <marker id="pb-p" markerWidth="7" markerHeight="7" refX="5"
+                refY="3" orient="auto">
+                <path d="M0,0 L0,6 L7,3 z" fill="#d2a8ff" />
+              </marker>
+              <filter id="pb-glow">
+                <feGaussianBlur stdDeviation="3" result="b" />
+                <feMerge>
+                  <feMergeNode in="b" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+            </defs>
+
+            <!-- Step 1: VALIDATE (sync) -->
+            <rect x="14" y="100" width="130" height="54" rx="7"
+              fill="rgba(17,23,35,.95)" stroke="rgba(57,211,83,.6)"
+              stroke-width="1.6" />
+            <text x="79" y="121" text-anchor="middle" fill="#39d353"
+              font-size="8" font-weight="700" letter-spacing="1">VALIDATE</text>
+            <text x="79" y="137" text-anchor="middle" fill="#e6edf3"
+              font-size="10" font-weight="700">发布前校验</text>
+            <text x="79" y="150" text-anchor="middle" fill="#9aa4b2"
+              font-size="8">配置完整性检查</text>
+
+            <!-- 分叉点: sync return taskId (向上) + async chain (向右) -->
+            <!-- 向上: 同步返回 taskId -->
+            <line x1="79" y1="100" x2="79" y2="68" stroke="#79c0ff"
+              stroke-width="1.4" marker-end="url(#pb-b)" />
+            <rect x="14" y="18" width="130" height="48" rx="7"
+              fill="rgba(17,23,35,.9)" stroke="rgba(121,192,255,.55)"
+              stroke-width="1.3" />
+            <text x="79" y="36" text-anchor="middle" fill="#79c0ff"
+              font-size="8" font-weight="700" letter-spacing="1">SYNC</text>
+            <text x="79" y="51" text-anchor="middle" fill="#e6edf3"
+              font-size="9.5" font-weight="700">返回 taskId</text>
+            <text x="79" y="62" text-anchor="middle" fill="#9aa4b2"
+              font-size="7.5">前端轮询进度</text>
+
+            <!-- sync 标注线 -->
+            <line x1="144" y1="42" x2="870" y2="42"
+              stroke="rgba(121,192,255,.18)" stroke-width="1"
+              stroke-dasharray="3 3" />
+            <text x="820" y="37" text-anchor="middle"
+              fill="rgba(121,192,255,.5)" font-size="7.5">SYNC 层</text>
+
+            <!-- async 标注线 -->
+            <line x1="144" y1="154" x2="870" y2="154"
+              stroke="rgba(210,168,255,.15)" stroke-width="1"
+              stroke-dasharray="3 3" />
+            <text x="820" y="149" text-anchor="middle"
+              fill="rgba(210,168,255,.45)" font-size="7.5">ASYNC 层</text>
+
+            <!-- 向右: 开始异步链 -->
+            <line x1="144" y1="127" x2="168" y2="127" stroke="#d2a8ff"
+              stroke-width="1.4" stroke-dasharray="5 3"
+              marker-end="url(#pb-p)" />
+            <text x="156" y="120" text-anchor="middle"
+              fill="rgba(210,168,255,.7)" font-size="7.5">异步</text>
+
+            <!-- Step 2: BUILD JSON -->
+            <rect x="170" y="100" width="130" height="54" rx="7"
+              fill="rgba(17,23,35,.9)" stroke="rgba(210,168,255,.45)"
+              stroke-width="1.3" />
+            <text x="235" y="121" text-anchor="middle" fill="#d2a8ff"
+              font-size="8" font-weight="700" letter-spacing="1">BUILD</text>
+            <text x="235" y="137" text-anchor="middle" fill="#e6edf3"
+              font-size="10" font-weight="700">构建 JSON</text>
+            <text x="235" y="150" text-anchor="middle" fill="#9aa4b2"
+              font-size="8">SEO + 模板 + 路径</text>
+
+            <line x1="300" y1="127" x2="324" y2="127" stroke="#d2a8ff"
+              stroke-width="1.4" marker-end="url(#pb-p)" />
+
+            <!-- Step 3: UPLOAD S3 -->
+            <rect x="326" y="100" width="130" height="54" rx="7"
+              fill="rgba(17,23,35,.9)" stroke="rgba(210,168,255,.45)"
+              stroke-width="1.3" />
+            <text x="391" y="121" text-anchor="middle" fill="#d2a8ff"
+              font-size="8" font-weight="700" letter-spacing="1">UPLOAD</text>
+            <text x="391" y="137" text-anchor="middle" fill="#e6edf3"
+              font-size="10" font-weight="700">上传 S3</text>
+            <text x="391" y="150" text-anchor="middle" fill="#9aa4b2"
+              font-size="8">[locale].json 写入</text>
+
+            <line x1="456" y1="127" x2="480" y2="127" stroke="#d2a8ff"
+              stroke-width="1.4" marker-end="url(#pb-p)" />
+
+            <!-- Step 4: DB -->
+            <rect x="482" y="100" width="130" height="54" rx="7"
+              fill="rgba(17,23,35,.9)" stroke="rgba(210,168,255,.45)"
+              stroke-width="1.3" />
+            <text x="547" y="121" text-anchor="middle" fill="#d2a8ff"
+              font-size="8" font-weight="700" letter-spacing="1">DB</text>
+            <text x="547" y="137" text-anchor="middle" fill="#e6edf3"
+              font-size="10" font-weight="700">更新数据库</text>
+            <text x="547" y="150" text-anchor="middle" fill="#9aa4b2"
+              font-size="8">lastPublishTime + UserId</text>
+
+            <line x1="612" y1="127" x2="636" y2="127" stroke="#d2a8ff"
+              stroke-width="1.4" marker-end="url(#pb-p)" />
+
+            <!-- Step 5: CDN FLUSH -->
+            <rect x="638" y="88" width="150" height="78" rx="8"
+              fill="rgba(210,168,255,.12)" stroke="rgba(210,168,255,.7)"
+              stroke-width="1.8" filter="url(#pb-glow)" />
+            <text x="713" y="111" text-anchor="middle" fill="#d2a8ff"
+              font-size="8" font-weight="700" letter-spacing="1">CDN
+              FLUSH</text>
+            <text x="713" y="128" text-anchor="middle" fill="#e6edf3"
+              font-size="10.5" font-weight="700">CDN 刷新</text>
+            <text x="713" y="143" text-anchor="middle" fill="#9aa4b2"
+              font-size="8">Admin API 清除旧缓存</text>
+            <text x="713" y="156" text-anchor="middle" fill="#9aa4b2"
+              font-size="8">用户即时访问新页面</text>
+
+            <!-- KV 进度更新标注 -->
+            <line x1="235" y1="154" x2="235" y2="192"
+              stroke="rgba(210,168,255,.35)" stroke-width="1"
+              stroke-dasharray="3 3" />
+            <line x1="391" y1="154" x2="391" y2="192"
+              stroke="rgba(210,168,255,.35)" stroke-width="1"
+              stroke-dasharray="3 3" />
+            <line x1="547" y1="154" x2="547" y2="192"
+              stroke="rgba(210,168,255,.35)" stroke-width="1"
+              stroke-dasharray="3 3" />
+            <rect x="170" y="194" width="510" height="26" rx="5"
+              fill="rgba(210,168,255,.06)" stroke="rgba(210,168,255,.22)"
+              stroke-width="1" />
+            <text x="425" y="211" text-anchor="middle"
+              fill="rgba(210,168,255,.7)" font-size="8">KV 更新任务进度，前端轮询 taskId
+              获取当前状态</text>
+          </svg>
+        </div>
+      </div>
+    </div>
+    <!-- phase badge -->
+    <div style="position:absolute;bottom:clamp(2rem,3.5vh,3rem);right:clamp(1.2rem,3vw,3.5rem);z-index:20;
+                display:flex;align-items:center;gap:.45em;
+                font-family:'JetBrains Mono',monospace;font-size:clamp(.6rem,.85vw,.78rem);
+                font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+                color:rgba(210,168,255,0.85);opacity:.9;">
+      <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:rgba(210,168,255,0.85);
+                   box-shadow:0 0 8px rgba(210,168,255,0.85);"></span>
+      配置平台
+    </div>
+  </section>
+  <section class="slide" data-slide-title="Tech Highlights">
+    <div class="sc">
+      <div class="shell shell-wide">
+        <div class="slide-hdr r">
+          <span class="t-kicker">Tech Highlights</span>
+          <span class="t-page">16 / 23</span>
+        </div>
+        <h2 class="t-h2 r">四个工程决策保障系统可靠性与可追溯性</h2>
+        <div class="card-grid-2 r">
+          <article class="card">
+            <div class="tag tag-blue" style="margin-bottom:.5rem">Async</div>
+            <h3 class="t-h3">异步任务管理</h3>
+            <p class="t-body">RxJS + KV 将上传、发布、CDN 刷新全部异步化，接口即时返回任务号，前端轮询进度。</p>
+          </article>
+          <article class="card">
+            <div class="tag tag-teal" style="margin-bottom:.5rem">Safety</div>
+            <h3 class="t-h3">事务 + 悲观锁</h3>
+            <p class="t-body">KV 互斥锁防并发重复创建；TypeORM 事务保证写库并发安全，避免数据不一致。</p>
+          </article>
+          <article class="card">
+            <div class="tag tag-slate" style="margin-bottom:.5rem">History</div>
+            <h3 class="t-h3">历史版本 + 回滚</h3>
+            <p class="t-body">每次保存和发布均生成配置快照，支持一键回滚历史版本，并记录操作者、操作类型与备注。</p>
+          </article>
+          <article class="card">
+            <div class="tag tag-red" style="margin-bottom:.5rem">i18n</div>
+            <h3 class="t-h3">多语言独立管理</h3>
+            <p class="t-body">每种语言独立 <span
+                class="t-mono">contentPath</span>，互不干扰；支持单语言复制 SEO 配置并拷贝对应 S3
+              资源。</p>
+          </article>
+        </div>
+      </div>
+    </div>
+    <!-- phase badge -->
+    <div style="position:absolute;bottom:clamp(2rem,3.5vh,3rem);right:clamp(1.2rem,3vw,3.5rem);z-index:20;
+                display:flex;align-items:center;gap:.45em;
+                font-family:'JetBrains Mono',monospace;font-size:clamp(.6rem,.85vw,.78rem);
+                font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+                color:rgba(210,168,255,0.85);opacity:.9;">
+      <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:rgba(210,168,255,0.85);
+                   box-shadow:0 0 8px rgba(210,168,255,0.85);"></span>
+      配置平台
+    </div>
+  </section>
+  <!-- ============================================================ -->
+  <!-- SECTION DIVIDER · 运行时                                      -->
+  <!-- ============================================================ -->
+  <section class="slide" data-slide-title="Phase: Runtime">
+    <div class="sc" style="justify-content:center;align-items:center;">
+      <div
+        style="position:relative;z-index:4;display:flex;flex-direction:column;align-items:center;gap:clamp(1rem,2.5vw,2rem);text-align:center;">
+        <div class="r"
+          style="display:flex;align-items:center;gap:clamp(.5rem,1vw,.8rem);">
+          <span
+            style="display:inline-block;width:clamp(2.4rem,3.5vw,3rem);height:2px;background:rgba(57,211,83,0.5);"></span>
+          <span
+            style="font-family:'JetBrains Mono',monospace;font-size:clamp(.7rem,.95vw,.88rem);font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:rgba(57,211,83,.65);">Phase
+            03</span>
+          <span
+            style="display:inline-block;width:clamp(2.4rem,3.5vw,3rem);height:2px;background:rgba(57,211,83,0.5);"></span>
+        </div>
+        <h1 class="r"
+          style="font-family:'JetBrains Mono',monospace;font-size:clamp(3.2rem,10vw,9rem);font-weight:800;letter-spacing:-.04em;line-height:.88;color:#e6edf3;text-shadow:0 0 60px rgba(57,211,83,0.4),0 0 120px rgba(57,211,83,0.18);">
+          运行时</h1>
+        <p class="r"
+          style="font-family:'JetBrains Mono',monospace;font-size:clamp(.75rem,1.15vw,1rem);color:rgba(154,164,178,.75);letter-spacing:.06em;max-width:38rem;line-height:1.6;">
+          new-h5 · Nuxt 主站 · 产物接入 · Hydration 重放 · SSR 集成</p>
+        <div class="r"
+          style="display:flex;align-items:center;gap:clamp(.6rem,1vw,.85rem);padding:clamp(.5rem,.9vw,.75rem) clamp(1.1rem,2vw,1.6rem);background:rgba(57,211,83,.06);border:1px solid rgba(57,211,83,.28);border-radius:999px;">
+          <span
+            style="display:inline-block;width:7px;height:7px;border-radius:50%;background:rgba(57,211,83,0.85);box-shadow:0 0 10px rgba(57,211,83,0.85);"></span>
+          <span
+            style="font-family:'JetBrains Mono',monospace;font-size:clamp(.66rem,.88vw,.8rem);font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:rgba(57,211,83,.85);">Runtime</span>
+        </div>
+      </div>
+      <!-- background decorative large text -->
+      <div aria-hidden="true"
+        style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:1;pointer-events:none;overflow:hidden;">
+        <span
+          style="font-family:'JetBrains Mono',monospace;font-size:clamp(8rem,32vw,30rem);font-weight:800;letter-spacing:-.05em;color:rgba(57,211,83,.03);white-space:nowrap;user-select:none;">RUNTIME</span>
+      </div>
+    </div>
+  </section>
+  <section class="slide" data-slide-title="Problems">
+    <div class="sc">
+      <div class="shell">
+        <div class="slide-hdr r">
+          <span class="t-kicker" data-e="s11-kicker">Integration Problems</span>
+          <span class="t-page">18 / 23</span>
+        </div>
+        <h2 class="t-h2 r" data-e="s11-title">产物接入主站需解决的六类工程问题</h2>
+        <div class="prob-grid r">
+          <div class="prob-card">
+            <div class="prob-num">01</div>
+            <h3 class="t-h3" data-e="s11-p1">产物接入</h3>
+            <p class="t-small" data-e="s11-p1b">Astro 编译结果如何成为主站可消费的模块。</p>
+          </div>
+          <div class="prob-card">
+            <div class="prob-num">02</div>
+            <h3 class="t-h3" data-e="s11-p2">资源路径</h3>
+            <p class="t-small" data-e="s11-p2b">相对路径资源如何映射到主站静态资源体系。</p>
+          </div>
+          <div class="prob-card">
+            <div class="prob-num">03</div>
+            <h3 class="t-h3" data-e="s11-p3">客户端水合</h3>
+            <p class="t-small" data-e="s11-p3b">Vue 组件如何在主站环境下激活而不冲突。</p>
+          </div>
+          <div class="prob-card">
+            <div class="prob-num">04</div>
+            <h3 class="t-h3" data-e="s11-p4">国际化</h3>
+            <p class="t-small" data-e="s11-p4b">多语言内容、路由和运行时上下文如何对齐。</p>
+          </div>
+          <div class="prob-card">
+            <div class="prob-num">05</div>
+            <h3 class="t-h3" data-e="s11-p5">SSR / CSR 一致性</h3>
+            <p class="t-small" data-e="s11-p5b">同一份产物在双端使用时避免行为漂移。</p>
+          </div>
+          <div class="prob-card">
+            <div class="prob-num">06</div>
+            <h3 class="t-h3" data-e="s11-p6">多平台复用</h3>
+            <p class="t-small" data-e="s11-p6b">除 Nuxt 外还能在 Shopify 等环境复用。</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- phase badge -->
+    <div style="position:absolute;bottom:clamp(2rem,3.5vh,3rem);right:clamp(1.2rem,3vw,3.5rem);z-index:20;
+                display:flex;align-items:center;gap:.45em;
+                font-family:'JetBrains Mono',monospace;font-size:clamp(.6rem,.85vw,.78rem);
+                font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+                color:rgba(57,211,83,0.85);opacity:.9;">
+      <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:rgba(57,211,83,0.85);
+                   box-shadow:0 0 8px rgba(57,211,83,0.85);"></span>
+      运行时
+    </div>
+  </section>
+  <section class="slide" data-slide-title="Server API">
+    <div class="sc">
+      <div class="shell shell-wide">
+        <div class="slide-hdr r">
+          <span class="t-kicker"
+            data-e="s13-kicker">server-api/campaign/[id].ts</span>
+          <span class="t-page">19 / 23</span>
+        </div>
+        <h2 class="t-h2 r" data-e="s13-title">下发页面描述符的四步流程</h2>
+        <div class="api-flow r">
+          <div class="api-node">
+            <div class="api-step">Step 01</div>
+            <div class="api-title" data-e="s13-s1h">参数校验</div>
+            <div class="api-detail" data-e="s13-s1b">
+              <span class="api-code">id</span> 仅允许字母/数字/连字符/下划线<br>
+              <span class="api-code">lang</span> 仅允许语言标识格式，非法请求返回 400
+            </div>
+          </div>
+          <div class="flow-arrow">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M5 12h14M13 6l6 6-6 6" stroke="#3354e8" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </div>
+          <div class="api-node">
+            <div class="api-step">Step 02</div>
+            <div class="api-title" data-e="s13-s2h">远程取 LP JSON</div>
+            <div class="api-detail" data-e="s13-s2b">
+              <span class="api-code">lpOSSBaseURL/{id}/{lang}.json</span><br>
+              语言文件缺失时自动回退到 <span class="api-code">en</span>
+            </div>
+          </div>
+          <div class="flow-arrow">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M5 12h14M13 6l6 6-6 6" stroke="#3354e8" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </div>
+          <div class="api-node">
+            <div class="api-step">Step 03</div>
+            <div class="api-title" data-e="s13-s3h">组装描述符</div>
+            <div class="api-detail" data-e="s13-s3b">
+              返回 <span class="api-code">template</span>、SEO 字段、资源 <span
+                class="api-code">path</span> 及 header / footer / policy 开关
+            </div>
+          </div>
+          <div class="flow-arrow">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M5 12h14M13 6l6 6-6 6" stroke="#3354e8" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </div>
+          <div class="api-node">
+            <div class="api-step">Step 04</div>
+            <div class="api-title" data-e="s13-s4h">缓存 + 降级</div>
+            <div class="api-detail" data-e="s13-s4b">
+              生产环境写入 <span class="api-code">Cache-Control:
+                max-age=2592000</span>（720h），失败统一降级 404
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- phase badge -->
+    <div style="position:absolute;bottom:clamp(2rem,3.5vh,3rem);right:clamp(1.2rem,3vw,3.5rem);z-index:20;
+                display:flex;align-items:center;gap:.45em;
+                font-family:'JetBrains Mono',monospace;font-size:clamp(.6rem,.85vw,.78rem);
+                font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+                color:rgba(57,211,83,0.85);opacity:.9;">
+      <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:rgba(57,211,83,0.85);
+                   box-shadow:0 0 8px rgba(57,211,83,0.85);"></span>
+      运行时
+    </div>
+  </section>
+  <section class="slide" data-slide-title="Architecture Blueprint">
+    <div class="sc">
+      <div class="shell shell-wide">
+        <div class="slide-hdr r">
+          <span class="t-kicker" data-e="s14x-kicker">Architecture Map</span>
+          <span class="t-page">20 / 23</span>
+        </div>
+        <h2 class="t-h2 r" data-e="s14x-title">整体部署架构：从配置发布到用户访问的完整链路</h2>
+        <div class="r"
+          style="flex:1;min-height:0;display:flex;align-items:center;justify-content:center;overflow:hidden;">
+          <svg viewBox="0 0 900 340" xmlns="http://www.w3.org/2000/svg"
+            style="width:100%;max-height:min(54vh,440px);"
+            font-family="JetBrains Mono,monospace">
+            <defs>
+              <marker id="ah14" markerWidth="8" markerHeight="8" refX="6"
+                refY="3" orient="auto">
+                <path d="M0,0 L0,6 L8,3 z" fill="#39d353" />
+              </marker>
+              <marker id="ah14r" markerWidth="8" markerHeight="8" refX="6"
+                refY="3" orient="auto">
+                <path d="M0,0 L0,6 L8,3 z" fill="#ff7b72" />
+              </marker>
+              <marker id="ah14g" markerWidth="8" markerHeight="8" refX="6"
+                refY="3" orient="auto">
+                <path d="M0,0 L0,6 L8,3 z" fill="#39d353" opacity="0.7" />
+              </marker>
+              <filter id="glow14">
+                <feGaussianBlur stdDeviation="3" result="b" />
+                <feMerge>
+                  <feMergeNode in="b" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+            </defs>
+
+            <!-- ===== 节点样式说明: rect=矩形流程节点, polygon=菱形判断 ===== -->
+
+            <!-- 1. 配置平台 -->
+            <rect x="20" y="130" width="130" height="56" rx="6"
+              fill="rgba(17,23,35,0.9)" stroke="rgba(57,211,83,0.4)"
+              stroke-width="1.2" />
+            <text x="85" y="151" text-anchor="middle" fill="#39d353"
+              font-size="9" font-weight="700" letter-spacing="1">BUILD</text>
+            <text x="85" y="168" text-anchor="middle" fill="#e6edf3"
+              font-size="10.5" font-weight="700">配置平台</text>
+            <text x="85" y="182" text-anchor="middle" fill="#9aa4b2"
+              font-size="8.5">Admin → S3</text>
+
+            <!-- arrow 1→2 -->
+            <line x1="150" y1="158" x2="196" y2="158" stroke="#39d353"
+              stroke-width="1.5" marker-end="url(#ah14)" />
+
+            <!-- 2. S3 存储 -->
+            <rect x="198" y="130" width="130" height="56" rx="6"
+              fill="rgba(17,23,35,0.9)" stroke="rgba(57,211,83,0.4)"
+              stroke-width="1.2" />
+            <text x="263" y="151" text-anchor="middle" fill="#39d353"
+              font-size="9" font-weight="700" letter-spacing="1">STORE</text>
+            <text x="263" y="168" text-anchor="middle" fill="#e6edf3"
+              font-size="10.5" font-weight="700">AWS S3</text>
+            <text x="263" y="182" text-anchor="middle" fill="#9aa4b2"
+              font-size="8.5">[locale].json + assets</text>
+
+            <!-- arrow 2→3 -->
+            <line x1="328" y1="158" x2="374" y2="158" stroke="#39d353"
+              stroke-width="1.5" marker-end="url(#ah14)" />
+
+            <!-- 3. CDN 边缘节点 -->
+            <rect x="376" y="130" width="130" height="56" rx="6"
+              fill="rgba(17,23,35,0.9)" stroke="rgba(57,211,83,0.4)"
+              stroke-width="1.2" />
+            <text x="441" y="151" text-anchor="middle" fill="#39d353"
+              font-size="9" font-weight="700" letter-spacing="1">ACCESS</text>
+            <text x="441" y="168" text-anchor="middle" fill="#e6edf3"
+              font-size="10.5" font-weight="700">CDN 边缘节点</text>
+            <text x="441" y="182" text-anchor="middle" fill="#9aa4b2"
+              font-size="8.5">DNS → 就近 PoP</text>
+
+            <!-- arrow 3→菱形 -->
+            <line x1="506" y1="158" x2="552" y2="158" stroke="#39d353"
+              stroke-width="1.5" marker-end="url(#ah14)" />
+
+            <!-- 4. 菱形判断 Cache Hit? -->
+            <polygon points="595,130 650,158 595,186 540,158"
+              fill="rgba(57,211,83,0.12)" stroke="#39d353" stroke-width="1.8"
+              filter="url(#glow14)" />
+            <text x="595" y="154" text-anchor="middle" fill="#39d353"
+              font-size="9" font-weight="700">Cache</text>
+            <text x="595" y="168" text-anchor="middle" fill="#39d353"
+              font-size="9" font-weight="700">Hit ?</text>
+
+            <!-- YES 分支 → 右 → 返回用户 -->
+            <line x1="650" y1="158" x2="720" y2="158" stroke="#39d353"
+              stroke-width="1.5" marker-end="url(#ah14)" />
+            <text x="685" y="150" text-anchor="middle" fill="#39d353"
+              font-size="9" font-weight="700">YES</text>
+            <rect x="722" y="130" width="150" height="56" rx="6"
+              fill="rgba(35,134,54,0.18)" stroke="rgba(57,211,83,0.6)"
+              stroke-width="1.5" />
+            <text x="797" y="151" text-anchor="middle" fill="#39d353"
+              font-size="9" font-weight="700" letter-spacing="1">HIT ✓</text>
+            <text x="797" y="167" text-anchor="middle" fill="#e6edf3"
+              font-size="10" font-weight="700">直接返回缓存</text>
+            <text x="797" y="181" text-anchor="middle" fill="#9aa4b2"
+              font-size="8">HTML / JSON TTL 720h</text>
+            <text x="797" y="192" text-anchor="middle" fill="#9aa4b2"
+              font-size="8">静态资源 immutable</text>
+
+            <!-- NO 分支 → 下 -->
+            <line x1="595" y1="186" x2="595" y2="218" stroke="#ff7b72"
+              stroke-width="1.5" marker-end="url(#ah14r)" />
+            <text x="603" y="207" fill="#ff7b72" font-size="9"
+              font-weight="700">NO</text>
+
+            <!-- Miss 判断菱形: 请求类型 -->
+            <polygon points="595,220 660,250 595,280 530,250"
+              fill="rgba(255,123,114,0.1)" stroke="#ff7b72"
+              stroke-width="1.5" />
+            <text x="595" y="246" text-anchor="middle" fill="#ff7b72"
+              font-size="8.5" font-weight="700">请求</text>
+            <text x="595" y="260" text-anchor="middle" fill="#ff7b72"
+              font-size="8.5" font-weight="700">类型?</text>
+
+            <!-- 页面/API → 左 → Nuxt -->
+            <line x1="530" y1="250" x2="430" y2="250" stroke="#ff7b72"
+              stroke-width="1.5" marker-end="url(#ah14r)" />
+            <text x="480" y="244" text-anchor="middle" fill="#ff7b72"
+              font-size="8.5">页面/API</text>
+            <rect x="270" y="225" width="158" height="52" rx="6"
+              fill="rgba(255,123,114,0.1)" stroke="rgba(255,123,114,0.5)"
+              stroke-width="1.2" />
+            <text x="349" y="244" text-anchor="middle" fill="#ff7b72"
+              font-size="9" font-weight="700" letter-spacing="1">NUXT SSR</text>
+            <text x="349" y="259" text-anchor="middle" fill="#e6edf3"
+              font-size="9.5">按 locale 读 JSON</text>
+            <text x="349" y="272" text-anchor="middle" fill="#9aa4b2"
+              font-size="8">组装 SEO + 模板 → 回写缓存</text>
+
+            <!-- 静态资源 → 右 → S3 -->
+            <line x1="660" y1="250" x2="722" y2="250"
+              stroke="rgba(57,211,83,0.6)" stroke-width="1.5"
+              marker-end="url(#ah14g)" />
+            <text x="691" y="244" text-anchor="middle" fill="#9aa4b2"
+              font-size="8.5">静态资源</text>
+            <rect x="724" y="225" width="148" height="52" rx="6"
+              fill="rgba(57,211,83,0.08)" stroke="rgba(57,211,83,0.4)"
+              stroke-width="1.2" />
+            <text x="798" y="244" text-anchor="middle" fill="#39d353"
+              font-size="9" font-weight="700" letter-spacing="1">S3 回源</text>
+            <text x="798" y="259" text-anchor="middle" fill="#e6edf3"
+              font-size="9.5">按 hash 路径取文件</text>
+            <text x="798" y="272" text-anchor="middle" fill="#9aa4b2"
+              font-size="8">命中后写入 CDN immutable</text>
+
+            <!-- 分隔线 -->
+            <line x1="20" y1="210" x2="880" y2="210"
+              stroke="rgba(57,211,83,0.12)" stroke-width="1"
+              stroke-dasharray="4 4" />
+            <text x="32" y="207" fill="rgba(57,211,83,0.45)" font-size="8">Cache
+              Miss ↓</text>
+          </svg>
+        </div>
+      </div>
+    </div>
+    <!-- phase badge -->
+    <div style="position:absolute;bottom:clamp(2rem,3.5vh,3rem);right:clamp(1.2rem,3vw,3.5rem);z-index:20;
+                display:flex;align-items:center;gap:.45em;
+                font-family:'JetBrains Mono',monospace;font-size:clamp(.6rem,.85vw,.78rem);
+                font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+                color:rgba(57,211,83,0.85);opacity:.9;">
+      <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:rgba(57,211,83,0.85);
+                   box-shadow:0 0 8px rgba(57,211,83,0.85);"></span>
+      运行时
+    </div>
+  </section>
+  <section class="slide" data-slide-title="Render Lifecycle">
+    <div class="sc">
+      <div class="shell shell-wide">
+        <div class="slide-hdr r">
+          <span class="t-kicker" data-e="s15x-kicker">Rendering Lifecycle</span>
+          <span class="t-page">21 / 23</span>
+        </div>
+        <h2 class="t-h2 r" data-e="s15x-title">页面组件生命周期：SSR 首屏与 SPA 路由切换的双路处理
+        </h2>
+        <div class="r"
+          style="flex:1;min-height:0;display:flex;align-items:center;justify-content:center;overflow:hidden;">
+          <svg viewBox="0 0 960 330" xmlns="http://www.w3.org/2000/svg"
+            style="width:100%;max-height:min(54vh,440px);"
+            font-family="JetBrains Mono,monospace">
+            <defs>
+              <marker id="ah15" markerWidth="8" markerHeight="8" refX="6"
+                refY="3" orient="auto">
+                <path d="M0,0 L0,6 L8,3 z" fill="#39d353" />
+              </marker>
+              <marker id="ah15r" markerWidth="8" markerHeight="8" refX="6"
+                refY="3" orient="auto">
+                <path d="M0,0 L0,6 L8,3 z" fill="#ff7b72" />
+              </marker>
+              <marker id="ah15b" markerWidth="8" markerHeight="8" refX="6"
+                refY="3" orient="auto">
+                <path d="M0,0 L0,6 L8,3 z" fill="#79c0ff" />
+              </marker>
+              <filter id="glow15">
+                <feGaussianBlur stdDeviation="3" result="b" />
+                <feMerge>
+                  <feMergeNode in="b" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+            </defs>
+
+            <!-- 1. Init -->
+            <rect x="14" y="118" width="120" height="52" rx="6"
+              fill="rgba(17,23,35,0.9)" stroke="rgba(57,211,83,0.4)"
+              stroke-width="1.2" />
+            <text x="74" y="138" text-anchor="middle" fill="#39d353"
+              font-size="8.5" font-weight="700" letter-spacing="1">INIT</text>
+            <text x="74" y="153" text-anchor="middle" fill="#e6edf3"
+              font-size="10" font-weight="700">初始化取数</text>
+            <text x="74" y="166" text-anchor="middle" fill="#9aa4b2"
+              font-size="8">useAsyncData</text>
+
+            <line x1="134" y1="144" x2="156" y2="144" stroke="#39d353"
+              stroke-width="1.5" marker-end="url(#ah15)" />
+
+            <!-- 2. 菱形: 运行环境 -->
+            <polygon points="220,118 284,144 220,170 156,144"
+              fill="rgba(57,211,83,0.1)" stroke="#39d353" stroke-width="1.8"
+              filter="url(#glow15)" />
+            <text x="220" y="140" text-anchor="middle" fill="#39d353"
+              font-size="8.5" font-weight="700">运行</text>
+            <text x="220" y="154" text-anchor="middle" fill="#39d353"
+              font-size="8.5" font-weight="700">环境?</text>
+
+            <!-- server → 上 -->
+            <line x1="220" y1="118" x2="220" y2="72" stroke="#79c0ff"
+              stroke-width="1.5" marker-end="url(#ah15b)" />
+            <text x="228" y="100" fill="#79c0ff" font-size="8.5"
+              font-weight="700">server</text>
+            <rect x="150" y="20" width="140" height="50" rx="6"
+              fill="rgba(17,23,35,0.9)" stroke="rgba(121,192,255,0.5)"
+              stroke-width="1.2" />
+            <text x="220" y="38" text-anchor="middle" fill="#79c0ff"
+              font-size="8.5" font-weight="700" letter-spacing="1">SSR 首屏</text>
+            <text x="220" y="52" text-anchor="middle" fill="#e6edf3"
+              font-size="9.5" font-weight="700">输出 page.content</text>
+            <text x="220" y="65" text-anchor="middle" fill="#9aa4b2"
+              font-size="7.5">注入 __lpConfig__ + SEO</text>
+
+            <!-- client → 右 -->
+            <line x1="284" y1="144" x2="316" y2="144" stroke="#39d353"
+              stroke-width="1.5" marker-end="url(#ah15)" />
+            <text x="300" y="137" text-anchor="middle" fill="#39d353"
+              font-size="8.5" font-weight="700">client</text>
+
+            <!-- 3. 菱形: SSR首次? -->
+            <polygon points="385,118 458,144 385,170 312,144"
+              fill="rgba(57,211,83,0.1)" stroke="#39d353" stroke-width="1.8"
+              filter="url(#glow15)" />
+            <text x="385" y="139" text-anchor="middle" fill="#39d353"
+              font-size="8" font-weight="700">SSR</text>
+            <text x="385" y="153" text-anchor="middle" fill="#39d353"
+              font-size="8" font-weight="700">首次?</text>
+
+            <!-- Yes → 上: Skip -->
+            <line x1="385" y1="118" x2="385" y2="72" stroke="#39d353"
+              stroke-width="1.5" marker-end="url(#ah15)" />
+            <text x="393" y="100" fill="#39d353" font-size="8.5"
+              font-weight="700">Yes</text>
+            <rect x="316" y="20" width="140" height="50" rx="6"
+              fill="rgba(35,134,54,0.15)" stroke="rgba(57,211,83,0.55)"
+              stroke-width="1.2" />
+            <text x="386" y="38" text-anchor="middle" fill="#39d353"
+              font-size="8.5" font-weight="700" letter-spacing="1">SKIP</text>
+            <text x="386" y="52" text-anchor="middle" fill="#e6edf3"
+              font-size="9.5" font-weight="700">跳过客户端处理</text>
+            <text x="386" y="65" text-anchor="middle" fill="#9aa4b2"
+              font-size="7.5">浏览器原生解析 HTML</text>
+
+            <!-- No → 右: SPA -->
+            <line x1="458" y1="144" x2="492" y2="144" stroke="#ff7b72"
+              stroke-width="1.5" marker-end="url(#ah15r)" />
+            <text x="475" y="137" text-anchor="middle" fill="#ff7b72"
+              font-size="8.5" font-weight="700">No</text>
+
+            <!-- 4. Cleanup -->
+            <rect x="494" y="118" width="110" height="52" rx="6"
+              fill="rgba(255,123,114,0.1)" stroke="rgba(255,123,114,0.5)"
+              stroke-width="1.2" />
+            <text x="549" y="137" text-anchor="middle" fill="#ff7b72"
+              font-size="8.5" font-weight="700"
+              letter-spacing="1">CLEANUP</text>
+            <text x="549" y="151" text-anchor="middle" fill="#e6edf3"
+              font-size="9.5" font-weight="700">移除旧脚本</text>
+            <text x="549" y="164" text-anchor="middle" fill="#9aa4b2"
+              font-size="8">data-lp scripts</text>
+
+            <line x1="604" y1="144" x2="636" y2="144" stroke="#ff7b72"
+              stroke-width="1.5" marker-end="url(#ah15r)" />
+
+            <!-- 5. Parse + v-html -->
+            <rect x="638" y="118" width="120" height="52" rx="6"
+              fill="rgba(17,23,35,0.9)" stroke="rgba(57,211,83,0.4)"
+              stroke-width="1.2" />
+            <text x="698" y="137" text-anchor="middle" fill="#39d353"
+              font-size="8.5" font-weight="700" letter-spacing="1">PARSE</text>
+            <text x="698" y="151" text-anchor="middle" fill="#e6edf3"
+              font-size="9.5" font-weight="700">DOMParser 分离</text>
+            <text x="698" y="164" text-anchor="middle" fill="#9aa4b2"
+              font-size="8">HTML → v-html</text>
+
+            <line x1="758" y1="144" x2="790" y2="144" stroke="#39d353"
+              stroke-width="1.5" marker-end="url(#ah15)" />
+
+            <!-- 6. Exec -->
+            <rect x="792" y="118" width="120" height="52" rx="6"
+              fill="rgba(17,23,35,0.9)" stroke="rgba(57,211,83,0.4)"
+              stroke-width="1.2" />
+            <text x="852" y="137" text-anchor="middle" fill="#39d353"
+              font-size="8.5" font-weight="700" letter-spacing="1">EXEC</text>
+            <text x="852" y="151" text-anchor="middle" fill="#e6edf3"
+              font-size="9.5" font-weight="700">Script 链执行</text>
+            <text x="852" y="164" text-anchor="middle" fill="#9aa4b2"
+              font-size="8">Promise.reduce</text>
+
+            <!-- Destroy 收口: 从 EXEC 和 SKIP 都连到 Destroy -->
+            <!-- EXEC ↓ 向下然后左 → Destroy -->
+            <path d="M852,170 L852,230 L74,230 L74,272" fill="none"
+              stroke="rgba(57,211,83,0.35)" stroke-width="1.2"
+              stroke-dasharray="5 3" marker-end="url(#ah15)" />
+            <!-- SKIP 上方补一条指向 Destroy 的虽然不连起点，可以简单写 note -->
+            <text x="460" y="244" text-anchor="middle"
+              fill="rgba(57,211,83,0.4)" font-size="8">—— onBeforeUnmount
+              ——</text>
+
+            <!-- 7. Destroy -->
+            <rect x="14" y="274" width="120" height="50" rx="6"
+              fill="rgba(17,23,35,0.9)" stroke="rgba(57,211,83,0.35)"
+              stroke-width="1.2" />
+            <text x="74" y="292" text-anchor="middle" fill="#39d353"
+              font-size="8.5" font-weight="700"
+              letter-spacing="1">DESTROY</text>
+            <text x="74" y="306" text-anchor="middle" fill="#e6edf3"
+              font-size="9.5" font-weight="700">移除脚本重置标记</text>
+            <text x="74" y="319" text-anchor="middle" fill="#9aa4b2"
+              font-size="8">防副作用泄漏</text>
+          </svg>
+        </div>
+      </div>
+    </div>
+    <!-- phase badge -->
+    <div style="position:absolute;bottom:clamp(2rem,3.5vh,3rem);right:clamp(1.2rem,3vw,3.5rem);z-index:20;
+                display:flex;align-items:center;gap:.45em;
+                font-family:'JetBrains Mono',monospace;font-size:clamp(.6rem,.85vw,.78rem);
+                font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+                color:rgba(57,211,83,0.85);opacity:.9;">
+      <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:rgba(57,211,83,0.85);
+                   box-shadow:0 0 8px rgba(57,211,83,0.85);"></span>
+      运行时
+    </div>
+  </section>
+  <section class="slide" data-slide-title="Pipeline">
+    <div class="sc">
+      <div class="shell shell-wide">
+        <div class="slide-hdr r">
+          <span class="t-kicker" data-e="s15-kicker">Build Pipeline</span>
+          <span class="t-page">22 / 23</span>
+        </div>
+        <h2 class="t-h2 r" data-e="s15-title">端到端交付链路</h2>
+        <div class="flow-diagram r">
+          <div class="flow-node">
+            <div class="flow-num">01</div>
+            <div class="flow-title" data-e="s15-t1">模板选型</div>
+            <div class="flow-body" data-e="s15-b1">在 <span
+                class="t-mono">default</span> / <span
+                class="t-mono">astro</span> / <span class="t-mono">fanka</span>
+              中决定交付模式。</div>
+          </div>
+          <div class="flow-arrow">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M5 12h14M13 6l6 6-6 6" stroke="#3354e8" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </div>
+          <div class="flow-node">
+            <div class="flow-num">02</div>
+            <div class="flow-title" data-e="s15-t2">生成资产</div>
+            <div class="flow-body" data-e="s15-b2">产出多语言 HTML、脚本、样式和资源。</div>
+          </div>
+          <div class="flow-arrow">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M5 12h14M13 6l6 6-6 6" stroke="#3354e8" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </div>
+          <div class="flow-node">
+            <div class="flow-num">03</div>
+            <div class="flow-title" data-e="s15-t3">接口封装</div>
+            <div class="flow-body" data-e="s15-b3">服务端接口把资产转成描述符下发。</div>
+          </div>
+          <div class="flow-arrow">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M5 12h14M13 6l6 6-6 6" stroke="#3354e8" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </div>
+          <div class="flow-node">
+            <div class="flow-num">04</div>
+            <div class="flow-title" data-e="s15-t4">宿主装配</div>
+            <div class="flow-body" data-e="s15-b4">父容器装配 HTML，分阶段执行脚本。</div>
+          </div>
+          <div class="flow-arrow">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M5 12h14M13 6l6 6-6 6" stroke="#3354e8" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </div>
+          <div class="flow-node"
+            style="border-color:var(--blue-mid);box-shadow:var(--shadow-lift)">
+            <div class="flow-num">05</div>
+            <div class="flow-title" data-e="s15-t5">Island 激活</div>
+            <div class="flow-body" data-e="s15-b5">交互岛屿按策略水合，静态内容零 JS 开销。</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- phase badge -->
+    <div style="position:absolute;bottom:clamp(2rem,3.5vh,3rem);right:clamp(1.2rem,3vw,3.5rem);z-index:20;
+                display:flex;align-items:center;gap:.45em;
+                font-family:'JetBrains Mono',monospace;font-size:clamp(.6rem,.85vw,.78rem);
+                font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+                color:rgba(57,211,83,0.85);opacity:.9;">
+      <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:rgba(57,211,83,0.85);
+                   box-shadow:0 0 8px rgba(57,211,83,0.85);"></span>
+      运行时
+    </div>
+  </section>
+  <section class="slide" data-slide-title="Summary">
+    <div class="sc">
+      <div class="shell">
+        <div class="slide-hdr r">
+          <span class="t-kicker" data-e="s16-kicker">Summary</span>
+          <span class="t-page">23 / 23</span>
+        </div>
+        <h2 class="t-h2 r" data-e="s16-title">交付链路总览</h2>
+        <div class="summary-row r">
+          <div class="col-card">
+            <div class="col-card-title">
+              <div class="icon-circle">✓</div>
+              <h3 class="t-h3" data-e="s16-lh">运行时路径</h3>
+            </div>
+            <ul class="col-list">
+              <li data-e="s16-l1">生成系统专注高性能、多语言、模板化交付</li>
+              <li data-e="s16-l2">主站容器专注 SSR 稳定性与运行时装配</li>
+              <li data-e="s16-l3">静态内容先到，必要交互再激活</li>
+              <li data-e="s16-l4">静态内容先到，按需水合后触发，完整兑现 SSG 性能收益</li>
+            </ul>
+          </div>
+          <div class="col-card">
+            <div class="col-card-title">
+              <div class="icon-circle">→</div>
+              <h3 class="t-h3" data-e="s16-rh">关键结论</h3>
+            </div>
+            <p class="t-body" data-e="s16-rb">`new-lp` 构建多语言高性能 SSG 产物，`new-h5`
+              主站容器负责 SSR 稳定性与运行时装配。</p>
+            <div
+              style="margin-top:auto;padding-top:clamp(.5rem,.8vw,.7rem);border-top:1px solid var(--line)">
+              <p class="t-small" data-e="s16-tags">Monorepo · SSG · Island
+                Hydration · Shadow DOM · Host Bridge</p>
+            </div>
+          </div>
+        </div>
+        <p class="t-small r" data-e="s16-note" style="color:var(--muted-light)">
+          生成端与宿主端各司其职，共同保障落地页从构建到上线的全链路稳定性。</p>
+      </div>
+    </div>
+  </section>
+
+  <script>
+    /* === PRESENTATION CONTROLLER === */
+    class Deck {
+      constructor() {
+        this.slides = [...document.querySelectorAll('.slide')];
+        this.bar = document.querySelector('.progress-bar');
+        this.dotsEl = document.querySelector('.nav-dots');
+        this.cur = 0;
+        this.throttled = false;
+        this.rmo = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        this._io();
+        this._keys();
+        this._touch();
+        this._wheel();
+        this._dots();
+        this._bar();
+      }
+
+      _io() {
+        const obs = new IntersectionObserver(entries => {
+          entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+          const top = entries.filter(e => e.isIntersecting)
+            .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+          if (top) { this.cur = this.slides.indexOf(top.target); this._bar(); this._activeDot(); }
+        }, { threshold: [.5, .7] });
+        this.slides.forEach(s => obs.observe(s));
+      }
+
+      _keys() {
+        document.addEventListener('keydown', e => {
+          if (document.body.classList.contains('editing') && e.target?.contentEditable === 'true') return;
+          if (['ArrowDown', 'PageDown', ' '].includes(e.key)) { e.preventDefault(); this.go(this.cur + 1); }
+          if (['ArrowUp', 'PageUp'].includes(e.key)) { e.preventDefault(); this.go(this.cur - 1); }
+          if (e.key === 'Home') { e.preventDefault(); this.go(0); }
+          if (e.key === 'End') { e.preventDefault(); this.go(this.slides.length - 1); }
+        });
+      }
+
+      _touch() {
+        let sy = 0;
+        document.addEventListener('touchstart', e => { sy = e.changedTouches[0].clientY; }, { passive: true });
+        document.addEventListener('touchend', e => {
+          const dy = sy - e.changedTouches[0].clientY;
+          if (Math.abs(dy) < 55) return;
+          this.go(this.cur + (dy > 0 ? 1 : -1));
+        }, { passive: true });
+      }
+
+      _wheel() {
+        window.addEventListener('wheel', e => {
+          if (this.throttled || document.body.classList.contains('editing')) return;
+          if (Math.abs(e.deltaY) < 24) return;
+          this.throttled = true;
+          this.go(this.cur + (e.deltaY > 0 ? 1 : -1));
+          setTimeout(() => { this.throttled = false; }, this.rmo ? 200 : 660);
+        }, { passive: true });
+      }
+
+      _dots() {
+        this.dotsEl.innerHTML = '';
+        this.slides.forEach((s, i) => {
+          const d = document.createElement('button');
+          d.className = 'nav-dot'; d.type = 'button';
+          d.setAttribute('aria-label', `Slide ${i + 1}: ${s.dataset.slideTitle || ''}`);
+          d.addEventListener('click', () => this.go(i));
+          this.dotsEl.appendChild(d);
+        });
+        this._activeDot();
+      }
+
+      _activeDot() {
+        this.dotsEl.querySelectorAll('.nav-dot').forEach((d, i) => d.classList.toggle('active', i === this.cur));
+      }
+
+      _bar() {
+        this.bar.style.setProperty('--progress', `${(this.cur + 1) / this.slides.length * 100}%`);
+      }
+
+      go(idx) {
+        const i = Math.max(0, Math.min(idx, this.slides.length - 1));
+        this.cur = i;
+        this.slides[i].scrollIntoView({ behavior: this.rmo ? 'auto' : 'smooth', block: 'start' });
+        this._bar(); this._activeDot();
+      }
+    }
+
+    /* === INLINE EDITOR === */
+    class Editor {
+      constructor() {
+        this.key = 'deck-edits-v2';
+        this.active = false;
+        this.btn = document.getElementById('editBtn');
+        this.banner = document.getElementById('editBanner');
+        this.els = [...document.querySelectorAll('[data-e]')];
+        this._load();
+      }
+
+      toggle() {
+        this.active = !this.active;
+        document.body.classList.toggle('editing', this.active);
+        this.btn.classList.toggle('active', this.active);
+        this.banner.classList.toggle('active', this.active);
+        this.els.forEach(el => {
+          if (this.active) { el.contentEditable = 'true'; el.spellcheck = false; }
+          else el.removeAttribute('contenteditable');
+        });
+      }
+
+      _load() {
+        try {
+          const s = JSON.parse(localStorage.getItem(this.key) || '{}');
+          this.els.forEach(el => { if (s[el.dataset.e]) el.innerHTML = s[el.dataset.e]; });
+        } catch (e) { }
+      }
+
+      save() {
+        const p = {};
+        this.els.forEach(el => { p[el.dataset.e] = el.innerHTML; });
+        localStorage.setItem(this.key, JSON.stringify(p));
+      }
+
+      export() {
+        const editable = [...document.querySelectorAll('[contenteditable]')];
+        editable.forEach(el => el.removeAttribute('contenteditable'));
+        document.body.classList.remove('editing');
+        this.btn.classList.remove('active', 'show');
+        this.banner.classList.remove('active');
+
+        const html = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+
+        if (this.active) {
+          document.body.classList.add('editing');
+          editable.forEach(el => el.setAttribute('contenteditable', 'true'));
+          this.btn.classList.add('active');
+          this.banner.classList.add('active');
+        }
+
+        const a = Object.assign(document.createElement('a'), {
+          href: URL.createObjectURL(new Blob([html], { type: 'text/html' })),
+          download: 'astro-ssg-deck.html'
+        });
+        a.click(); URL.revokeObjectURL(a.href);
+      }
+    }
+
+    /* === BOOTSTRAP === */
+    const deck = new Deck();
+    const ed = new Editor();
+    const hotzone = document.querySelector('.edit-hotzone');
+    const btn = document.getElementById('editBtn');
+    let hideT = null;
+
+    document.querySelectorAll('[data-e]').forEach(el => el.addEventListener('input', () => ed.save()));
+    btn.addEventListener('click', () => ed.toggle());
+    hotzone.addEventListener('click', () => ed.toggle());
+    hotzone.addEventListener('mouseenter', () => { clearTimeout(hideT); btn.classList.add('show'); });
+    hotzone.addEventListener('mouseleave', () => { hideT = setTimeout(() => { if (!ed.active) btn.classList.remove('show'); }, 400); });
+    btn.addEventListener('mouseenter', () => clearTimeout(hideT));
+    btn.addEventListener('mouseleave', () => { hideT = setTimeout(() => { if (!ed.active) btn.classList.remove('show'); }, 400); });
+
+    document.addEventListener('keydown', e => {
+      if ((e.key === 'e' || e.key === 'E') && e.target?.contentEditable !== 'true') { e.preventDefault(); ed.toggle(); }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); ed.export(); }
+    });
+
+    /* === FULLSCREEN === */
+    const kbdHint = document.querySelector('.kbd-hint');
+    const fsBtn = document.getElementById('fsBtn');
+    const kbdAll = document.querySelectorAll('.kbd-hint');
+
+    function toggleFullscreen() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => { });
+      } else {
+        document.exitFullscreen().catch(() => { });
+      }
+    }
+
+    document.addEventListener('fullscreenchange', () => {
+      const hide = !!document.fullscreenElement;
+      kbdAll.forEach(el => el.style.display = hide ? 'none' : '');
+    });
+  </script>
+</body>
+
+</html>
