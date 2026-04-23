@@ -1,0 +1,8 @@
+{
+  "virtual:lit-ssg-single-client": {
+    "file": "assets/lit-ssg-single-CWVMhenb.js",
+    "name": "lit-ssg-single",
+    "src": "virtual:lit-ssg-single-client",
+    "isEntry": true
+  }
+}
