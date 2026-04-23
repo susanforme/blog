@@ -1326,7 +1326,7 @@
           <div class="slide-hdr r">
             <span class="t-kicker" data-e="s1-kicker">基于 Astro 的高性能落地页 SSG
               方案</span>
-            <span class="t-page">01 / 23</span>
+            <span class="t-page">01 / 19</span>
           </div>
           <h1 class="t-h1 r" data-e="s1-title">Astro + Vue<br>落地页系统<br>接入主站 SSR
           </h1>
@@ -1352,7 +1352,7 @@
       <div class="shell">
         <div class="slide-hdr r">
           <span class="t-kicker" data-e="s2-kicker">Overview</span>
-          <span class="t-page">02 / 23</span>
+          <span class="t-page">02 / 19</span>
         </div>
         <h2 class="t-h2 r" data-e="s2-title">需要解决的核心问题</h2>
         <div class="card-grid-2 r">
@@ -1428,7 +1428,7 @@
       <div class="shell shell-wide">
         <div class="slide-hdr r">
           <span class="t-kicker">Rendering Models</span>
-          <span class="t-page">04 / 24</span>
+          <span class="t-page">03 / 19</span>
         </div>
         <h2 class="t-h2 r">CSR · SSR · SSG 对比</h2>
         <div class="r"
@@ -1568,7 +1568,7 @@
       <div class="shell shell-wide">
         <div class="slide-hdr r">
           <span class="t-kicker">Client-Side Rendering</span>
-          <span class="t-page">04 / 23</span>
+          <span class="t-page">04 / 19</span>
         </div>
         <h2 class="t-h2 r">CSR — 浏览器全权负责渲染</h2>
         <div class="r"
@@ -1681,7 +1681,7 @@
       <div class="shell shell-wide">
         <div class="slide-hdr r">
           <span class="t-kicker">Server-Side Rendering</span>
-          <span class="t-page">05 / 23</span>
+          <span class="t-page">05 / 19</span>
         </div>
         <h2 class="t-h2 r">SSR — 服务端先出 HTML，再注水激活</h2>
         <div class="r"
@@ -1819,7 +1819,7 @@
       <div class="shell">
         <div class="slide-hdr r">
           <span class="t-kicker" data-e="s5-kicker">SSG</span>
-          <span class="t-page">06 / 23</span>
+          <span class="t-page">06 / 19</span>
         </div>
         <h2 class="t-h2 r" data-e="s5-title">把昂贵工作前移到构建期</h2>
         <div class="metric-strip r">
@@ -1850,7 +1850,7 @@
       <div class="shell shell-wide">
         <div class="slide-hdr r">
           <span class="t-kicker" data-e="s12-kicker">Solution</span>
-          <span class="t-page">07 / 23</span>
+          <span class="t-page">07 / 19</span>
         </div>
         <h2 class="t-h2 r" data-e="s12-title">三端分工：new-lp 构建期 / 配置平台 / new-h5
           运行时</h2>
@@ -1961,7 +1961,7 @@
         <div class="slide-hdr r">
           <span class="t-kicker" data-e="s6-kicker">Capabilities &amp;
             Tradeoffs</span>
-          <span class="t-page">09 / 23</span>
+          <span class="t-page">08 / 19</span>
         </div>
         <h2 class="t-h2 r" data-e="s6-title">new-lp 系统能力 &amp; 技术取舍</h2>
         <div class="two-col r">
@@ -2092,87 +2092,12 @@
       构建期
     </div>
   </section>
-  <section class="slide" data-slide-title="Islands">
-    <div class="sc">
-      <div class="shell shell-wide">
-        <div class="slide-hdr r">
-          <span class="t-kicker" data-e="s7-kicker">Islands Architecture</span>
-          <span class="t-page">10 / 23</span>
-        </div>
-        <h2 class="t-h2 r" data-e="s7-title">页面是静态大陆，交互只是局部岛屿</h2>
-        <div class="two-col r">
-
-          <!-- 左: Island 概念 + 调度策略 -->
-          <div class="col-card">
-            <div class="col-card-title">
-              <div class="icon-circle">≠</div>
-              <h3 class="t-h3" data-e="s7-lh">与整页水合的区别</h3>
-            </div>
-            <ul class="col-list">
-              <li data-e="s7-l1">不需要统一根节点先初始化</li>
-              <li data-e="s7-l2">各岛屿独立激活，互不阻塞</li>
-              <li data-e="s7-l3">单组件问题不影响整页性能</li>
-              <li data-e="s7-l4">适合"内容为主，交互点缀"的落地页</li>
-            </ul>
-            <div
-              style="margin-top:clamp(.5rem,.8vw,.7rem);padding-top:clamp(.4rem,.6vw,.5rem);border-top:1px solid var(--line);">
-              <div
-                style="font-size:clamp(.66rem,.85vw,.78rem);font-weight:700;color:var(--green);margin-bottom:.4em;">
-                ⚡ 水合调度策略</div>
-              <ul class="col-list">
-                <li data-e="s7-r1"><span class="t-mono">client:load</span> —
-                  立即加载</li>
-                <li data-e="s7-r2"><span class="t-mono">client:visible</span> —
-                  进入视口时</li>
-                <li data-e="s7-r3"><span class="t-mono">client:idle</span> —
-                  浏览器空闲时</li>
-                <li data-e="s7-r4"><span
-                    class="t-mono">client:interaction</span> — 用户交互时</li>
-              </ul>
-            </div>
-          </div>
-
-          <!-- 右: 运行时代码片段 -->
-          <div class="col-card">
-            <div class="col-card-title">
-              <div class="icon-circle">&lt;/&gt;</div>
-              <h3 class="t-h3" data-e="s8-title">Island 按指令加载，再触发 hydration</h3>
-            </div>
-            <div class="code-panel" style="margin-top:.4rem;flex:1;">
-              <pre data-e="s8-code"><span class="kw">const</span> directive = <span class="kw">this</span>.getAttribute(<span class="str">'client'</span>)
-<span class="kw">await</span> <span class="fn">Astro[directive]</span>(<span class="kw">async</span> () =&gt; {
-  <span class="kw">const</span> [mod, { <span class="kw">default</span>: hydrator }] =
-    <span class="kw">await</span> Promise.<span class="fn">all</span>([
-      <span class="fn">import</span>(<span class="kw">this</span>.getAttribute(<span class="str">'component-url'</span>)),
-      <span class="fn">import</span>(<span class="kw">this</span>.getAttribute(<span class="str">'renderer-url'</span>)),
-    ])
-  <span class="kw">this</span>.Component = mod.<span class="kw">default</span>
-  <span class="kw">this</span>.hydrator  = hydrator
-  <span class="kw">return</span> <span class="kw">this</span>.hydrate <span class="cm">// 注水函数</span>
-}, opts, <span class="kw">this</span>)</pre>
-            </div>
-          </div>
-
-        </div>
-      </div>
-    </div>
-    <!-- phase badge -->
-    <div style="position:absolute;bottom:clamp(2rem,3.5vh,3rem);right:clamp(1.2rem,3vw,3.5rem);z-index:20;
-                display:flex;align-items:center;gap:.45em;
-                font-family:'JetBrains Mono',monospace;font-size:clamp(.6rem,.85vw,.78rem);
-                font-weight:700;letter-spacing:.1em;text-transform:uppercase;
-                color:rgba(121,192,255,0.85);opacity:.9;">
-      <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:rgba(121,192,255,0.85);
-                   box-shadow:0 0 8px rgba(121,192,255,0.85);"></span>
-      构建期
-    </div>
-  </section>
   <section class="slide" data-slide-title="Build Pipeline">
     <div class="sc">
       <div class="shell shell-wide">
         <div class="slide-hdr r">
           <span class="t-kicker">Default 模板编译流程</span>
-          <span class="t-page">11 / 23</span>
+          <span class="t-page">09 / 19</span>
         </div>
         <h2 class="t-h2 r">Default 模板编译策略：按语言分流的双路构建方案</h2>
         <div class="r"
@@ -2370,7 +2295,7 @@
       <div class="shell shell-wide">
         <div class="slide-hdr r">
           <span class="t-kicker">配置平台 · LP 后端系统</span>
-          <span class="t-page">13 / 23</span>
+          <span class="t-page">10 / 19</span>
         </div>
         <h2 class="t-h2 r">配置平台的核心职责：创建、保存、发布与回滚多语言 LP 页面</h2>
         <div class="card-grid-2 r">
@@ -2417,7 +2342,7 @@
       <div class="shell shell-wide">
         <div class="slide-hdr r">
           <span class="t-kicker">Save Pipeline</span>
-          <span class="t-page">14 / 23</span>
+          <span class="t-page">11 / 19</span>
         </div>
         <h2 class="t-h2 r">保存流程：同步写库返回 taskId，异步上传 S3</h2>
         <div class="r"
@@ -2586,7 +2511,7 @@
       <div class="shell shell-wide">
         <div class="slide-hdr r">
           <span class="t-kicker">Publish Pipeline</span>
-          <span class="t-page">15 / 23</span>
+          <span class="t-page">12 / 19</span>
         </div>
         <h2 class="t-h2 r">发布流程：校验同步返回 taskId，后续全部异步执行</h2>
         <div class="r"
@@ -2754,7 +2679,7 @@
       <div class="shell shell-wide">
         <div class="slide-hdr r">
           <span class="t-kicker">Tech Highlights</span>
-          <span class="t-page">16 / 23</span>
+          <span class="t-page">13 / 19</span>
         </div>
         <h2 class="t-h2 r">四个工程决策保障系统可靠性与可追溯性</h2>
         <div class="card-grid-2 r">
@@ -2838,7 +2763,7 @@
       <div class="shell">
         <div class="slide-hdr r">
           <span class="t-kicker" data-e="s11-kicker">Integration Problems</span>
-          <span class="t-page">18 / 23</span>
+          <span class="t-page">14 / 19</span>
         </div>
         <h2 class="t-h2 r" data-e="s11-title">产物接入主站需解决的六类工程问题</h2>
         <div class="prob-grid r">
@@ -2892,7 +2817,7 @@
         <div class="slide-hdr r">
           <span class="t-kicker"
             data-e="s13-kicker">server-api/campaign/[id].ts</span>
-          <span class="t-page">19 / 23</span>
+          <span class="t-page">15 / 19</span>
         </div>
         <h2 class="t-h2 r" data-e="s13-title">下发页面描述符的四步流程</h2>
         <div class="api-flow r">
@@ -2965,7 +2890,7 @@
       <div class="shell shell-wide">
         <div class="slide-hdr r">
           <span class="t-kicker" data-e="s14x-kicker">Architecture Map</span>
-          <span class="t-page">20 / 23</span>
+          <span class="t-page">16 / 19</span>
         </div>
         <h2 class="t-h2 r" data-e="s14x-title">整体部署架构：从配置发布到用户访问的完整链路</h2>
         <div class="r"
@@ -3140,7 +3065,7 @@
       <div class="shell shell-wide">
         <div class="slide-hdr r">
           <span class="t-kicker" data-e="s15x-kicker">Rendering Lifecycle</span>
-          <span class="t-page">21 / 23</span>
+          <span class="t-page">17 / 19</span>
         </div>
         <h2 class="t-h2 r" data-e="s15x-title">页面组件生命周期：SSR 首屏与 SPA 路由切换的双路处理
         </h2>
@@ -3326,7 +3251,7 @@
       <div class="shell shell-wide">
         <div class="slide-hdr r">
           <span class="t-kicker" data-e="s15-kicker">Build Pipeline</span>
-          <span class="t-page">22 / 23</span>
+          <span class="t-page">18 / 19</span>
         </div>
         <h2 class="t-h2 r" data-e="s15-title">端到端交付链路</h2>
         <div class="flow-diagram r">
@@ -3402,7 +3327,7 @@
       <div class="shell">
         <div class="slide-hdr r">
           <span class="t-kicker" data-e="s16-kicker">Summary</span>
-          <span class="t-page">23 / 23</span>
+          <span class="t-page">19 / 19</span>
         </div>
         <h2 class="t-h2 r" data-e="s16-title">交付链路总览</h2>
         <div class="summary-row r">
