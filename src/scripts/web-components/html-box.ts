@@ -32,7 +32,8 @@ class HtmlBox extends HTMLElement {
 
 		try {
 			await import('../init-worker')
-			const monaco = await import('monaco-editor')
+			await import('monaco-editor/esm/vs/basic-languages/html/html.contribution.js')
+			const monaco = await import('monaco-editor/esm/vs/editor/editor.api.js')
 
 			const htmlContainer =
 				this.shadowRoot.querySelector<HTMLDivElement>('#html-container')
@@ -46,7 +47,7 @@ class HtmlBox extends HTMLElement {
 			const editorContainer =
 				this.shadowRoot.querySelector<HTMLDivElement>('#monaco-container')
 			if (editorContainer) {
-				this.editorInstance = monaco.editor.create(editorContainer, {
+				const editorInstance = monaco.editor.create(editorContainer, {
 					value: initialCode,
 					language: 'html',
 					theme: 'vs',
@@ -57,10 +58,11 @@ class HtmlBox extends HTMLElement {
 					scrollBeyondLastLine: false,
 					padding: { top: 10, bottom: 10 },
 				})
+				this.editorInstance = editorInstance
 
-				this.editorInstance.onDidChangeModelContent(() => {
+				editorInstance.onDidChangeModelContent(() => {
 					this.clearLogs()
-					this.runCode(this.editorInstance?.getValue() || '')
+					this.runCode(editorInstance.getValue())
 				})
 			}
 

@@ -79,6 +79,7 @@ export default [
 			'node_modules/',
 			'.astro/',
 			'public/',
+			'src/content/blog/public/demo/heic/lib/**',
 			'*.config.js',
 			'*.config.mjs',
 			'*.config.ts',
