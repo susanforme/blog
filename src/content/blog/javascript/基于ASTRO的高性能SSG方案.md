@@ -249,13 +249,13 @@ if (!customElements.get('astro-island')) {
 - **性能 vs. 灵活性**：Astro 默认情况下提供了出色的性能，但在某些情况下，可能需要牺牲一些灵活性来实现最佳性能。
 - **集成复杂性**：将 Astro 集成到现有项目中可能需要额外的工作，特别是如果现有项目已经使用了其他框架或技术栈。
 
-在团队主应用采用Nuxt的情况下,经过综合考虑,决定采用Astro 结合Vue 3 来实现高性能的静态站点生成方案。以此达到性能和开发效率的平衡。
+在团队主应用采用 Nuxt 的情况下，经过综合考虑，我们决定采用 Astro 结合 Vue 3 来实现高性能的静态站点生成方案，以此平衡性能和开发效率。
 
 ### 为什么?
 
-在主应用采用Nuxt 框架的情况下，使用Astro结合Vue 3 有以下优势：
+在主应用采用 Nuxt 框架的情况下，使用 Astro 结合 Vue 3 有以下优势：
 
-1. **无额外性能成本** : Astro 支持多种前端框架（包括 Vue 3），因此可以无缝集成到现有的 Vue 3 项目中.而主应用采用Nuxt 框架,本身也是基于Vue 3 构建的. 这样可以最大限度地减少性能开销。 可以将Astro 生成的静态内容直接嵌入到 Nuxt 应用中.需要客户端水合的部分,只需加载必要的Vue3即可.而 Vue 3 本身已经由 Nuxt 应用加载, 所以 不会引入额外的框架开销。
+1. **技术栈一致**：Nuxt 与 LP 都使用 Vue 3，组件、Composition API 和团队经验可以复用。但这不代表浏览器一定会复用 Nuxt 已加载的 Vue Runtime；除非额外做 external 和版本对齐，否则 Astro 产物仍可能携带自己的 Vue 客户端代码。
 2. **提升性能** : Astro 的群岛架构允许只为需要交互的部分加载 JavaScript，从而显著减少初始加载时间和提高页面响应速度。这对于提升用户体验和 SEO 非常有利。
 3. **开发效率** : 使用 Vue 3 作为前端框架，可以利用现有的 Vue 生态系统和工具链，提高开发效率。同时，Astro 提供了简洁的语法和强大的功能，使得构建静态站点更加高效。
 
@@ -342,7 +342,7 @@ flowchart TB
 
     subgraph SSG_Path ["主站 · Astro SSG 编译"]
         direction TB
-        Parallel["buildAstroParallel()<br/>每种语言 spawn astro build"]:::astro
+        Parallel["buildAstroSerial()<br/>每种语言依次执行 astro build"]:::astro
         AstroConf["defineAstroConfig() (async)<br/>platform = vivaia, isMainSite = true"]:::astro
         Parallel --> AstroConf
 
@@ -588,4 +588,556 @@ flowchart TB
     end
 ```
 
-## 未完待续
+## 将 Astro 产物改成 Nuxt 可插入的片段
+
+Astro 默认生成完整的 HTML 文档，其中包含 `<head>`、页面脚本、样式和资源地址。Nuxt 已经负责主站文档结构，不能再插入另一份 `<!doctype html>`。构建脚本因此会提取 LP 相关内容，输出下面这段 HTML：
+
+```html
+<lp-container>
+	<script data-exec="before-dom">
+		/* beforeDom + Astro Island runtime + LP 初始化 */
+	</script>
+	<style data-lp-tag>
+		/* 构建阶段收集后的页面样式 */
+	</style>
+	<lp-app>
+		<astro-island><!-- Vue SSG HTML --></astro-island>
+	</lp-app>
+</lp-container>
+```
+
+各节点的用途如下：
+
+- `lp-container` 在节点移除时触发 Vue 卸载和监听器清理。
+- 前置脚本负责响应式变量、全局配置和 Astro Island URL 修正。
+- `style[data-lp-tag]` 保存构建时处理好的 CSS。
+- `lp-app` 限制样式范围，第三方样式统一增加 `:where(lp-app)` 前缀。
+- `astro-island` 保留 Astro 生成的静态 HTML、组件地址和水合信息。
+
+Nuxt 插入这段 HTML 时，还需要提供资源前缀并执行前置脚本。删除 `<lp-container>` 时，LP 自己执行清理。
+
+## 构建时生成统一入口
+
+如果每个 LP 都维护一份 `index.astro`，入口写法很容易出现差异，例如漏掉 `client:*`、Layout 或初始化代码。项目在 `astro:config:setup` 阶段生成临时入口，再通过 `injectRoute()` 注入根路由：
+
+```ts
+export function injectEntryIntegration(): AstroIntegration {
+	return {
+		name: 'inject-entry-integration',
+		hooks: {
+			'astro:config:setup': async ({ config, injectRoute }) => {
+				const entrypoint = await createTempAstroFile(
+					config.root,
+					`
+          ---
+          import Layout from '@lp/ui/astro/layout.astro'
+          import PageRoot from './src/App.vue'
+          ---
+          <Layout inlineEntryStyle>
+            <PageRoot client:load />
+          </Layout>
+        `
+				)
+
+				injectRoute({ pattern: '/', entrypoint })
+			},
+		},
+	}
+}
+```
+
+所有 LP 都从 `src/App.vue` 开始，业务项目不需要重复维护 Astro 路由。`<PageRoot client:load />` 也保证产物中包含可水合的 Astro Island。
+
+没有 `client:*` 指令的框架组件只输出静态 HTML 和 CSS。`client:load` 会在页面加载后下载组件代码并水合。这里对 `App.vue` 使用 `client:load`，因为它负责启动整个 LP；子组件仍可单独配置延迟水合。
+
+## 构建完成后重组 HTML
+
+Astro 先生成完整页面。`lpSSGIntegration()` 在 `astro:build:done` 阶段读取 `dist/<locale>/index.html`，处理以下内容：
+
+1. 收集 Astro Island 的 classic script。
+2. 收集页面中的 style 内容。
+3. 提取完整的 `<lp-app>`。
+4. 编译 `beforeDom`、`flexible()`、`initLpConfig()` 和 `initAstroApp()`。
+5. 重组为 `<lp-container>` 片段，并额外生成可独立打开的 `_preview.html`。
+
+下面是简化后的处理代码：
+
+```ts
+const originHtml = await readFile(indexPath, 'utf8')
+const $ = cheerio.load(originHtml)
+
+const islandRuntime = collectClassicScripts($)
+const styles = collectStyles($)
+const lpApp = extractLpApp(originHtml)
+const entry = await buildBrowserEntry()
+
+const fragment = `
+  <lp-container>
+    <script data-exec="before-dom">${islandRuntime}${entry}</script>
+    <style data-lp-tag>${styles}</style>
+    ${lpApp}
+  </lp-container>
+`
+
+await writeFile(indexPath, fragment)
+```
+
+这里使用 HTML Parser 收集节点，因为产物中包含内联脚本、模块脚本、CSS 顺序和 Astro 生成的资源依赖。对整份 HTML 做字符串替换，遇到标签属性或输出格式变化时容易漏内容。
+
+当前实现有一个已知限制：代码会收集并编译 `moduleScriptContent`，但 VIVAIA 主站分支没有把它写回最终片段。现在 `~entry` 只生成样式导入，Vue Island 使用独立资源链，所以现有产物可以运行。如果以后向 `~entry` 增加业务 JavaScript，需要先补上模块脚本注入。
+
+## Nuxt 服务端读取 LP 数据
+
+主站没有直接从浏览器请求 OSS。页面先访问 `/server-api/campaign/:id`，Nitro 路由再读取构建后上传的 JSON 文件。
+
+请求参数只允许字母、数字、连字符和下划线，避免把 `..`、`/` 等路径内容拼进 OSS 地址。语言参数只允许字母和连字符。
+
+```ts
+const idRegex = /^[a-zA-Z0-9-_]+$/
+const langRegex = /^[a-zA-Z-]+$/
+const defaultLang = 'en'
+
+export default defineEventHandler(async (event) => {
+	const id = getRouterParam(event, 'id')
+	const rawLang = getQuery(event).lang
+	let lang = typeof rawLang === 'string' ? rawLang : defaultLang
+	const targetBase = useRuntimeConfig().server.lpOSSBaseURL
+
+	if (!id || !idRegex.test(id) || !langRegex.test(lang)) {
+		return createHttpError(event, {
+			status: 400,
+			message: 'Invalid campaign parameter',
+		})
+	}
+
+	const getRequestPath = () => joinURL(targetBase, id, `${lang}.json`)
+	let lpData: LPData | null = await $fetch<LPData>(getRequestPath()).catch(
+		() => null
+	)
+
+	if (!lpData && lang !== defaultLang) {
+		lang = defaultLang
+		lpData = await $fetch<LPData>(getRequestPath()).catch(() => null)
+	}
+
+	if (!lpData) {
+		return createHttpError(event, {
+			status: 404,
+			message: 'LP data not found',
+		})
+	}
+
+	const {
+		title,
+		description,
+		keywords,
+		template,
+		contentPath,
+		showPageFooter,
+		showPageHeader,
+		showPagePolicy,
+	} = lpData
+
+	return {
+		status: 200,
+		data: {
+			path: joinURL(id, contentPath, lang),
+			template,
+			title,
+			description,
+			keywords,
+			showPageFooter,
+			showPageHeader,
+			showPagePolicy,
+		},
+	}
+})
+```
+
+`path` 是资源目录，不是页面路由。页面会把它拼到静态资源域名后面，供 Astro Island 加载组件和 Renderer。
+
+生产环境还会设置 720 小时的缓存：
+
+```ts
+if (!import.meta.dev) {
+	setHeaders(event, {
+		'Cache-Control': `max-age=${720 * 3600}`,
+		'Edge-Cache-Tag': 'campaign-server-api',
+		Expires: expiresDate,
+	})
+}
+```
+
+LP 发布后内容很少变动，请求通常由 CDN 缓存处理。缓存未命中时才会进入 Node 服务并读取 OSS。
+
+## Nuxt 页面处理 SSR 和 SPA 两种加载方式
+
+页面使用 `useAsyncData()` 请求 Nitro 路由，并通过 `v-html` 输出模板：
+
+```vue
+<template>
+	<div ref="lpContainerRef">
+		<div
+			v-if="!fetchError"
+			:id="containerId"
+			v-html="htmlContent"
+			class="campaign-wrapper"
+		></div>
+	</div>
+</template>
+```
+
+SSR 和 SPA 对模板数据的处理不同。SSR 已经把 LP 写进页面 HTML，没有必要再把同一份字符串放进 `#__NUXT_DATA__`。服务端给 `htmlContent` 赋值后，会从 `useAsyncData()` 的返回值中删除 `template`：
+
+```ts
+const htmlContent = ref(getInitialHtml())
+
+const { data: page, error: fetchError } = await useAsyncData(
+	`campaign-${id.value}`,
+	async () => {
+		const res = await $fetch(`/server-api/campaign/${id.value}`, {
+			query: { lang: lang.value },
+		})
+		const data = res.data || null
+		if (!data) return null
+
+		if (import.meta.server) {
+			htmlContent.value = data.template || ''
+			const { template, ...rest } = data
+			return rest
+		}
+
+		return data
+	}
+)
+```
+
+客户端开始 Hydration 时，`page` 来自 Nuxt payload，其中已经没有 `template`。为了让 `htmlContent` 的初始值与服务端 DOM 一致，页面会读取现有容器内容：
+
+```ts
+const getInitialHtml = () => {
+	if (import.meta.client && nuxtApp.isHydrating) {
+		const element = document.getElementById(containerId.value)
+		return element ? element.innerHTML : ''
+	}
+	return ''
+}
+```
+
+如果客户端初始值为空，Vue Hydration 时看到的状态与服务端 HTML 不一致，可能重新处理整段 LP。这里直接复用现有 DOM，同时避免把大段模板重复序列化到 payload。
+
+页面还会在 `<head>` 中提前写入资源前缀和 SSR 标记：
+
+```ts
+useHead({
+	script: [
+		{
+			key: 'lp-config',
+			innerHTML: `
+        window.__lpConfig__ = window.__lpConfig__ || {};
+        window.__lpConfig__.ssrRendered = ${import.meta.server};
+        window.__lpConfig__.prefix = ${JSON.stringify(prefix.value)};
+      `.replace(/\s+/g, ''),
+		},
+	],
+})
+```
+
+SSR 返回的 `<lp-container>` 会随主文档一起解析，内部脚本可以按 HTML 顺序执行。`ssrRendered` 为 `true` 时，`onMounted()` 不再重复处理模板。
+
+SPA 跳转时，接口返回值中包含 `template`。`v-html` 不会执行字符串中的 `<script>`，页面先用 `DOMParser` 分离脚本，再按标记控制执行顺序：
+
+```ts
+const processContent = async () => {
+	if (!page.value?.template) return
+
+	window.__lpConfig__ ||= {}
+	window.__lpConfig__.prefix = prefix.value
+
+	const { html, scripts } = parseHtmlAndScripts(page.value.template)
+	const beforeDomScripts = scripts.filter(
+		(script) => script.exec === 'before-dom'
+	)
+	const afterDomScripts = scripts.filter(
+		(script) => script.exec === 'after-dom'
+	)
+
+	await executeScripts(beforeDomScripts)
+	await nextTick()
+	htmlContent.value = html
+	await nextTick()
+	await executeScripts(afterDomScripts)
+}
+```
+
+`executeScripts()` 会创建新的 `<script>` 节点并追加到页面容器。普通脚本按原顺序执行，外部脚本等待 `load` 或 `error` 后再继续。构建产物中的启动脚本标记为 `data-exec="before-dom"`，所以 Astro Island 注册和资源地址处理会先执行，依赖 LP DOM 的脚本则放在 `after-dom`。
+
+## 处理嵌入后的资源路径
+
+假设 Astro 产物位于：
+
+```text
+https://cdn.example.com/lp/summer/en/assets/App.js
+```
+
+但页面实际地址是：
+
+```text
+https://www.example.com/products/shoes
+```
+
+如果片段里仍然是 `./assets/App.js`，浏览器会按当前文档地址解析，最终请求：
+
+```text
+https://www.example.com/products/assets/App.js
+```
+
+这个请求地址不包含 LP 的 CDN 目录，动态组件会返回 404。项目分别在构建阶段和运行阶段处理路径。
+
+构建阶段使用相对 base：
+
+```ts
+export function relativeBasePlugin(): Plugin {
+	return {
+		name: 'vite-plugin-relative-base',
+		config() {
+			return {
+				base: './',
+				build: {
+					cssCodeSplit: false,
+					modulePreload: false,
+				},
+			}
+		},
+	}
+}
+```
+
+`base: './'` 让产物可以部署到不同目录。关闭 `modulePreload` 可以避免浏览器按主站 URL 提前请求错误的 preload 地址。关闭 CSS 拆分后，样式不再通过多个 chunk 继续引用其他相对路径。
+
+运行阶段由主站根据接口返回的 `page.path` 生成资源前缀：
+
+```ts
+const prefix = computed(() => {
+	if (!page.value) return ''
+	return `https://staticdn.vivaia.com/promotion/${useRuntimeConfig().public.modeName}/${page.value.path}`
+})
+```
+
+`initAstroApp()` 再使用 `window.__lpConfig__.prefix` 处理 Astro Island 的资源属性：
+
+```ts
+const urlKeys = [
+	'component-url',
+	'renderer-url',
+	'hydration-url',
+	'before-hydration-url',
+]
+
+AstroIsland.prototype.getAttribute = function (name) {
+	const value = originalGetAttribute.call(this, name)
+	const prefix = window.__lpConfig__?.prefix
+
+	if (prefix && urlKeys.includes(name) && value && !value.startsWith(prefix)) {
+		return `${prefix}${value}`
+	}
+
+	return value
+}
+```
+
+代码没有重写页面中所有 `src` 和 `href`，因为业务链接和图片可能使用其他 CDN。只处理 Astro 动态 import 使用的几个属性即可。
+
+## Astro 与 Vue 的两级水合
+
+Nuxt 管理主站组件树，Astro Island 只管理 `<lp-app>` 内部的 Vue 组件树。两个应用使用不同的挂载节点，不会互相接管 DOM。
+
+LP 内部使用两级水合：
+
+```vue
+<script setup lang="ts">
+import { hydrateOnVisible } from 'vue'
+
+const ProductStory = defineDynamicComponent({
+	loader: () => import('./ProductStory.vue'),
+	hydrate: hydrateOnVisible(),
+})
+</script>
+```
+
+Astro 的 `client:load` 先水合 `App.vue`。Vue 异步组件再根据自己的配置决定水合时间：
+
+- `hydrateOnVisible()`：组件进入视口时水合。
+- `hydrateOnIdle()`：浏览器空闲时水合。
+- 未配置延迟策略的首屏组件跟随根组件水合。
+
+如果所有组件都静态 import 到 `App.vue`，首屏仍会下载这些业务代码。首屏 Hero 也不适合统一改成 `hydrateOnVisible()`，否则 Intersection Observer 触发前无法交互。项目按组件位置和交互时机配置水合策略。
+
+Nuxt SSR 直接输出片段时，浏览器会按文档顺序执行脚本。SPA 跳转使用前面展示的 `processContent()`，先运行 `before-dom` 脚本，再插入 HTML 和运行 `after-dom` 脚本。
+
+## 按语言分别构建
+
+营销 LP 的语言在发布前已经确定。项目为每个 locale 单独执行构建：
+
+```ts
+for (const locale of mainSiteLang) {
+	await runBuild(locale) // VITE_LOCALE=<locale> astro build
+}
+```
+
+Vite 插件在编译阶段把 `$t('hero.title')` 和 `VITE_LOCALE` 替换为当前语言，最终形成独立目录：
+
+```text
+dist/
+├── en/
+├── de/
+├── fr/
+├── es/
+└── it/
+```
+
+每个目录只包含当前语言的数据，因此：
+
+- 每个页面只包含当前语言，不下载运行时 i18n 和其他语言文案。
+- 文案缺失可以在构建阶段发现。
+- CDN 可以按语言目录独立发布和缓存。
+
+语言数量会直接增加构建时间。当前实现使用串行构建，各语言的日志、缓存目录和输出过程不会互相干扰。需要并行时，应先为每个语言隔离缓存和输出目录。
+
+## 同时支持 SSR 首次访问和客户端路由切换
+
+同一份片段既用于 Nuxt SSR 首次访问，也用于客户端路由切换。初始化和清理代码需要支持重复进入页面。
+
+### 1. 初始化要可重复
+
+Custom Element 只能注册一次，Astro Island 的原型也不能每次进入页面都重复 patch。因此代码会先检查：
+
+```ts
+if (!customElements.get('lp-container')) {
+	customElements.define('lp-container', LpContainer)
+}
+
+if (!AstroIsland[ASTRO_ISLAND_PATCH_SYMBOL]) {
+	patchAstroIslandUrl()
+	AstroIsland[ASTRO_ISLAND_PATCH_SYMBOL] = true
+}
+```
+
+### 2. 离开页面时卸载 Vue App
+
+`initVueApp()` 把 `app.unmount()` 注册到 `window.__lpConfig__.unmountFns`。当 `<lp-container>` 从 DOM 中移除时，`disconnectedCallback()` 统一执行这些清理函数。
+
+主站页面的 `onBeforeUnmount()` 还会删除动态插入的 `script[data-lp="true"]`，将 `ssrRendered` 重置为 `false`，并触发 `fengniao_lp:destroy`。如果不执行这些清理，多次路由切换后会残留脚本、事件监听、Observer 和动画实例。
+
+### 3. 浏览器专用逻辑不能在构建时直接执行
+
+`window`、`document`、`customElements` 等 API 放在客户端初始化阶段执行。组件在服务端和客户端首次渲染时需要输出相同内容，否则会产生 hydration mismatch。
+
+## Nuxt 与 Shopify 使用不同产物
+
+Nuxt 主站可以配合 LP 设置资源地址、执行脚本和处理卸载。Shopify 等第三方站点无法保证这些接入条件，宿主样式还可能影响 LP。项目复用 `App.vue`、业务组件和基础工具，再根据宿主生成不同产物：
+
+| 场景     | 主站语言                          | JP/KR 非主站                            |
+| -------- | --------------------------------- | --------------------------------------- |
+| 构建器   | Astro SSG                         | Vite + Vue Custom Element               |
+| 产物     | `index.html` 片段 + `assets/`     | 单个自包含 HTML                         |
+| 样式隔离 | `:where(lp-app)` 选择器前缀       | Shadow DOM                              |
+| 水合     | Astro Island + Vue Lazy Hydration | Vue Custom Element 客户端挂载           |
+| 资源策略 | 相对路径 + 主站 prefix            | CSS/业务代码内联，公共依赖 CDN external |
+
+非主站入口会创建外层 `<lp-app>` 并附加 Shadow Root，再把 `App.vue` 注册为 Vue Custom Element。组件 CSS 与公共 CSS 被收集成字符串，写入 Custom Element 内部的 Shadow Root。
+
+```ts
+const lpApp = document.createElement('lp-app')
+const outerRoot = lpApp.attachShadow({ mode: 'open' })
+
+const LpElement = defineCustomElement(App)
+customElements.define(uniqueElementName, LpElement)
+
+const element = document.createElement(uniqueElementName)
+element.shadowRoot.append(style)
+outerRoot.append(element)
+```
+
+主站产物保留 SSG HTML 和按需水合。第三方站点使用单文件和 Shadow DOM，部署更简单，也能隔离宿主样式，但 Custom Element 会增加客户端启动成本。
+
+Shadow Root 内的 CSS 无法修改宿主页面的 `.post-title`、`.section-spacing` 等节点。这类修正样式写入 `document.head`。LP reset、组件样式和语言样式留在 Shadow Root 内，避免影响宿主页面。
+
+## 可以验证的性能变化
+
+这套构建方式带来以下变化：
+
+1. 首屏内容在构建时已经输出为 HTML，浏览器不用等待 Vue 完成首次 CSR 才看到主体。
+2. 不需要交互的内容不发送组件 JavaScript。
+3. 首屏外的 Vue 异步组件可以延迟到可见或空闲时水合。
+4. 每个语言产物只包含当前语言数据。
+5. 主站使用代码分割，第三方宿主则用单文件减少部署和路径不确定性。
+
+仍然需要关注以下开销：
+
+- `App.vue client:load` 仍然会下载 Astro Island、Vue Renderer 和根组件依赖。
+- 如果主站与 LP 各自打包 Vue，浏览器可能下载两份 Runtime。
+- 大图、视频、埋点和第三方脚本仍可能比框架代码更影响 LCP、INP。
+- Shadow DOM 单文件会减少部署文件数量，但不保证首屏 JavaScript 最小。
+
+验证时需要同时检查构建产物和页面指标。Lighthouse 用于发现分数回退，Network 和 Performance 面板用于确认耗时来自网络、脚本执行、布局还是图片解码。
+
+## 常见故障排查
+
+### 页面有 HTML，但没有交互
+
+先检查 `astro-island` 是否带有 `client` 属性，再检查 Island runtime 是否执行。若片段来自客户端动态插入，还要确认宿主是否主动执行了脚本。
+
+### 动态组件请求 404
+
+检查 `component-url`、`renderer-url` 的最终值，以及 `window.__lpConfig__.prefix` 是否指向当前语言的资源目录。不要只看 DOM 中的原始相对地址，因为运行时可能通过 `getAttribute()` 加上前缀。
+
+### 页面能运行，但主站样式被改坏
+
+检查第三方 CSS 是否加了 `:where(lp-app)` 前缀。对于不可控宿主，再确认组件样式是否真的写入 Shadow Root，而不是停留在 document 样式表中。
+
+### 开发正常，某个语言生产异常
+
+优先比较对应 locale 的独立构建产物。语言和主站类型是编译时状态，不能用 `DEV`、`PROD` 推导 JP/KR 是否属于非主站。
+
+### 首次进入正常，多次切换后越来越卡
+
+检查 `<lp-container>` 移除时是否触发 Vue unmount，并清理 Observer、事件监听和动画实例。旧页面没有完成清理时，这些对象会随着路由切换不断增加。
+
+## 最小验证清单
+
+下面的命令覆盖主站、非主站和性能检查：
+
+```bash
+# 主站默认语言
+pnpm build
+
+# 非主站两条独立链路
+pnpm build:jp
+pnpm build:kr
+
+# 性能回归
+pnpm cli lighthouse
+```
+
+然后直接检查产物：
+
+- 主站 `index.html` 只包含可嵌入的 `<lp-container>`，`_preview.html` 可以独立打开。
+- `assets/` 中保留 App、Vue Renderer 和异步组件 chunk，引用路径不是站点根绝对路径。
+- reset、公共样式和组件样式没有重复出现。
+- JP/KR 输出为单 HTML，LP 样式位于 Shadow Root，宿主修正只在 `document.head` 出现一次。
+- 删除 LP 容器后，没有遗留事件、Observer 和 Vue App。
+
+## 总结
+
+这个项目对 Astro 默认产物做了以下处理：
+
+1. 通过 Astro Integration 生成统一入口。
+2. 在 `astro:build:done` 中提取脚本、样式和 `<lp-app>`，生成 Nuxt 可插入的片段。
+3. Nuxt 服务端从 OSS 读取语言 JSON，并向页面返回模板、SEO 信息和资源目录。
+4. SSR 直接输出模板且不写入 payload，SPA 跳转时手动执行片段中的脚本。
+5. 使用相对 base 和运行时 prefix 修正 Astro Island 的资源地址。
+6. 使用 `<lp-container>` 管理初始化和卸载。
+7. Nuxt 主站保留 SSG 和延迟水合，Shopify 等第三方站点使用 Shadow DOM 单文件。
+
+接入其他宿主时，需要确认资源地址、脚本执行方式、样式作用范围和页面卸载流程。缺少其中任何一项，都可能出现资源 404、只有静态 HTML、样式污染或重复监听。
