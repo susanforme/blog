@@ -1,0 +1,227 @@
+name: local-devops-lab
+
+services:
+  # Local Harbor substitute. Admin: admin / Qwer1234!
+  registry:
+    image: registry:2.8.3
+    container_name: registry
+    restart: unless-stopped
+    environment:
+      REGISTRY_AUTH: htpasswd
+      REGISTRY_AUTH_HTPASSWD_REALM: Local Registry
+      REGISTRY_AUTH_HTPASSWD_PATH: /auth/htpasswd
+    ports:
+      - "8083:5000"
+    volumes:
+      - registry-data:/var/lib/registry
+    configs:
+      - source: registry-auth
+        target: /auth/htpasswd
+
+  # Admin: root / Qwer1234!
+  gitlab:
+    image: gitlab/gitlab-ce:19.0.5-ce.0
+    container_name: gitlab
+    restart: unless-stopped
+    hostname: gitlab.localhost
+    environment:
+      GITLAB_ROOT_PASSWORD: "Qwer1234!"
+      GITLAB_OMNIBUS_CONFIG: |
+        external_url 'http://localhost:8929'
+        gitlab_rails['gitlab_shell_ssh_port'] = 2424
+        gitlab_rails['allow_local_requests_from_web_hooks_and_services'] = true
+    ports:
+      - "8929:8929"
+      - "2424:22"
+    volumes:
+      - gitlab-config:/etc/gitlab
+      - gitlab-logs:/var/log/gitlab
+      - gitlab-data:/var/opt/gitlab
+    shm_size: 256m
+
+  # Seeds/updates http://localhost:8929/root/start from ./nuxt-start.
+  gitlab-seed:
+    image: alpine/git:2.49.1
+    restart: "no"
+    depends_on:
+      gitlab:
+        condition: service_healthy
+    environment:
+      GIT_AUTHOR_NAME: Local DevOps
+      GIT_AUTHOR_EMAIL: devops@localhost
+      GIT_COMMITTER_NAME: Local DevOps
+      GIT_COMMITTER_EMAIL: devops@localhost
+    entrypoint: []
+    command:
+      - /bin/sh
+      - -c
+      - |
+        set -eu
+        git init -b main /tmp/start
+        export GIT_DIR=/tmp/start/.git GIT_WORK_TREE=/source
+        git remote add origin http://root:Qwer1234!@gitlab:8929/root/start.git
+        if git fetch origin main; then
+          git update-ref refs/heads/main FETCH_HEAD
+          git read-tree FETCH_HEAD
+        fi
+        git add -A
+        if git diff --cached --quiet; then
+          echo "GitLab start repository is already up to date"
+          exit 0
+        fi
+        git commit -m "Update Nuxt start"
+        git push origin main
+    volumes:
+      - ./nuxt-start:/source:ro
+
+  # Admin: admin / Qwer1234!
+  jenkins:
+    build:
+      context: ./jenkins
+    image: local/jenkins:2.361.2-lts-docker
+    container_name: jenkins
+    restart: unless-stopped
+    user: root
+    depends_on:
+      gitlab-seed:
+        condition: service_completed_successfully
+      rancher:
+        condition: service_healthy
+      registry:
+        condition: service_started
+    environment:
+      JAVA_OPTS: -Djenkins.install.runSetupWizard=false
+      JENKINS_ADMIN_ID: admin
+      JENKINS_ADMIN_PASSWORD: "Qwer1234!"
+      GITLAB_REPOSITORY_URL: http://root:Qwer1234!@gitlab:8929/root/start.git
+      REGISTRY_PUSH: localhost:8083
+      REGISTRY_PULL: registry:5000
+      REGISTRY_USERNAME: admin
+      REGISTRY_PASSWORD: "Qwer1234!"
+    ports:
+      - "8081:8080"
+      - "50000:50000"
+    volumes:
+      - jenkins-home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+    configs:
+      - source: jenkins-init
+        target: /var/jenkins_home/init.groovy.d/bootstrap.groovy
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://localhost:8080/login"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  # Admin: admin / Qwer1234!
+  rancher:
+    image: rancher/rancher:v2.8.5
+    container_name: rancher
+    restart: unless-stopped
+    privileged: true
+    environment:
+      CATTLE_BOOTSTRAP_PASSWORD: "Qwer1234!"
+    ports:
+      - "8082:80"
+      - "8444:443"
+      - "30080:30080"
+    volumes:
+      - rancher-data:/var/lib/rancher
+    configs:
+      - source: rancher-registries
+        target: /etc/rancher/k3s/registries.yaml
+    healthcheck:
+      test: ["CMD", "curl", "--insecure", "--fail", "--silent", "https://localhost/ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+configs:
+  registry-auth:
+    content: |
+      admin:$$2y$$05$$uUfeRGN4pKUGn/1nV7ALTOzRJDD5KRcdaIo28na5T3AMU5DQruCya
+  jenkins-init:
+    content: |
+      import hudson.model.FreeStyleProject
+      import hudson.model.User
+      import hudson.security.FullControlOnceLoggedInAuthorizationStrategy
+      import hudson.security.HudsonPrivateSecurityRealm
+      import hudson.tasks.Shell
+      import jenkins.model.Jenkins
+
+      def instance = Jenkins.get()
+      def username = System.getenv('JENKINS_ADMIN_ID')
+      def password = System.getenv('JENKINS_ADMIN_PASSWORD')
+      def realm = instance.getSecurityRealm()
+
+      if (!(realm instanceof HudsonPrivateSecurityRealm)) {
+        realm = new HudsonPrivateSecurityRealm(false)
+        instance.setSecurityRealm(realm)
+      }
+      if (User.getById(username, false) == null) {
+        realm.createAccount(username, password)
+      }
+
+      def authorization = new FullControlOnceLoggedInAuthorizationStrategy()
+      authorization.setAllowAnonymousRead(false)
+      instance.setAuthorizationStrategy(authorization)
+      instance.setCrumbIssuer(null)
+
+      def job = instance.getItem('start')
+      def created = job == null
+      if (created) {
+        job = instance.createProject(FreeStyleProject, 'start')
+      }
+      job.setDescription('GitLab start -> Docker Registry -> Rancher local cluster')
+      job.setConcurrentBuild(false)
+      job.getBuildersList().clear()
+      job.getBuildersList().add(new Shell('''
+      set -eu
+      rm -rf source
+      git clone --depth 1 "$$GITLAB_REPOSITORY_URL" source
+      cd source
+
+      docker exec gitlab gitlab-rails runner "project = Project.find_by_full_path('root/start'); url = 'http://admin:Qwer1234%21@jenkins:8080/job/start/build'; hook = project.hooks.find_or_initialize_by(url: url); hook.push_events = true; hook.push_events_branch_filter = 'main'; hook.enable_ssl_verification = false; hook.save!"
+
+      commit="$$(git rev-parse HEAD)"
+      last_commit="$$(cat "$$JENKINS_HOME/start.last-commit" 2>/dev/null || true)"
+      if [ "$$commit" = "$$last_commit" ]; then
+        echo "Commit $$commit is already deployed"
+        exit 0
+      fi
+
+      echo "$$REGISTRY_PASSWORD" | docker login "$$REGISTRY_PUSH" --username "$$REGISTRY_USERNAME" --password-stdin
+      image="$$REGISTRY_PUSH/start:$$BUILD_NUMBER"
+      docker build --tag "$$image" .
+      docker push "$$image"
+      docker tag "$$image" "$$REGISTRY_PUSH/start:latest"
+      docker push "$$REGISTRY_PUSH/start:latest"
+
+      sed "s|__IMAGE__|$$REGISTRY_PULL/start:$$BUILD_NUMBER|" k8s.yaml | docker exec -i rancher kubectl apply -f -
+      docker exec rancher kubectl -n start rollout status deployment/start --timeout=180s
+      printf '%s' "$$commit" > "$$JENKINS_HOME/start.last-commit"
+      '''.stripIndent()))
+      job.save()
+      instance.save()
+      if (created) {
+        job.scheduleBuild2(5)
+      }
+  rancher-registries:
+    content: |
+      mirrors:
+        "registry:5000":
+          endpoint:
+            - "http://registry:5000"
+      configs:
+        "registry:5000":
+          auth:
+            username: admin
+            password: "Qwer1234!"
+
+volumes:
+  registry-data:
+  gitlab-config:
+  gitlab-logs:
+  gitlab-data:
+  jenkins-home:
+  rancher-data:
